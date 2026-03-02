@@ -11,13 +11,21 @@ import styles from "../REDMS.module.css";
 const $ = formatCurrency;
 
 export function DealSidebar({
+    isAdmin = true,
     sidebarCollapsed,
     currentDealId,
     currentDealIsShared = false,
     handleDealSelect,
     handleDeleteDeal,
+    handleLoadDeal,
+    handleRemoveFavorite,
     handleSaveDeal,
     savedDeals,
+    userFavorites = [],
+    favoritesLoading = false,
+    refreshFavorites,
+    newSharedDeals = [],
+    onDismissNewDeals,
     inp,
     upd,
     setRehabLevel,
@@ -61,6 +69,86 @@ export function DealSidebar({
             className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}
             aria-hidden={sidebarCollapsed}
         >
+            {!isAdmin && newSharedDeals.length > 0 && (
+            <div className={styles["new-deals-notification"]}>
+                <div className={styles["new-deals-notification-header"]}>
+                    <span className={styles["new-deals-notification-title"]}>
+                        {newSharedDeals.length === 1
+                            ? "1 deal has been shared with you"
+                            : `${newSharedDeals.length} deals have been shared with you`}
+                    </span>
+                    <button
+                        type="button"
+                        className={styles["new-deals-notification-dismiss"]}
+                        onClick={onDismissNewDeals}
+                        aria-label="Dismiss notification"
+                    >
+                        ×
+                    </button>
+                </div>
+                <p className={styles["new-deals-notification-msg"]}>
+                    since your last login. Click a deal to view:
+                </p>
+                <ul className={styles["new-deals-notification-list"]}>
+                    {newSharedDeals.map((d) => (
+                        <li key={d.id}>
+                            <button
+                                type="button"
+                                className={styles["new-deals-notification-link"]}
+                                onClick={() => handleLoadDeal(d.id)}
+                            >
+                                {d.dealName}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            )}
+
+            {!isAdmin && (
+            <div className={styles["saved-deals-sec"]} style={{ marginBottom: "1rem" }}>
+                <div className={styles["sec-label"]}>My Favorites</div>
+                <div className={styles["saved-deals-actions"]}>
+                    <button
+                        type="button"
+                        className={styles["btn-refresh-deals"]}
+                        onClick={refreshFavorites}
+                        disabled={favoritesLoading}
+                        aria-label="Refresh favorites"
+                    >
+                        {favoritesLoading ? "…" : "↻"}
+                    </button>
+                </div>
+                <ul className={styles["saved-deals-list"]} aria-label="Favorite deals">
+                    {userFavorites.length === 0 && !favoritesLoading && (
+                        <li className={styles["saved-deals-empty"]}>
+                            No favorites yet. View a shared deal and click &quot;Save to Favorite&quot; to add it.
+                        </li>
+                    )}
+                    {userFavorites.map((fav) => (
+                        <li key={fav.id} className={styles["saved-deals-item"]}>
+                            <button
+                                type="button"
+                                className={styles["saved-deals-load"]}
+                                onClick={() => handleLoadDeal(fav.dealId)}
+                            >
+                                {fav.dealName || fav.dealId || "Untitled"}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles["saved-deals-delete"]}
+                                onClick={(e) => handleRemoveFavorite(fav, e)}
+                                aria-label={`Remove ${fav.dealName || fav.dealId} from favorites`}
+                                title="Remove from favorites"
+                            >
+                                ×
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            )}
+
             <div className={styles["deal-select-wrap"]}>
                 <label htmlFor="redms-deal-select" className={styles["deal-select-label"]}>
                     Deal
@@ -70,14 +158,34 @@ export function DealSidebar({
                     className={styles["deal-select"]}
                     value={currentDealId ?? ""}
                     onChange={handleDealSelect}
-                    aria-label="Load a saved deal or blank template"
+                    aria-label={isAdmin ? "Load a saved deal or blank template" : "Select a deal to view"}
                 >
-                    <option value="">New deal (blank template)</option>
-                    {savedDeals.map((deal) => (
-                        <option key={deal.id} value={deal.id}>
-                            {deal.dealName}
-                        </option>
-                    ))}
+                    {isAdmin ? (
+                        <>
+                            <option value="">New deal (blank template)</option>
+                            {savedDeals.map((deal) => (
+                                <option key={deal.id} value={deal.id}>
+                                    {deal.dealName}
+                                </option>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <option value="">— Select a deal —</option>
+                            {userFavorites.map((fav) => (
+                                <option key={fav.id} value={fav.dealId}>
+                                    {fav.dealName || fav.dealId || "Untitled"}
+                                </option>
+                            ))}
+                            {savedDeals
+                                .filter((d) => !userFavorites.some((f) => f.dealId === d.id))
+                                .map((deal) => (
+                                    <option key={deal.id} value={deal.id}>
+                                        {deal.dealName}
+                                    </option>
+                                ))}
+                        </>
+                    )}
                 </select>
             </div>
 
@@ -562,9 +670,11 @@ export function DealSidebar({
                 <div className={styles["cost-bar-foot"]}>{costPct.toFixed(1)}% of limit used</div>
             </div>
 
+            {isAdmin && (
             <div className={styles["saved-deals-sec"]}>
                 <div className={styles["sec-label"]}>Saved deals</div>
                 <div className={styles["saved-deals-actions"]}>
+                    {isAdmin && (
                     <button
                         type="button"
                         className={styles["btn-save-deal"]}
@@ -574,6 +684,7 @@ export function DealSidebar({
                     >
                         {saveInProgress ? "Saving…" : currentDealId ? "Update deal" : "Save deal"}
                     </button>
+                    )}
                     <button
                         type="button"
                         className={styles["btn-refresh-deals"]}
@@ -586,7 +697,9 @@ export function DealSidebar({
                 </div>
                 <ul className={styles["saved-deals-list"]} aria-label="Saved property deals">
                     {savedDeals.length === 0 && !savedDealsLoading && (
-                        <li className={styles["saved-deals-empty"]}>No saved deals yet.</li>
+                        <li className={styles["saved-deals-empty"]}>
+                            No saved deals yet.
+                        </li>
                     )}
                     {savedDeals.map((deal) => (
                         <li key={deal.id} className={styles["saved-deals-item"]}>
@@ -597,6 +710,7 @@ export function DealSidebar({
                             >
                                 {deal.dealName}
                             </button>
+                            {isAdmin && (
                             <button
                                 type="button"
                                 className={styles["saved-deals-delete"]}
@@ -607,10 +721,12 @@ export function DealSidebar({
                             >
                                 ×
                             </button>
+                            )}
                         </li>
                     ))}
                 </ul>
             </div>
+            )}
             </fieldset>
         </aside>
     );

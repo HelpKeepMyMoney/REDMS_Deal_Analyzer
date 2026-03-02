@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   calc,
   DEFAULT_INPUT,
@@ -15,6 +15,9 @@ import {
 } from "./logic";
 import { useNavigate, Link } from "react-router-dom";
 import { loadDeals, loadDeal, saveDeal, deleteDeal } from "./logic/firestoreStorage.js";
+import { loadUserFavorites, removeFavorite } from "./logic/userFavoritesStorage.js";
+import { getLastLoginAt, setLastLoginAt } from "./logic/userMetadataStorage.js";
+import { createInterestApi } from "./logic/interestApi.js";
 import { useAuth } from "./contexts/AuthContext.jsx";
 import { useConfig } from "./contexts/ConfigContext.jsx";
 import {
@@ -26,6 +29,7 @@ import {
   ProjectionsTab,
   CpinTab,
   PropertySearch,
+  DealInterestActions,
 } from "./components";
 import { generateDealPDF } from "./utils/pdfExport.js";
 import styles from "./REDMS.module.css";
@@ -51,29 +55,38 @@ export default function REDMS() {
   const { user, isAdmin, signOut } = useAuth();
   const { config } = useConfig();
   const navigate = useNavigate();
-  const [inp, setInp] = useState(getInitialInput);
+  const [inp, setInp] = useState(() => getInitialInput());
   const [tab, setTab] = useState("flip");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [savedDeals, setSavedDeals] = useState([]);
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
+  const [userFavorites, setUserFavorites] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [newSharedDeals, setNewSharedDeals] = useState([]);
   const [saveInProgress, setSaveInProgress] = useState(false);
   const [currentDealId, setCurrentDealId] = useState(null);
   const [showPropertySearch, setShowPropertySearch] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
 
   useEffect(() => {
-    saveStoredInput(inp);
-  }, [inp]);
+    if (isAdmin || currentDealId) saveStoredInput(inp);
+  }, [inp, isAdmin, currentDealId]);
 
   const refreshDeals = async () => {
     if (!user?.uid) return;
     setSavedDealsLoading(true);
     try {
-      const list = await loadDeals(user.uid);
+      let list = await loadDeals(user.uid);
+      if (!isAdmin) list = list.filter((d) => d.isShared);
       setSavedDeals(list);
       if (currentDealId) {
         const meta = list.find((d) => d.id === currentDealId);
-        setCurrentDealIsShared(meta?.isShared ?? false);
+        if (!meta && !isAdmin) {
+          setCurrentDealId(null);
+          setCurrentDealIsShared(false);
+        } else {
+          setCurrentDealIsShared(meta?.isShared ?? false);
+        }
       }
     } catch (e) {
       console.error("Failed to load deals", e);
@@ -84,7 +97,53 @@ export default function REDMS() {
 
   useEffect(() => {
     refreshDeals();
-  }, [user?.uid]);
+  }, [user?.uid, isAdmin]);
+
+  const refreshFavorites = useCallback(async () => {
+    if (!user?.uid || isAdmin) return;
+    setFavoritesLoading(true);
+    try {
+      const favs = await loadUserFavorites(user.uid);
+      setUserFavorites(favs);
+    } catch (e) {
+      console.error("Failed to load favorites", e);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, [user?.uid, isAdmin]);
+
+  useEffect(() => {
+    refreshFavorites();
+  }, [refreshFavorites]);
+
+  useEffect(() => {
+    if (isAdmin || !user?.uid || savedDealsLoading) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const lastLogin = await getLastLoginAt(() => user.getIdToken());
+        if (cancelled) return;
+        if (lastLogin === null) {
+          setNewSharedDeals(savedDeals);
+          return;
+        }
+        const newDeals = savedDeals.filter((d) => (d.updatedAt || "") > lastLogin);
+        setNewSharedDeals(newDeals);
+      } catch (e) {
+        if (!cancelled) console.error("Failed to check new shared deals", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.uid, isAdmin, savedDeals, savedDealsLoading]);
+
+  const handleDismissNewDeals = async () => {
+    try {
+      await setLastLoginAt(user.uid, () => user.getIdToken());
+      setNewSharedDeals([]);
+    } catch (e) {
+      console.error("Failed to dismiss new deals notification", e);
+    }
+  };
 
   const [currentDealIsShared, setCurrentDealIsShared] = useState(false);
 
@@ -103,7 +162,7 @@ export default function REDMS() {
   };
 
   const handleSaveDeal = async () => {
-    if (!user?.uid) return;
+    if (!isAdmin || !user?.uid) return;
     setSaveInProgress(true);
     try {
       const payload = { ...inp, dealName: formatAddress(inp) || "Untitled" };
@@ -123,14 +182,29 @@ export default function REDMS() {
   };
 
   const handleLoadBlank = () => {
+    if (!isAdmin) return;
     setInp(sanitizeInput({ ...DEFAULT_INPUT }));
     setCurrentDealId(null);
     setCurrentDealIsShared(false);
   };
 
+  const handleRemoveFavorite = async (fav, e) => {
+    e?.stopPropagation?.();
+    if (!fav?.id) return;
+    try {
+      await removeFavorite(fav.id);
+      if (currentDealId === fav.dealId) {
+        setCurrentDealId(null);
+      }
+      await refreshFavorites();
+    } catch (e) {
+      console.error("Failed to remove favorite", e);
+    }
+  };
+
   const handleDeleteDeal = async (id, e) => {
     e?.stopPropagation?.();
-    if (!id) return;
+    if (!isAdmin || !id) return;
     try {
       await deleteDeal(id);
       if (currentDealId === id) {
@@ -145,7 +219,8 @@ export default function REDMS() {
   const handleDealSelect = (e) => {
     const value = e.target.value;
     if (value === "") {
-      handleLoadBlank();
+      if (isAdmin) handleLoadBlank();
+      else setCurrentDealId(null);
     } else {
       handleLoadDeal(value);
     }
@@ -163,6 +238,7 @@ export default function REDMS() {
   };
 
   const handleImportProperty = async (propertyData) => {
+    if (!isAdmin) return;
     const newInp = {
       ...DEFAULT_INPUT,
       address: undefined,
@@ -228,6 +304,10 @@ export default function REDMS() {
   const maxTpc = config?.maxTpc ?? 60000;
   const inpForCalc = useMemo(() => sanitizeInput(inp), [inp]);
   const r = useMemo(() => calc(inpForCalc, config), [inpForCalc, config]);
+  const interestApi = useMemo(
+    () => (user ? createInterestApi(() => user.getIdToken()) : null),
+    [user]
+  );
 
   const costPct = Math.min((r.bhTotalInvestment / maxTpc) * 100, 100);
   const costClr = r.bhTotalInvestment <= maxTpc ? "var(--green)" : "var(--red)";
@@ -250,8 +330,8 @@ export default function REDMS() {
               type="button"
               className={styles["hdr-pdf-btn"]}
               onClick={handleExportPDF}
-              disabled={pdfExporting}
-              title="Download deal summary as PDF"
+              disabled={pdfExporting || (!isAdmin && !currentDealId)}
+              title={!isAdmin && !currentDealId ? "Select a deal first" : "Download deal summary as PDF"}
             >
               {pdfExporting ? "Generating…" : "Print PDF"}
             </button>
@@ -293,12 +373,20 @@ export default function REDMS() {
 
       <div className={styles.main}>
         <DealSidebar
+          isAdmin={isAdmin}
           sidebarCollapsed={sidebarCollapsed}
           currentDealId={currentDealId}
           currentDealIsShared={currentDealIsShared}
           handleDealSelect={handleDealSelect}
           handleDeleteDeal={handleDeleteDeal}
+          handleLoadDeal={handleLoadDeal}
+          handleRemoveFavorite={handleRemoveFavorite}
           savedDeals={savedDeals}
+          userFavorites={userFavorites}
+          favoritesLoading={favoritesLoading}
+          refreshFavorites={refreshFavorites}
+          newSharedDeals={newSharedDeals}
+          onDismissNewDeals={handleDismissNewDeals}
           inp={inp}
           upd={upd}
           setRehabLevel={setRehabLevel}
@@ -318,11 +406,28 @@ export default function REDMS() {
             <PropertySearch
               userId={user?.uid}
               isAdmin={isAdmin}
-              onImportProperty={handleImportProperty}
+              onImportProperty={isAdmin ? handleImportProperty : undefined}
               onCancel={() => setShowPropertySearch(false)}
             />
+          ) : !isAdmin && !currentDealId ? (
+            <div className={styles["no-deal-placeholder"]}>
+              <p className={styles["no-deal-msg"]}>
+                {userFavorites.length === 0 && savedDeals.length === 0
+                  ? "No deals yet. Contact an admin to get a shared deal, then save it to favorites."
+                  : "Select a deal from the dropdown or My Favorites above to view."}
+              </p>
+            </div>
           ) : (
             <>
+              {!isAdmin && currentDealId && interestApi && (
+                <DealInterestActions
+                  dealId={currentDealId}
+                  dealName={formatAddress(inp)}
+                  interestApi={interestApi}
+                  onFavoriteSuccess={refreshFavorites}
+                />
+              )}
+
               <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
 
               <div>

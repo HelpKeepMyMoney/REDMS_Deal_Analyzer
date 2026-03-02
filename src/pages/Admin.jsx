@@ -6,6 +6,7 @@ import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
 import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith } from "../logic/savedSearchStorage.js";
+import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -36,6 +37,11 @@ export default function Admin() {
   const [searchShareWithUserIds, setSearchShareWithUserIds] = useState([]);
   const [searchShareWithAll, setSearchShareWithAll] = useState(false);
   const [searchShareSaving, setSearchShareSaving] = useState(false);
+
+  const [interestRequests, setInterestRequests] = useState([]);
+  const [interestLoading, setInterestLoading] = useState(false);
+  const [interestFilter, setInterestFilter] = useState("all");
+  const [interestStatusUpdating, setInterestStatusUpdating] = useState(null);
 
   const adminApi = useMemo(
     () => (user ? createAdminApi(() => user.getIdToken()) : null),
@@ -78,7 +84,12 @@ export default function Admin() {
     if (isAdmin && activeTab === "sharing") {
       setDealsLoading(true);
       loadAllDealsForAdmin()
-        .then(setAllDeals)
+        .then((deals) => {
+          const sorted = [...deals].sort((a, b) =>
+            (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" })
+          );
+          setAllDeals(sorted);
+        })
         .catch((e) => {
           console.error(e);
           setMessage({ type: "error", text: "Failed to load deals: " + e.message });
@@ -97,6 +108,19 @@ export default function Admin() {
           setMessage({ type: "error", text: "Failed to load saved searches: " + e.message });
         })
         .finally(() => setSearchesLoading(false));
+    }
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === "interest") {
+      setInterestLoading(true);
+      loadInterestRequestsForAdmin()
+        .then(setInterestRequests)
+        .catch((e) => {
+          console.error(e);
+          setMessage({ type: "error", text: "Failed to load interest requests: " + e.message });
+        })
+        .finally(() => setInterestLoading(false));
     }
   }, [isAdmin, activeTab]);
 
@@ -174,6 +198,22 @@ export default function Admin() {
     setSearchShareWithUserIds((prev) =>
       prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
     );
+  };
+
+  const handleUpdateInterestStatus = async (id, status) => {
+    setInterestStatusUpdating(id);
+    setMessage({ type: "", text: "" });
+    try {
+      await updateInterestRequestStatus(id, status);
+      setInterestRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status } : r))
+      );
+      setMessage({ type: "success", text: "Status updated." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update: " + e.message });
+    } finally {
+      setInterestStatusUpdating(null);
+    }
   };
 
   const handleSaveSearchShare = async () => {
@@ -307,6 +347,13 @@ export default function Admin() {
             onClick={() => setActiveTab("searchSharing")}
           >
             Search Sharing
+          </button>
+          <button
+            type="button"
+            className={`${styles["admin-tab"]} ${activeTab === "interest" ? styles.active : ""}`}
+            onClick={() => setActiveTab("interest")}
+          >
+            Interest Requests
           </button>
         </div>
 
@@ -634,6 +681,117 @@ export default function Admin() {
                 </>
               ) : null}
             </div>
+          </div>
+        )}
+
+        {activeTab === "interest" && (
+          <div className={styles["admin-card"]} style={{ maxWidth: "100%" }}>
+            <div className={styles["users-header"]}>
+              <h2 className={styles["admin-section-title"]}>Interest Requests</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <label style={{ fontSize: "0.9rem", color: "var(--muted)" }}>
+                  Filter:
+                  <select
+                    value={interestFilter}
+                    onChange={(e) => setInterestFilter(e.target.value)}
+                    style={{ marginLeft: 8, padding: "4px 8px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text)" }}
+                  >
+                    <option value="all">All</option>
+                    <option value="request_analysis">Request Analysis</option>
+                    <option value="favorite">Favorite</option>
+                    <option value="request_zoom">Request Zoom</option>
+                    <option value="start_buying">Start Buying</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <p className={styles["admin-muted"]} style={{ marginBottom: 16 }}>
+              User requests from Find Properties and Deal Analyzer. Emails are sent to admins when users submit.
+            </p>
+            {interestLoading ? (
+              <p className={styles["admin-muted"]}>Loading…</p>
+            ) : (
+              <div className={styles["users-table-container"]}>
+                <table className={styles["users-table"]}>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Type</th>
+                      <th>Property / Deal</th>
+                      <th>Message</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {interestRequests
+                      .filter((r) => interestFilter === "all" || r.type === interestFilter)
+                      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+                      .map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.userEmail}</td>
+                          <td>
+                            <span className={`${styles.badge} ${styles["badge-user"]}`}>
+                              {r.type === "request_analysis" && "Request Analysis"}
+                              {r.type === "favorite" && "Favorite"}
+                              {r.type === "request_zoom" && "Request Zoom"}
+                              {r.type === "start_buying" && "Start Buying"}
+                            </span>
+                          </td>
+                          <td>
+                            {r.type === "request_analysis" && r.propertySnapshot
+                              ? [r.propertySnapshot.addressLine1, r.propertySnapshot.city, r.propertySnapshot.state]
+                                  .filter(Boolean)
+                                  .join(", ") || "—"
+                              : r.dealName || r.dealId || "—"}
+                          </td>
+                          <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.message || "—"}
+                          </td>
+                          <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}</td>
+                          <td>
+                            <span className={`${styles.badge} ${styles[`badge-${r.status === "pending" ? "user" : r.status === "acknowledged" ? "admin" : ""}`]}`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td>
+                            {r.status !== "completed" && (
+                              <>
+                                {r.status === "pending" && (
+                                  <button
+                                    type="button"
+                                    className={styles["btn-action"]}
+                                    onClick={() => handleUpdateInterestStatus(r.id, "acknowledged")}
+                                    disabled={interestStatusUpdating === r.id}
+                                  >
+                                    Acknowledge
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className={styles["btn-action"]}
+                                  onClick={() => handleUpdateInterestStatus(r.id, "completed")}
+                                  disabled={interestStatusUpdating === r.id}
+                                >
+                                  Complete
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    {interestRequests.filter((r) => interestFilter === "all" || r.type === interestFilter).length === 0 && (
+                      <tr>
+                        <td colSpan="7" className={styles["text-center"]}>
+                          No interest requests found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </main>

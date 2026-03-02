@@ -1,11 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { searchProperties, loadSavedSearches, loadSavedSearch, saveSearchResults, deleteSavedSearch, fetchPropertyDetails, analyzePropertyForDeal, formatCurrency, formatPct } from '../../logic';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
+import { useAuth } from '../../contexts/AuthContext.jsx';
+import { createInterestApi } from '../../logic/interestApi.js';
+import { RequestAnalysisModal } from '../RequestAnalysisModal.jsx';
 import styles from './PropertySearch.module.css';
 
 const DEFAULT_IMAGE_PLACEHOLDER = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
 
-function PropertyResultCard({ property, onAnalyze, isAnalyzing, analysis }) {
+function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzing, isRequesting, analysis }) {
     const [imageError, setImageError] = useState(false);
     const imageSrc = imageError
         ? (property.imageFallback || DEFAULT_IMAGE_PLACEHOLDER)
@@ -94,16 +97,29 @@ function PropertyResultCard({ property, onAnalyze, isAnalyzing, analysis }) {
                     <br />
                     {property.city}, {property.state} {property.zipCode}
                 </div>
+                {(onAnalyze || onRequestAnalysis) && (
                 <div className={styles.cardAction}>
-                    <button
-                        type="button"
-                        className={styles.analyzeButton}
-                        onClick={() => onAnalyze(property)}
-                        disabled={isAnalyzing}
-                    >
-                        {isAnalyzing ? 'Loading…' : 'Analyze Deal'}
-                    </button>
+                    {onAnalyze ? (
+                        <button
+                            type="button"
+                            className={styles.analyzeButton}
+                            onClick={() => onAnalyze(property)}
+                            disabled={isAnalyzing}
+                        >
+                            {isAnalyzing ? 'Loading…' : 'Analyze Deal'}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            className={styles.analyzeButton}
+                            onClick={() => onRequestAnalysis(property)}
+                            disabled={isRequesting}
+                        >
+                            {isRequesting ? 'Sending…' : 'Request Analysis'}
+                        </button>
+                    )}
                 </div>
+                )}
             </div>
         </div>
     );
@@ -111,6 +127,11 @@ function PropertyResultCard({ property, onAnalyze, isAnalyzing, analysis }) {
 
 export default function PropertySearch({ userId, isAdmin = false, onImportProperty, onCancel }) {
     const { config } = useConfig();
+    const { user } = useAuth();
+    const interestApi = useMemo(
+        () => (user ? createInterestApi(() => user.getIdToken()) : null),
+        [user]
+    );
     const [criteria, setCriteria] = useState({
         city: 'Detroit',
         state: 'MI',
@@ -142,6 +163,8 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
     const [saveName, setSaveName] = useState('');
     const [analyzingPropertyId, setAnalyzingPropertyId] = useState(null);
     const [fetchedDetailsByPropertyId, setFetchedDetailsByPropertyId] = useState({});
+    const [requestModalProperty, setRequestModalProperty] = useState(null);
+    const [requestSubmitting, setRequestSubmitting] = useState(false);
 
     useEffect(() => {
         if (results.length === 0) {
@@ -195,6 +218,21 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
             console.error('Failed to import property', e);
         } finally {
             setAnalyzingPropertyId(null);
+        }
+    };
+
+    const handleRequestAnalysisSubmit = async ({ propertySnapshot, message }) => {
+        if (!interestApi) return;
+        setRequestSubmitting(true);
+        try {
+            await interestApi.createInterest({
+                type: 'request_analysis',
+                propertySnapshot,
+                message,
+            });
+            setRequestModalProperty(null);
+        } finally {
+            setRequestSubmitting(false);
         }
     };
 
@@ -641,14 +679,25 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                             <PropertyResultCard
                                 key={property.id}
                                 property={property}
-                                onAnalyze={handleAnalyzeClick}
+                                onAnalyze={isAdmin && onImportProperty ? handleAnalyzeClick : undefined}
+                                onRequestAnalysis={!isAdmin && interestApi ? (p) => setRequestModalProperty(p) : undefined}
                                 isAnalyzing={analyzingPropertyId === property.id}
+                                isRequesting={false}
                                 analysis={dealAnalysisByPropertyId[property.id]}
                             />
                         ))}
                     </div>
                 )}
             </div>
+
+            {requestModalProperty && (
+                <RequestAnalysisModal
+                    property={requestModalProperty}
+                    onClose={() => setRequestModalProperty(null)}
+                    onSubmit={handleRequestAnalysisSubmit}
+                    isSubmitting={requestSubmitting}
+                />
+            )}
         </div>
     );
 }

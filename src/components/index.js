@@ -9,3 +9,4 @@ export { BuyAndHoldTab } from "./tabs/BuyAndHoldTab.jsx";
 export { ProjectionsTab } from "./tabs/ProjectionsTab.jsx";
 export { CpinTab } from "./tabs/CpinTab.jsx";
 export { default as PropertySearch } from "./PropertySearch/index.js";
+export { DealInterestActions } from "./DealInterestActions.jsx";
