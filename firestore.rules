@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper: is the current user an admin?
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Deals: owner can read/write; shared users can read only; admin can read all and update sharedWith
+    match /deals/{dealId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || resource.data.sharedWithAll == true
+        || ('sharedWith' in resource.data && request.auth.uid in resource.data.sharedWith)
+        || isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || isAdmin()
+      );
+    }
+    // Saved search results: users can only read/write their own
+    match /savedSearches/{searchId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+    // App config: all authenticated users can read; only admins can write
+    match /appConfig/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    // Admins: any authenticated user can read (to check if they are admin); only admins can write (use Firebase Admin SDK or Console to add first admin)
+    match /admins/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

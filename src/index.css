@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0e10;
+  --surface: #141518;
+  --surface2: #1b1d21;
+  --surface3: #22252b;
+  --border: #272a31;
+  --amber: #f5a623;
+  --amber-soft: rgba(245,166,35,0.12);
+  --green: #27ae60;
+  --green-soft: rgba(39,174,96,0.12);
+  --red: #e74c3c;
+  --red-soft: rgba(231,76,60,0.12);
+  --text: #dde1ea;
+  --muted: #9ca3af;
+  --muted2: #b8bec8;
+  --mono: 'DM Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --body: 'DM Sans', sans-serif;
+  --radius: 3px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+}
+
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
