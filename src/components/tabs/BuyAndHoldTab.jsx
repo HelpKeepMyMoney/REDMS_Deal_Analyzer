@@ -18,9 +18,9 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                 <DetailRow
                     label="Net Operating Income / NOI"
                     val={$(r.noi)}
-                    cls={r.noi >= 7500 ? "g" : "a"}
                     tot
                     div
+                    className="dr-white"
                 />
                 {r.bhAnnualMtg1 > 0 && (
                     <DetailRow label="Less: 1st Mortgage (annual)" val={`(${$(r.bhAnnualMtg1)})`} cls="r" />
@@ -31,16 +31,16 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                 <DetailRow
                     label="Cash Flow After Debt"
                     val={$(r.bhCashFlowAfterDebt)}
-                    cls={r.bhCashFlowAfterDebt >= 0 ? "g" : "r"}
                     tot
                     div
+                    className="dr-white"
                 />
                 <DetailRow label="NOI incl. Reserves" val={$(r.noiWithReserves)} cls="a" />
                 <DetailRow
                     label="Cap Rate"
                     val={pct(r.capRate)}
-                    cls={r.capRate >= 0.1 ? "g" : "a"}
                     tot
+                    className="dr-white"
                 />
             </div>
             <div className={styles.panel}>
@@ -65,16 +65,16 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                 <DetailRow
                     label="Total B&H Investment"
                     val={$(r.bhTotalInvestment)}
-                    cls={r.bhTotalInvestment <= maxTpc ? "g" : "r"}
                     tot
+                    className="dr-white"
                 />
                 <DetailRow label="Annual NOI" val={$(r.noi)} cls="a" />
                 <DetailRow
                     label="Year-1 Cash-on-Cash"
                     val={pct(r.bhCashOnCash)}
-                    cls={r.bhCashOnCash >= 0.1 ? "g" : "a"}
                     tot
                     div
+                    className="dr-white"
                 />
                 <DetailRow label="ARV (Sell to Retail Investor)" val={$(r.arv)} cls="a" />
                 <DetailRow

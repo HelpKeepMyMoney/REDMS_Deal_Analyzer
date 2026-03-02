@@ -20,12 +20,19 @@ service cloud.firestore {
         || isAdmin()
       );
     }
-    // Saved search results: users can only read/write their own
+    // Saved searches: owner can read/write; shared users can read only; admin can read all and update sharedWith
     match /savedSearches/{searchId} {
-      allow read, update, delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || resource.data.sharedWithAll == true
+        || ('sharedWith' in resource.data && request.auth.uid in resource.data.sharedWith)
+        || isAdmin()
+      );
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || isAdmin()
+      );
     }
     // App config: all authenticated users can read; only admins can write
     match /appConfig/{docId} {

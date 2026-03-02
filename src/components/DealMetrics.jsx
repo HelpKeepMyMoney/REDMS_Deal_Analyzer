@@ -19,14 +19,14 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                     </div>
                 </div>
                 <div className={styles["logic-item"]}>
-                    <div className={styles["logic-label"]}>Check 2 · B&H CoC ≥ 10% (BH F30)</div>
+                    <div className={styles["logic-label"]}>Check 2 · B&H CoC ≥ 10%</div>
                     <div className={`${styles["logic-val"]} ${r.dealCheck2 ? styles.logicValFail : styles.logicValPass}`}>
                         {r.dealCheck2 ? "✗ FAIL" : "✓ PASS"}
                     </div>
                     <div className={styles["logic-desc"]}>{pct(r.bhCashOnCash)} cash-on-cash</div>
                 </div>
                 <div className={styles["logic-item"]}>
-                    <div className={styles["logic-label"]}>Check 3 · B&H Cash ≤ ${(maxTpc / 1000).toFixed(0)}K (Summary B31)</div>
+                    <div className={styles["logic-label"]}>Check 3 · B&H Cash ≤ ${(maxTpc / 1000).toFixed(0)}K</div>
                     <div className={`${styles["logic-val"]} ${r.dealCheck3 ? styles.logicValFail : styles.logicValPass}`}>
                         {r.dealCheck3 ? "✗ FAIL" : "✓ PASS"}
                     </div>
@@ -34,7 +34,7 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                 </div>
             </div>
 
-            <div className="metrics">
+            <div className={styles.metrics}>
                 <MetricCard
                     label="NOI (Annual)"
                     val={$(r.noi)}
@@ -42,33 +42,6 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                     c={r.noi > 7499 ? "g" : "a"}
                     grn={r.noi > 7499}
                     hi={r.noi <= 7499}
-                />
-                <MetricCard
-                    label="Investor Flip Profit"
-                    val={$(r.totalInvestorROI)}
-                    sub="Pref ROI + 50% split"
-                    c="a"
-                    hi
-                />
-                <MetricCard
-                    label="Sell to Retail Investor"
-                    val={$(r.arv)}
-                    sub="ARV (Sell to Retail Investor)"
-                    c="a"
-                    hi
-                />
-                <MetricCard
-                    label="Investor Cap Rate"
-                    val={pct(inp.retailCapRate)}
-                    sub="Retail Investor Cap Rate (%)"
-                />
-                <MetricCard
-                    label="Flip Cash-on-Cash"
-                    val={pct(r.cashOnCash)}
-                    sub="Total investor ROI"
-                    c={r.cashOnCash >= 0.2 ? "g" : "r"}
-                    grn={r.cashOnCash >= 0.2}
-                    red={r.cashOnCash < 0.2}
                 />
                 <MetricCard
                     label="B&H Cash-on-Cash"
@@ -92,6 +65,33 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                     sub="Monthly rent ÷ Total Investment"
                     c={(r.totalInvestment + r.mortgage1Amt + r.mortgage2Amt) > 0 && inp.totalRent / (r.totalInvestment + r.mortgage1Amt + r.mortgage2Amt) > 0.017 ? "g" : undefined}
                     grn={(r.totalInvestment + r.mortgage1Amt + r.mortgage2Amt) > 0 && inp.totalRent / (r.totalInvestment + r.mortgage1Amt + r.mortgage2Amt) > 0.017}
+                />
+                <MetricCard
+                    label="Investor Flip Profit"
+                    val={$(r.totalInvestorROI)}
+                    sub="Pref ROI + 50% split"
+                    c="a"
+                    hi
+                />
+                <MetricCard
+                    label="Flip Cash-on-Cash"
+                    val={pct(r.cashOnCash)}
+                    sub="Total investor ROI"
+                    c={r.cashOnCash >= 0.2 ? "g" : "r"}
+                    grn={r.cashOnCash >= 0.2}
+                    red={r.cashOnCash < 0.2}
+                />
+                <MetricCard
+                    label="Sell to Retail Investor"
+                    val={$(r.arv)}
+                    sub="ARV (Sell to Retail Investor)"
+                    c="a"
+                    hi
+                />
+                <MetricCard
+                    label="Investor Cap Rate"
+                    val={pct(inp.retailCapRate)}
+                    sub="Retail Investor Cap Rate (%)"
                 />
             </div>
         </>

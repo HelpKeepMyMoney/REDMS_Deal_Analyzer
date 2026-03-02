@@ -28,6 +28,7 @@ export function FlipTab({ r, inp }) {
                 <DetailRow label="  · Rehab Insurance" val={$(r.rehabIns)} />
                 <DetailRow label="Holding Costs" val={$(r.holdingCosts)} cls="g" />
                 <DetailRow label="2nd Mtg Points" val={$(r.mortgage2Pts)} cls="g" />
+                <DetailRow label="Total Cost" val={$(r.totalCosts)} cls="g" tot className="dr-total" />
                 <DetailRow
                     label="Less: 2nd Mortgage"
                     val={r.mortgage2Amt > 0 ? `(${$(r.mortgage2Amt)})` : $(0)}
@@ -42,8 +43,8 @@ export function FlipTab({ r, inp }) {
             </div>
             <div className={styles.panel}>
                 <div className={styles.ph}>Profit Waterfall — Purchase & Flip Sheet</div>
-                <DetailRow label="ARV / Target Sale Price (B43)" val={$(r.arv)} cls="g" />
-                <DetailRow label="Less: Realtor/Sales Fee (B45)" val={`(${$(r.realtorFee)})`} cls="r" />
+                <DetailRow label="ARV / Target Sale Price" val={$(r.arv)} cls="g" />
+                <DetailRow label="Less: Realtor/Sales Fee" val={`(${$(r.realtorFee)})`} cls="r" />
                 {r.mortgage1Amt > 0 && (
                     <DetailRow label="Less: 1st Mortgage Payoff" val={`(${$(r.mortgage1Amt)})`} cls="r" />
                 )}
@@ -52,42 +53,42 @@ export function FlipTab({ r, inp }) {
                 )}
                 <DetailRow label="Net Proceeds" val={$(r.netProceedsAfterPayoffs)} cls="g" />
                 <DetailRow label="Less: Total Investment" val={`(${$(r.totalInvestment)})`} cls="r" />
-                <DetailRow label="Gross Profit (B55)" val={$(r.grossProfit)} cls="a" tot />
-                <DetailRow label="Less: Preferred ROI / 10% (B56)" val={`(${$(r.preferredROI)})`} cls="r" />
+                <DetailRow label="Gross Profit" val={$(r.grossProfit)} tot className="dr-white" />
+                <DetailRow label="Less: Preferred ROI / 10%" val={`(${$(r.preferredROI)})`} cls="r" />
                 <DetailRow
-                    label="Less: Initial Referral 1/9 (B57)"
+                    label="Less: Initial Referral 1/9"
                     val={`(${$(r.initialReferralDeduct)})`}
                     cls="r"
                 />
-                <DetailRow label="Profit to Split (B58)" val={$(r.profitToSplit)} tot />
+                <DetailRow label="Profit to Split" val={$(r.profitToSplit)} />
                 <DetailRow
-                    label={`Investor ${100 - inp.profitSplitPct}% Share (B59)`}
+                    label={`Investor ${100 - inp.profitSplitPct}% Share`}
                     val={$(r.investorSplit)}
-                    cls="g"
+                    tot
+                    className="dr-white"
                 />
                 <DetailRow
-                    label="Less: Investor Referral 1/9 (B60)"
+                    label="Less: Investor Referral 1/9"
                     val={`(${$(r.investorSplitReferral)})`}
                     cls="r"
                 />
-                <DetailRow label={`BNIC ${inp.profitSplitPct}% Share (B61)`} val={$(r.bnicSplit)} />
-                <DetailRow label="+ Preferred ROI to Investor (B38)" val={$(r.preferredROI)} cls="g" />
+                <DetailRow label={`BNIC ${inp.profitSplitPct}% Share`} val={$(r.bnicSplit)} />
+                <DetailRow label="+ Preferred ROI to Investor" val={$(r.preferredROI)} tot className="dr-white" />
                 <DetailRow
-                    label="Total Investor Profit (B63)"
+                    label="Total Investor Profit"
                     val={$(r.totalInvestorROI)}
-                    cls="a"
                     tot
                     div
+                    className="dr-white"
                 />
                 <DetailRow
-                    label="Cash-on-Cash ROI (B51)"
+                    label="Cash-on-Cash ROI"
                     val={pct(r.cashOnCash)}
                     cls={r.cashOnCash >= 0.2 ? "g" : "a"}
-                    tot
                 />
-                <DetailRow label="Annualized ROI (B52)" val={pct(r.annualizedROI)} cls="a" />
+                <DetailRow label="Annualized ROI" val={pct(r.annualizedROI)} cls="a" />
                 <DetailRow
-                    label="Min Sales Price (B41)"
+                    label="Min Sales Price"
                     val={$(r.minSalesPrice)}
                     cls={r.minSalesPrice <= r.arv ? "g" : "r"}
                 />

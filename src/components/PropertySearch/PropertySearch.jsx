@@ -109,7 +109,7 @@ function PropertyResultCard({ property, onAnalyze, isAnalyzing, analysis }) {
     );
 }
 
-export default function PropertySearch({ userId, onImportProperty, onCancel }) {
+export default function PropertySearch({ userId, isAdmin = false, onImportProperty, onCancel }) {
     const { config } = useConfig();
     const [criteria, setCriteria] = useState({
         city: 'Detroit',
@@ -222,6 +222,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
 
     const handleSearch = async (e) => {
         e.preventDefault();
+        if (!isAdmin) return; // RentCast API restricted to admins
         setLoading(true);
         setError(null);
         setHasSearched(true);
@@ -237,7 +238,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
     };
 
     const handleSaveResults = async () => {
-        if (!userId || results.length === 0) return;
+        if (!userId || !isAdmin || results.length === 0) return;
         const name = saveName.trim() || `Search ${new Date().toLocaleDateString()}`;
         setSaveInProgress(true);
         try {
@@ -266,6 +267,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
 
     const handleDeleteSavedSearch = async (e, id) => {
         e.stopPropagation();
+        if (!isAdmin) return;
         try {
             await deleteSavedSearch(id);
             await refreshSavedSearches();
@@ -327,7 +329,11 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <h1 className={styles.title}>Find Properties</h1>
-                        <p className={styles.subtitle}>Search for active listings that match your investment criteria.</p>
+                        <p className={styles.subtitle}>
+                            {isAdmin
+                                ? 'Search for active listings that match your investment criteria.'
+                                : 'View your saved searches. Contact an admin to run new property searches.'}
+                        </p>
                     </div>
                     <button type="button" onClick={onCancel} className={styles.backButton}>
                         Back to Analyzer
@@ -341,7 +347,11 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                     {savedSearchesLoading ? (
                         <p className={styles.savedSearchesEmpty}>Loading…</p>
                     ) : savedSearches.length === 0 ? (
-                        <p className={styles.savedSearchesEmpty}>No saved searches yet. Run a search and click Save results to save.</p>
+                        <p className={styles.savedSearchesEmpty}>
+                            {isAdmin
+                                ? 'No saved searches yet. Run a search and click Save results to save.'
+                                : 'No saved searches shared with you yet. Contact an admin to share saved searches.'}
+                        </p>
                     ) : (
                         <ul className={styles.savedSearchesList}>
                             {savedSearches.map((s) => (
@@ -352,16 +362,19 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                                         onClick={() => handleLoadSavedSearch(s.id)}
                                     >
                                         {s.name} ({s.resultCount} properties)
+                                        {s.isShared && ' (shared)'}
                                     </button>
-                                    <button
-                                        type="button"
-                                        className={styles.savedSearchDelete}
-                                        onClick={(e) => handleDeleteSavedSearch(e, s.id)}
-                                        title="Delete saved search"
-                                        aria-label={`Delete ${s.name}`}
-                                    >
-                                        Delete
-                                    </button>
+                                    {isAdmin && !s.isShared && (
+                                        <button
+                                            type="button"
+                                            className={styles.savedSearchDelete}
+                                            onClick={(e) => handleDeleteSavedSearch(e, s.id)}
+                                            title="Delete saved search"
+                                            aria-label={`Delete ${s.name}`}
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -369,6 +382,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                 </div>
             )}
 
+            {isAdmin && (
             <form className={styles.searchForm} onSubmit={handleSearch}>
                 <div className={styles.formGrid}>
                     <div className={styles.fieldGroup}>
@@ -469,6 +483,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                     ) : 'Search Deals'}
                 </button>
             </form>
+            )}
 
             {error && <div className={styles.errorMsg}>{error}</div>}
 
@@ -481,7 +496,7 @@ export default function PropertySearch({ userId, onImportProperty, onCancel }) {
                                 {filteredAndSortedResults.length} of {results.length} properties
                             </span>
                         </div>
-                        {userId && results.length > 0 && (
+                        {userId && isAdmin && results.length > 0 && (
                             <div className={styles.saveResultsRow}>
                                 <input
                                     type="text"

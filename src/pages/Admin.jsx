@@ -5,6 +5,7 @@ import { useConfig } from "../contexts/ConfigContext.jsx";
 import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
 import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
+import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith } from "../logic/savedSearchStorage.js";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -28,6 +29,13 @@ export default function Admin() {
   const [shareWithUserIds, setShareWithUserIds] = useState([]);
   const [shareWithAll, setShareWithAll] = useState(false);
   const [shareSaving, setShareSaving] = useState(false);
+
+  const [allSearches, setAllSearches] = useState([]);
+  const [searchesLoading, setSearchesLoading] = useState(false);
+  const [selectedSearchId, setSelectedSearchId] = useState("");
+  const [searchShareWithUserIds, setSearchShareWithUserIds] = useState([]);
+  const [searchShareWithAll, setSearchShareWithAll] = useState(false);
+  const [searchShareSaving, setSearchShareSaving] = useState(false);
 
   const adminApi = useMemo(
     () => (user ? createAdminApi(() => user.getIdToken()) : null),
@@ -80,6 +88,19 @@ export default function Admin() {
   }, [isAdmin, activeTab]);
 
   useEffect(() => {
+    if (isAdmin && activeTab === "searchSharing") {
+      setSearchesLoading(true);
+      loadAllSavedSearchesForAdmin()
+        .then(setAllSearches)
+        .catch((e) => {
+          console.error(e);
+          setMessage({ type: "error", text: "Failed to load saved searches: " + e.message });
+        })
+        .finally(() => setSearchesLoading(false));
+    }
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
     if (selectedDealId && allDeals.length > 0) {
       const d = allDeals.find((x) => x.id === selectedDealId);
       if (d) {
@@ -91,6 +112,19 @@ export default function Admin() {
       setShareWithAll(false);
     }
   }, [selectedDealId, allDeals]);
+
+  useEffect(() => {
+    if (selectedSearchId && allSearches.length > 0) {
+      const s = allSearches.find((x) => x.id === selectedSearchId);
+      if (s) {
+        setSearchShareWithUserIds(s.sharedWith || []);
+        setSearchShareWithAll(s.sharedWithAll || false);
+      }
+    } else {
+      setSearchShareWithUserIds([]);
+      setSearchShareWithAll(false);
+    }
+  }, [selectedSearchId, allSearches]);
 
   const handleSaveParams = async () => {
     if (!params) return;
@@ -134,6 +168,35 @@ export default function Admin() {
     setShareWithUserIds((prev) =>
       prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
     );
+  };
+
+  const toggleSearchShareUser = (uid) => {
+    setSearchShareWithUserIds((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
+    );
+  };
+
+  const handleSaveSearchShare = async () => {
+    if (!selectedSearchId) {
+      setMessage({ type: "error", text: "Select a saved search first." });
+      return;
+    }
+    setSearchShareSaving(true);
+    setMessage({ type: "", text: "" });
+    try {
+      await updateSavedSearchSharedWith(selectedSearchId, searchShareWithUserIds, searchShareWithAll);
+      const updated = allSearches.map((s) =>
+        s.id === selectedSearchId
+          ? { ...s, sharedWith: searchShareWithUserIds, sharedWithAll: searchShareWithAll }
+          : s
+      );
+      setAllSearches(updated);
+      setMessage({ type: "success", text: "Saved search sharing updated." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update sharing: " + e.message });
+    } finally {
+      setSearchShareSaving(false);
+    }
   };
 
   const handleCreateUser = async (e) => {
@@ -207,7 +270,7 @@ export default function Admin() {
       <header className={styles["admin-header"]}>
         <div className={styles["admin-brand"]}>
           <h1>REDMS Admin</h1>
-          <p>User Management · Parameters · Deal Sharing</p>
+          <p>User Management · Parameters · Deal Sharing · Search Sharing</p>
         </div>
         <nav className={styles["admin-nav"]}>
           <Link to="/" className={styles["admin-nav-link"]}>Back to App</Link>
@@ -237,6 +300,13 @@ export default function Admin() {
             onClick={() => setActiveTab("sharing")}
           >
             Deal Sharing
+          </button>
+          <button
+            type="button"
+            className={`${styles["admin-tab"]} ${activeTab === "searchSharing" ? styles.active : ""}`}
+            onClick={() => setActiveTab("searchSharing")}
+          >
+            Search Sharing
           </button>
         </div>
 
@@ -491,6 +561,75 @@ export default function Admin() {
                     disabled={shareSaving}
                   >
                     {shareSaving ? "Saving…" : "Update Sharing"}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "searchSharing" && (
+          <div className={styles["admin-grid"]}>
+            <div className={styles["admin-card"]}>
+              <h2 className={styles["admin-section-title"]}>Assign Read-Only Saved Search Access</h2>
+              <p className={styles["admin-muted"]} style={{ marginBottom: 16 }}>
+                Select a saved search, then choose which users (or all users) can view it in read-only mode on the Find Properties screen.
+              </p>
+              <div className={styles["form-group"]} style={{ marginBottom: 16 }}>
+                <label htmlFor="share-search-select">Saved Search</label>
+                <select
+                  id="share-search-select"
+                  value={selectedSearchId}
+                  onChange={(e) => setSelectedSearchId(e.target.value)}
+                  style={{ padding: 10, width: "100%", maxWidth: 400, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", color: "var(--text)" }}
+                >
+                  <option value="">— Select a saved search —</option>
+                  {allSearches.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.resultCount} properties) {s.userId ? `(owner: ${users.find((u) => u.uid === s.userId)?.email ?? s.userId})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {searchesLoading ? (
+                <p className={styles["admin-muted"]}>Loading saved searches…</p>
+              ) : selectedSearchId ? (
+                <>
+                  <div className={styles["form-group"]} style={{ marginBottom: 12 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={searchShareWithAll}
+                        onChange={(e) => setSearchShareWithAll(e.target.checked)}
+                      />
+                      Share with all users (read-only)
+                    </label>
+                  </div>
+                  <div className={styles["form-group"]} style={{ marginBottom: 16 }}>
+                    <label>Share with specific users:</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                      {users.filter((u) => u.uid !== user?.uid).map((u) => (
+                        <label key={u.uid} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={searchShareWithUserIds.includes(u.uid)}
+                            onChange={() => toggleSearchShareUser(u.uid)}
+                          />
+                          {u.email}
+                        </label>
+                      ))}
+                      {users.length <= 1 && (
+                        <span className={styles["admin-muted"]}>No other users in system.</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles["admin-button"]}
+                    onClick={handleSaveSearchShare}
+                    disabled={searchShareSaving}
+                  >
+                    {searchShareSaving ? "Saving…" : "Update Sharing"}
                   </button>
                 </>
               ) : null}

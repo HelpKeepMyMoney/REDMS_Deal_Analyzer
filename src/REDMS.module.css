@@ -162,6 +162,16 @@
   gap: 16px;
 }
 
+/* Sidebar: titles and fields on separate rows with clear spacing */
+.sidebar .field,
+.sidebar :global(.field) {
+  gap: 12px;
+}
+
+.sidebar .deal-select-wrap {
+  gap: 12px;
+}
+
 .deal-select-wrap {
   display: flex;
   flex-direction: column;
@@ -170,7 +180,7 @@
 
 .deal-select-label {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 3px;
   color: var(--amber);
   text-transform: uppercase;
@@ -251,12 +261,13 @@
 
 .sec-label {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 3px;
   color: var(--amber);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 8px;
   margin-bottom: 8px;
 }
 
@@ -335,6 +346,13 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 6px;
+}
+
+/* Narrow inputs for sidebar currency fields to fit without scroll */
+.field-narrow input[type="number"],
+.field-narrow input[type="text"] {
+  max-width: 120px;
+  box-sizing: border-box;
 }
 
 .rehab-btns {
@@ -552,16 +570,22 @@
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 14px;
 }
 
 .mcard {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 16px 18px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .mcard::after {
@@ -624,7 +648,7 @@
 
 .tab {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   padding: 8px 16px;
@@ -655,9 +679,9 @@
 
 .ph {
   background: var(--surface2);
-  padding: 8px 14px;
+  padding: 10px 14px;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 13px;
   letter-spacing: 2px;
   color: var(--amber);
   text-transform: uppercase;
@@ -704,6 +728,12 @@
   font-size: 14px;
   font-weight: 500;
 }
+
+.dr-white .dk,
+.dr-white .dv {
+  color: var(--text);
+  font-weight: 600;
+}
 .dr.dr-total .dv {
   font-size: 18px;
   font-weight: 500;
@@ -744,13 +774,15 @@
 }
 
 .logic-label {
-  color: var(--muted);
+  color: var(--text);
   text-transform: uppercase;
   margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .logic-val {
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 24px;
 }
 
 .logicValPass { color: var(--green); }

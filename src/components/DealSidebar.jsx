@@ -140,22 +140,20 @@ export function DealSidebar({
                         onChange={upd}
                         type="text"
                     />
-                    <div className={styles.row2}>
-                        <Field
-                            label="City"
-                            name="city"
-                            value={inp.city ?? ""}
-                            onChange={upd}
-                            type="text"
-                        />
-                        <Field
-                            label="State"
-                            name="state"
-                            value={inp.state ?? ""}
-                            onChange={upd}
-                            type="text"
-                        />
-                    </div>
+                    <Field
+                        label="City"
+                        name="city"
+                        value={inp.city ?? ""}
+                        onChange={upd}
+                        type="text"
+                    />
+                    <Field
+                        label="State"
+                        name="state"
+                        value={inp.state ?? ""}
+                        onChange={upd}
+                        type="text"
+                    />
                     <Field
                         label="Zip Code"
                         name="zipCode"
@@ -163,59 +161,51 @@ export function DealSidebar({
                         onChange={upd}
                         type="text"
                     />
-                    <div className={styles.row2}>
-                        <Field label="Bedrooms" name="bedrooms" value={inp.bedrooms} onChange={upd} />
+                    <Field label="Bedrooms" name="bedrooms" value={inp.bedrooms} onChange={upd} />
+                    <Field
+                        label="Bathrooms"
+                        name="bathrooms"
+                        value={inp.bathrooms}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field label="Sq Ft" name="sqft" value={inp.sqft} onChange={upd} />
+                    <Field label="Year Built" name="yearBuilt" value={inp.yearBuilt} onChange={upd} />
+                    <Field
+                        label="Stories"
+                        name="stories"
+                        value={inp.stories}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field label="Lot Size" name="lotSize" value={inp.lotSize} onChange={upd} />
+                    <div className={styles.field}>
+                        <label htmlFor="redms-basement">Basement</label>
+                        <select
+                            id="redms-basement"
+                            value={inp.basement}
+                            onChange={(e) => upd("basement", e.target.value)}
+                        >
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div className={styles.field} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         <Field
-                            label="Bathrooms"
-                            name="bathrooms"
-                            value={inp.bathrooms}
+                            label="Section 8 Rent ($)"
+                            name="totalRent"
+                            value={inp.totalRent}
                             onChange={upd}
-                            step="0.5"
                         />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field label="Sq Ft" name="sqft" value={inp.sqft} onChange={upd} />
-                        <Field label="Year Built" name="yearBuilt" value={inp.yearBuilt} onChange={upd} />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Stories"
-                            name="stories"
-                            value={inp.stories}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                        <Field label="Lot Size" name="lotSize" value={inp.lotSize} onChange={upd} />
-                    </div>
-                    <div className={styles.row2}>
-                        <div className={styles.field}>
-                            <label htmlFor="redms-basement">Basement</label>
-                            <select
-                                id="redms-basement"
-                                value={inp.basement}
-                                onChange={(e) => upd("basement", e.target.value)}
-                            >
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        <div className={styles.field} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                            <Field
-                                label="Section 8 Rent ($)"
-                                name="totalRent"
-                                value={inp.totalRent}
-                                onChange={upd}
-                            />
-                            <button
-                                type="button"
-                                onClick={handleEstimateRent}
-                                disabled={rentEstimateLoading}
-                                className={styles["btn-estimate-rent"]}
-                                title="Estimate monthly rent from address and property details (RentCast API or heuristic)"
-                            >
-                                {rentEstimateLoading ? "Estimating…" : "Estimate Rent"}
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={handleEstimateRent}
+                            disabled={rentEstimateLoading}
+                            className={styles["btn-estimate-rent"]}
+                            title="Estimate monthly rent from address and property details (RentCast API or heuristic)"
+                        >
+                            {rentEstimateLoading ? "Estimating…" : "Estimate Rent"}
+                        </button>
                     </div>
                     <Field
                         label="Property Owner"
@@ -252,48 +242,50 @@ export function DealSidebar({
             <div>
                 <div className={styles["sec-label"]}>Acquisition</div>
                 <div className={styles["field-group"]}>
-                    <Field
-                        label="Offer / Purchase Price ($)"
-                        name="offerPrice"
-                        value={inp.offerPrice}
-                        onChange={upd}
-                    />
-                    <Field
-                        label="Wholesale Fee ($)"
-                        name="wholesaleFee"
-                        value={inp.wholesaleFee}
-                        onChange={upd}
-                    />
+                    <div className={styles["field-narrow"]}>
+                        <Field
+                            label="Offer / Purchase Price ($)"
+                            name="offerPrice"
+                            value={inp.offerPrice}
+                            onChange={upd}
+                        />
+                    </div>
+                    <div className={styles["field-narrow"]}>
+                        <Field
+                            label="Wholesale Fee ($)"
+                            name="wholesaleFee"
+                            value={inp.wholesaleFee}
+                            onChange={upd}
+                        />
+                    </div>
                 </div>
             </div>
 
             <div>
                 <div className={styles["sec-label"]}>Financing</div>
                 <div className={styles["field-group"]}>
-                    <div className={styles.row2}>
-                        <div className={styles.field}>
-                            <label htmlFor="redms-mortgage1YN">1st Mortgage</label>
-                            <select
-                                id="redms-mortgage1YN"
-                                value={inp.mortgage1YN}
-                                onChange={(e) => upd("mortgage1YN", e.target.value)}
-                            >
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        {inp.mortgage1YN === "Yes" && (
-                            <Field
-                                label="Down Pmt %"
-                                name="downPaymentPct"
-                                value={inp.downPaymentPct}
-                                onChange={upd}
-                                step="0.5"
-                            />
-                        )}
+                    <div className={styles.field}>
+                        <label htmlFor="redms-mortgage1YN">1st Mortgage</label>
+                        <select
+                            id="redms-mortgage1YN"
+                            value={inp.mortgage1YN}
+                            onChange={(e) => upd("mortgage1YN", e.target.value)}
+                        >
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
                     </div>
                     {inp.mortgage1YN === "Yes" && (
-                        <div className={styles.row2}>
+                        <Field
+                            label="Down Pmt %"
+                            name="downPaymentPct"
+                            value={inp.downPaymentPct}
+                            onChange={upd}
+                            step="0.5"
+                        />
+                    )}
+                    {inp.mortgage1YN === "Yes" && (
+                        <>
                             <Field
                                 label="1st Mtg Rate %"
                                 name="mortgage1Rate"
@@ -308,24 +300,23 @@ export function DealSidebar({
                                 onChange={upd}
                                 step="1"
                             />
-                        </div>
+                        </>
                     )}
 
-                    <div className={styles.row2}>
-                        <div className={styles.field}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', marginBottom: '8px', fontSize: '13px', fontWeight: 500 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={inp.mortgage2YN === "Yes"}
-                                    onChange={(e) => upd("mortgage2YN", e.target.checked ? "Yes" : "No")}
-                                    style={{ margin: 0 }}
-                                />
-                                2nd Mortgage (GAP Funding)
-                            </label>
-                        </div>
+                    <div className={styles.field}>
+                        <label htmlFor="redms-mortgage2YN" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                                id="redms-mortgage2YN"
+                                type="checkbox"
+                                checked={inp.mortgage2YN === "Yes"}
+                                onChange={(e) => upd("mortgage2YN", e.target.checked ? "Yes" : "No")}
+                                style={{ margin: 0, width: 'auto' }}
+                            />
+                            2nd Mortgage (GAP Funding)
+                        </label>
                     </div>
                     {inp.mortgage2YN === "Yes" && (
-                        <div className={styles.row2}>
+                        <>
                             <Field
                                 label="2nd Mtg Amt ($)"
                                 name="mortgage2Amt"
@@ -341,13 +332,13 @@ export function DealSidebar({
                                 onChange={(k, v) => upd(k, Math.round((v / 100) * 10000) / 10000)}
                                 step="0.01"
                             />
-                        </div>
+                        </>
                     )}
                 </div>
             </div>
 
             <div>
-                <div className={styles["sec-label"]}>Rehab Level (Data Entry C3)</div>
+                <div className={styles["sec-label"]}>Rehab Level</div>
                 <div className={styles["rehab-btns"]} role="group" aria-label="Rehab level">
                     {REHAB_LEVELS.map((lvl) => (
                         <button
@@ -361,21 +352,19 @@ export function DealSidebar({
                         </button>
                     ))}
                 </div>
-                <div className={styles.row2}>
-                    <Field
-                        label="Rehab Cost ($)"
-                        name="rehabCost"
-                        value={inp.rehabCost ?? 0}
-                        onChange={upd}
-                    />
-                    <Field
-                        label="Rehab Time (months)"
-                        name="rehabMonths"
-                        value={inp.rehabMonths ?? 0}
-                        onChange={upd}
-                        step="0.5"
-                    />
-                </div>
+                <Field
+                    label="Rehab Cost ($)"
+                    name="rehabCost"
+                    value={inp.rehabCost ?? 0}
+                    onChange={upd}
+                />
+                <Field
+                    label="Rehab Time (months)"
+                    name="rehabMonths"
+                    value={inp.rehabMonths ?? 0}
+                    onChange={upd}
+                    step="0.5"
+                />
                 <div className={styles["rehab-info"]}>
                     Rehab: {(inp.rehabMonths ?? 0)} mo + {inp.holdingMonthsBuffer} buffer
                 </div>
@@ -384,90 +373,78 @@ export function DealSidebar({
             <div>
                 <div className={styles["sec-label"]}>Costs & Taxes</div>
                 <div className={styles["field-group"]}>
-                    <div className={styles.row2}>
+                    <Field
+                        label="Inspection ($)"
+                        name="inspectionFee"
+                        value={inp.inspectionFee}
+                        onChange={upd}
+                    />
+                    <Field label="LLC Setup ($)" name="llcSetup" value={inp.llcSetup} onChange={upd} />
+                    <Field
+                        label="Appraisal ($)"
+                        name="appraisalFee"
+                        value={inp.appraisalFee}
+                        onChange={upd}
+                    />
+                    <Field
+                        label="Title Insurance ($)"
+                        name="titleInsurance"
+                        value={inp.titleInsurance ?? ""}
+                        onChange={upd}
+                        placeholder={`Est: ${$(calcTitleInsurance(inp.offerPrice ?? 0))}`}
+                    />
+                    <Field
+                        label="Settlement ($)"
+                        name="settlementCosts"
+                        value={inp.settlementCosts}
+                        onChange={upd}
+                    />
+                    <Field label="Misc Fees ($)" name="miscFees" value={inp.miscFees} onChange={upd} />
+                    <Field
+                        label="Acq Mgmt Fee %"
+                        name="mgmtFeePct"
+                        value={inp.mgmtFeePct}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field
+                        label="Current Annual Tax ($)"
+                        name="currentYearTax"
+                        value={inp.currentYearTax}
+                        onChange={upd}
+                    />
+                    <Field
+                        label="New Property Tax ($)"
+                        name="newPropertyTax"
+                        value={inp.newPropertyTax ?? ""}
+                        onChange={upd}
+                    />
+                    <Field
+                        label="Rehab Insurance ($)"
+                        name="rehabInsurance"
+                        value={inp.rehabInsurance ?? ""}
+                        onChange={upd}
+                    />
+                    <div className={styles["field-with-update"]}>
                         <Field
-                            label="Inspection ($)"
-                            name="inspectionFee"
-                            value={inp.inspectionFee}
+                            label="Landlord's Insurance ($)"
+                            name="landlordsInsurance"
+                            value={inp.landlordsInsurance ?? ""}
                             onChange={upd}
                         />
-                        <Field label="LLC Setup ($)" name="llcSetup" value={inp.llcSetup} onChange={upd} />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Appraisal ($)"
-                            name="appraisalFee"
-                            value={inp.appraisalFee}
-                            onChange={upd}
-                        />
-                        <Field
-                            label="Title Insurance ($)"
-                            name="titleInsurance"
-                            value={inp.titleInsurance ?? ""}
-                            onChange={upd}
-                            placeholder={`Est: ${$(calcTitleInsurance(inp.offerPrice ?? 0))}`}
-                        />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Settlement ($)"
-                            name="settlementCosts"
-                            value={inp.settlementCosts}
-                            onChange={upd}
-                        />
-                        <Field label="Misc Fees ($)" name="miscFees" value={inp.miscFees} onChange={upd} />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Acq Mgmt Fee %"
-                            name="mgmtFeePct"
-                            value={inp.mgmtFeePct}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                        <Field
-                            label="Current Annual Tax ($)"
-                            name="currentYearTax"
-                            value={inp.currentYearTax}
-                            onChange={upd}
-                        />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="New Property Tax ($)"
-                            name="newPropertyTax"
-                            value={inp.newPropertyTax ?? ""}
-                            onChange={upd}
-                        />
-                        <Field
-                            label="Rehab Insurance ($)"
-                            name="rehabInsurance"
-                            value={inp.rehabInsurance ?? ""}
-                            onChange={upd}
-                        />
-                    </div>
-                    <div className={styles.row2}>
-                        <div className={styles["field-with-update"]}>
-                            <Field
-                                label="Landlord's Insurance ($)"
-                                name="landlordsInsurance"
-                                value={inp.landlordsInsurance ?? ""}
-                                onChange={upd}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const offerPrice = Number(inp.offerPrice) || 0;
-                                    const rehabCost = Number(inp.rehabCost) ?? 0;
-                                    const calculated = (offerPrice + rehabCost) * 0.025;
-                                    upd("landlordsInsurance", Math.round(calculated));
-                                }}
-                                className={styles["btn-estimate-rent"]}
-                                title="Recalculate: 2.5% of (purchase price + rehab cost)"
-                            >
-                                Update
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const offerPrice = Number(inp.offerPrice) || 0;
+                                const rehabCost = Number(inp.rehabCost) ?? 0;
+                                const calculated = (offerPrice + rehabCost) * 0.025;
+                                upd("landlordsInsurance", Math.round(calculated));
+                            }}
+                            className={styles["btn-estimate-rent"]}
+                            title="Recalculate: 2.5% of (purchase price + rehab cost)"
+                        >
+                            Update
+                        </button>
                     </div>
                     <Field
                         label="Holding Buffer (months beyond rehab)"
@@ -481,70 +458,62 @@ export function DealSidebar({
             <div>
                 <div className={styles["sec-label"]}>Deal Parameters</div>
                 <div className={styles["field-group"]}>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Retail Investor Cap Rate (%)"
-                            name="retailCapRate"
-                            value={inp.retailCapRate * 100}
-                            onChange={(k, v) => upd(k, v / 100)}
-                            step="0.5"
-                        />
-                        <Field
-                            label="Preferred ROI %"
-                            name="preferredROIPct"
-                            value={inp.preferredROIPct}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Profit Split to BNIC %"
-                            name="profitSplitPct"
-                            value={inp.profitSplitPct}
-                            onChange={upd}
-                        />
-                        <Field
-                            label="Realtor/Sale Fee %"
-                            name="realtorSaleFeePct"
-                            value={inp.realtorSaleFeePct}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="PM Fee % of rent"
-                            name="pmFeePct"
-                            value={inp.pmFeePct}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                        <Field
-                            label="Vacancy %"
-                            name="vacancyPct"
-                            value={inp.vacancyPct}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                        <Field label="CapEx %" name="capexPct" value={inp.capexPct} onChange={upd} step="0.5" />
-                    </div>
-                    <div className={styles.row2}>
-                        <Field
-                            label="Annual Rent Increase %"
-                            name="annualRentIncrease"
-                            value={inp.annualRentIncrease}
-                            onChange={upd}
-                            step="0.5"
-                        />
-                        <Field
-                            label="Annual Appreciation %"
-                            name="annualAppreciation"
-                            value={inp.annualAppreciation}
-                            onChange={upd}
-                            step="0.1"
-                        />
-                    </div>
+                    <Field
+                        label="Retail Investor Cap Rate (%)"
+                        name="retailCapRate"
+                        value={inp.retailCapRate * 100}
+                        onChange={(k, v) => upd(k, v / 100)}
+                        step="0.5"
+                    />
+                    <Field
+                        label="Preferred ROI %"
+                        name="preferredROIPct"
+                        value={inp.preferredROIPct}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field
+                        label="Profit Split to BNIC %"
+                        name="profitSplitPct"
+                        value={inp.profitSplitPct}
+                        onChange={upd}
+                    />
+                    <Field
+                        label="Realtor/Sale Fee %"
+                        name="realtorSaleFeePct"
+                        value={inp.realtorSaleFeePct}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field
+                        label="PM Fee % of rent"
+                        name="pmFeePct"
+                        value={inp.pmFeePct}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field
+                        label="Vacancy %"
+                        name="vacancyPct"
+                        value={inp.vacancyPct}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field label="CapEx %" name="capexPct" value={inp.capexPct} onChange={upd} step="0.5" />
+                    <Field
+                        label="Annual Rent Increase %"
+                        name="annualRentIncrease"
+                        value={inp.annualRentIncrease}
+                        onChange={upd}
+                        step="0.5"
+                    />
+                    <Field
+                        label="Annual Appreciation %"
+                        name="annualAppreciation"
+                        value={inp.annualAppreciation}
+                        onChange={upd}
+                        step="0.1"
+                    />
                 </div>
             </div>
 

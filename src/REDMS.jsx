@@ -317,6 +317,7 @@ export default function REDMS() {
           {showPropertySearch ? (
             <PropertySearch
               userId={user?.uid}
+              isAdmin={isAdmin}
               onImportProperty={handleImportProperty}
               onCancel={() => setShowPropertySearch(false)}
             />
