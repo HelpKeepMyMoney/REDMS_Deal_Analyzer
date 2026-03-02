@@ -172,16 +172,11 @@ export function DealSidebar({
                     ) : (
                         <>
                             <option value="">— Select a deal —</option>
-                            {userFavorites.map((fav) => (
-                                <option key={fav.id} value={fav.dealId}>
-                                    {fav.dealName || fav.dealId || "Untitled"}
-                                </option>
-                            ))}
-                            {savedDeals
-                                .filter((d) => !userFavorites.some((f) => f.dealId === d.id))
-                                .map((deal) => (
-                                    <option key={deal.id} value={deal.id}>
-                                        {deal.dealName}
+                            {[...userFavorites.map((f) => ({ id: f.dealId, dealName: f.dealName || f.dealId || "Untitled" })), ...savedDeals.filter((d) => !userFavorites.some((f) => f.dealId === d.id))]
+                                .sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }))
+                                .map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.dealName}
                                     </option>
                                 ))}
                         </>

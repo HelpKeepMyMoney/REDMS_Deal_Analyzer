@@ -78,6 +78,7 @@ export default function REDMS() {
     try {
       let list = await loadDeals(user.uid);
       if (!isAdmin) list = list.filter((d) => d.isShared);
+      list.sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
       setSavedDeals(list);
       if (currentDealId) {
         const meta = list.find((d) => d.id === currentDealId);
@@ -104,6 +105,7 @@ export default function REDMS() {
     setFavoritesLoading(true);
     try {
       const favs = await loadUserFavorites(user.uid);
+      favs.sort((a, b) => (a.dealName || a.dealId || "").localeCompare(b.dealName || b.dealId || "", undefined, { sensitivity: "base" }));
       setUserFavorites(favs);
     } catch (e) {
       console.error("Failed to load favorites", e);
@@ -124,10 +126,13 @@ export default function REDMS() {
         const lastLogin = await getLastLoginAt(() => user.getIdToken());
         if (cancelled) return;
         if (lastLogin === null) {
-          setNewSharedDeals(savedDeals);
+          const sorted = [...savedDeals].sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
+          setNewSharedDeals(sorted);
           return;
         }
-        const newDeals = savedDeals.filter((d) => (d.updatedAt || "") > lastLogin);
+        const newDeals = savedDeals
+          .filter((d) => (d.updatedAt || "") > lastLogin)
+          .sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
         setNewSharedDeals(newDeals);
       } catch (e) {
         if (!cancelled) console.error("Failed to check new shared deals", e);
