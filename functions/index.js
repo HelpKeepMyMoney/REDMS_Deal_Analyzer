@@ -12,6 +12,18 @@ initializeApp();
 const auth = getAuth();
 const db = getFirestore();
 
+// CORS: allow Vercel deployment and localhost (use full origin URLs, not hostnames)
+const CORS_ORIGINS = [
+  "https://redms-deal-analyzer.vercel.app",
+  /^https:\/\/redms-deal-analyzer.*\.vercel\.app$/,  // preview deployments
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+];
+
+const callableOpts = { cors: CORS_ORIGINS };
+
 async function requireAdmin(context) {
   if (!context.auth) {
     throw new HttpsError("unauthenticated", "Must be signed in");
@@ -22,7 +34,7 @@ async function requireAdmin(context) {
   }
 }
 
-exports.listUsers = onCall(async (request) => {
+exports.listUsers = onCall(callableOpts, async (request) => {
   await requireAdmin(request);
   const users = [];
   let nextPageToken;
@@ -42,7 +54,7 @@ exports.listUsers = onCall(async (request) => {
   return { users };
 });
 
-exports.createUser = onCall(async (request) => {
+exports.createUser = onCall(callableOpts, async (request) => {
   await requireAdmin(request);
   const { email, password, role } = request.data;
   if (!email || !password) {
@@ -55,7 +67,7 @@ exports.createUser = onCall(async (request) => {
   return { uid: userRecord.uid };
 });
 
-exports.setUserRole = onCall(async (request) => {
+exports.setUserRole = onCall(callableOpts, async (request) => {
   await requireAdmin(request);
   const { uid, role } = request.data;
   if (!uid) {

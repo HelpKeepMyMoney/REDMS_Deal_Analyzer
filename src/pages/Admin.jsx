@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useConfig } from "../contexts/ConfigContext.jsx";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../firebase.js";
+import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
 import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
 import styles from "./Admin.module.css";
@@ -30,27 +29,25 @@ export default function Admin() {
   const [shareWithAll, setShareWithAll] = useState(false);
   const [shareSaving, setShareSaving] = useState(false);
 
-  const listUsers = functions ? httpsCallable(functions, "listUsers") : null;
-  const createUser = functions ? httpsCallable(functions, "createUser") : null;
-  const setUserRole = functions ? httpsCallable(functions, "setUserRole") : null;
+  const adminApi = useMemo(
+    () => (user ? createAdminApi(() => user.getIdToken()) : null),
+    [user]
+  );
 
   const loadUsers = async () => {
-    if (!listUsers) return;
+    if (!adminApi) return;
     setLoading(true);
     setMessage({ type: "", text: "" });
     try {
-      const result = await listUsers();
-      if (result.data.users) {
-        setUsers(result.data.users);
+      const result = await adminApi.listUsers();
+      if (result.users) {
+        setUsers(result.users);
       }
     } catch (e) {
       console.error(e);
-      const isCors = e.message?.includes("CORS") || e.code === "internal";
       setMessage({
         type: "error",
-        text: isCors
-          ? "Cloud Functions unavailable (CORS). Run the emulator: firebase emulators:start --only functions"
-          : "Failed to load users: " + (e.message || "Unknown error"),
+        text: "Failed to load users: " + (e.message || "Unknown error"),
       });
     } finally {
       setLoading(false);
@@ -58,10 +55,10 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    if (isAdmin && listUsers) {
+    if (isAdmin && adminApi) {
       loadUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, adminApi]);
 
   useEffect(() => {
     if (isAdmin && activeTab === "params") {
@@ -141,16 +138,16 @@ export default function Admin() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    if (!createUser) {
-      setMessage({ type: "error", text: "Cloud Functions not available." });
+    if (!adminApi) {
+      setMessage({ type: "error", text: "Admin API not available." });
       return;
     }
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
-      const result = await createUser({ email, password, role });
-      setMessage({ type: "success", text: `User created successfully: ${result.data.uid}` });
+      const result = await adminApi.createUser({ email, password, role });
+      setMessage({ type: "success", text: `User created successfully: ${result.uid}` });
       setEmail("");
       setPassword("");
       setRole("user");
@@ -164,8 +161,8 @@ export default function Admin() {
   };
 
   const handleToggleRole = async (uid, currentRole) => {
-    if (!setUserRole) {
-      setMessage({ type: "error", text: "Cloud Functions not available." });
+    if (!adminApi) {
+      setMessage({ type: "error", text: "Admin API not available." });
       return;
     }
     const newRole = currentRole === "admin" ? "user" : "admin";
@@ -175,7 +172,7 @@ export default function Admin() {
 
     setLoading(true);
     try {
-      await setUserRole({ uid, role: newRole });
+      await adminApi.setUserRole({ uid, role: newRole });
       setMessage({ type: "success", text: `User role updated to ${newRole}` });
       await loadUsers();
     } catch (e) {

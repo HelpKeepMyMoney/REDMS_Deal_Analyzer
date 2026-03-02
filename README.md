@@ -60,6 +60,21 @@ npm run test:run
 - **ATTOM** — [30-day free trial](https://api.developer.attomdata.com/signup), then paid. 150M+ property records.
 - **Data.gov** — Free county/state assessor datasets; no unified address API. Detroit integration above uses the same open-data ecosystem.
 
+## Deployment (Firebase + Vercel)
+
+Admin features (user management) use **Vercel serverless functions** instead of Firebase Cloud Functions (no Blaze plan required).
+
+**Vercel environment variables:**
+- All `VITE_*` vars for the frontend
+- **Firebase Admin** (for `/api/admin/*` routes):
+  - `FIREBASE_PROJECT_ID` — same as `VITE_FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL` — from your [Firebase service account JSON](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
+  - `FIREBASE_PRIVATE_KEY` — from the same JSON (paste the full key including `-----BEGIN PRIVATE KEY-----`; use literal `\n` for newlines in Vercel)
+
+**Firebase Auth:** Add `redms-deal-analyzer.vercel.app` to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
+
+**Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available.
+
 ## License
 
 Private — The BNIC Network LLC.
