@@ -10,7 +10,10 @@
 - **Buy & Hold** — B&H sheet (total investment, NOI, cap rate, cash-on-cash, investment required).
 - **30-Year Buy & Hold Projection** — Year-by-year table: Rental Income, Prop Costs, Net Cash, Depreciation, Reserves, Net Cash/Tax, ROI, ROE, Prop Value; plus totals and summary stats.
 - **CPIN / LP Offering** — LP offering summary (targeted ROI, minimum investment, distribution frequency, structure, exemption, KYC/AML, property details).
-- **Persistence** — Inputs are saved to `localStorage` and restored on reload.
+- **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
+- **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
+- **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
+- **Admin** — User management, deal sharing, search sharing, interest requests, parameters, email notifications.
 
 ## Tech Stack
 
@@ -38,14 +41,19 @@ npm run test:run
 ## Project Structure
 
 - `src/REDMS.jsx` — Main app (sidebar inputs, deal logic strip, metric cards, tabbed views).
-- `src/REDMS.css` — Styles.
+- `src/REDMS.module.css` — Styles.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
   - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES.
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
   - `storage.js` — loadStoredInput, saveStoredInput.
-- `src/components/` — Field, DetailRow, MetricCard.
+  - `firestoreStorage.js` — deals (load, save, share).
+  - `userFavoritesStorage.js` — user favorites.
+  - `userMetadataStorage.js` — last login (via API).
+  - `interestApi.js` — interest requests (favorite, Zoom, buy).
+- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch.
+- `api/` — Vercel serverless functions.
 
 ## Property Data Sources
 
@@ -62,16 +70,20 @@ npm run test:run
 
 ## Deployment (Firebase + Vercel)
 
-Admin features (user management) use **Vercel serverless functions** instead of Firebase Cloud Functions (no Blaze plan required).
+Admin features (user management, interest API, user metadata) use **Vercel serverless functions** instead of Firebase Cloud Functions (no Blaze plan required).
 
 **Vercel environment variables:**
 - All `VITE_*` vars for the frontend
-- **Firebase Admin** (for `/api/admin/*` routes):
+- **Firebase Admin** (for `/api/admin/*`, `/api/interest/*`, `/api/user-metadata/*` routes):
   - `FIREBASE_PROJECT_ID` — same as `VITE_FIREBASE_PROJECT_ID`
   - `FIREBASE_CLIENT_EMAIL` — from your [Firebase service account JSON](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
   - `FIREBASE_PRIVATE_KEY` — from the same JSON (paste the full key including `-----BEGIN PRIVATE KEY-----`; use literal `\n` for newlines in Vercel)
+- **Resend** (for interest notification emails — used by `api/interest/create.js`):
+  - `RESEND_API_KEY` — Sign up at [resend.com](https://resend.com) (3,000 emails/month free)
+  - `RESEND_FROM_EMAIL` — Verified sender domain
+- **Admin notifications** — `ADMIN_NOTIFICATION_EMAIL` — Email address for interest notifications (favorites, Zoom requests, etc.)
 
-**Firebase Auth:** Add `redms-deal-analyzer.vercel.app` to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
+**Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
 
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available.
 
