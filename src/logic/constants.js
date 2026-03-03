@@ -10,9 +10,9 @@ export const MAX_TPC = 60000;
 /** Minimum 1st mortgage loan amount (below this, use all-cash) */
 export const MIN_LOAN_AMOUNT = 50000;
 
-/** Detroit property tax: (SEV × rate) + flat. SEV = price × 50%, rate = 8.731% */
+/** Detroit property tax: (SEV × rate) + flat. SEV = price × 50%, rate = 85.2737 mills (2024 non-homestead), flat = trash service */
 export const DETROIT_TAX_SEV_RATIO = 0.5;
-export const DETROIT_TAX_RATE = 0.08731;
+export const DETROIT_TAX_RATE = 0.0852737;
 export const DETROIT_TAX_FLAT = 240;
 
 /** Referral fee as fraction of preferred ROI / investor split */

@@ -2,7 +2,7 @@
  * Merges stored (localStorage) preferences into base input.
  * Used by full analyzer and quick analyzer for consistent defaults.
  */
-import { REHAB_COST, REHAB_TIME } from "./constants.js";
+import { REHAB_COST, REHAB_TIME, DETROIT_TAX_SEV_RATIO, DETROIT_TAX_RATE, DETROIT_TAX_FLAT } from "./constants.js";
 import { sanitizeInput } from "./validation.js";
 
 export function mergeStored(base, stored) {
@@ -22,7 +22,7 @@ export function mergeStored(base, stored) {
     base.landlordsInsurance = costPlusRehab * (stored.insurancePct / 100);
   }
   if (stored && (stored.newPropertyTax == null || stored.newPropertyTax === undefined) && base.offerPrice != null) {
-    base.newPropertyTax = base.offerPrice * 0.5 * 0.08731 + 240;
+    base.newPropertyTax = base.offerPrice * DETROIT_TAX_SEV_RATIO * DETROIT_TAX_RATE + DETROIT_TAX_FLAT;
   }
   return sanitizeInput(base);
 }
