@@ -11,7 +11,7 @@ export function DetailRow({ label, val, cls, tot, div, className }) {
         tot && styles.tot,
         div && styles.div,
         cls && styles[cls],
-        className && styles[className], // Handle custom class names if passed
+        className && styles[className],
       ]
         .filter(Boolean)
         .join(" ")}

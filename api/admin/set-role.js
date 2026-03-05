@@ -21,11 +21,15 @@ export default async function handler(req, res) {
   try {
     const db = getAdminFirestore();
     const adminRef = db.doc(`admins/${uid}`);
+    const wholesalerRef = db.doc(`wholesalers/${uid}`);
 
     if (role === "admin") {
       await adminRef.set({});
+    } else if (role === "wholesaler") {
+      await wholesalerRef.set({});
     } else {
       await adminRef.delete();
+      await wholesalerRef.delete();
     }
 
     return res.status(200).json({ ok: true });

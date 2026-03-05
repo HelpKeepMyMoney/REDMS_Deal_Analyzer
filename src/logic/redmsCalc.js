@@ -22,6 +22,9 @@ function getCalcParams(config) {
       REHAB_COST: DEFAULT_REHAB_COST,
       REHAB_TIME: DEFAULT_REHAB_TIME,
       MAX_TPC: DEFAULT_MAX_TPC,
+      MIN_FLIP_COC_PCT: 25,
+      MIN_BH_COC_PCT: 10,
+      MIN_WHOLESALE_FEE: 5000,
       DETROIT_TAX_SEV_RATIO: DEFAULT_DETROIT_TAX_SEV_RATIO,
       DETROIT_TAX_RATE: DEFAULT_DETROIT_TAX_RATE,
       DETROIT_TAX_FLAT: DEFAULT_DETROIT_TAX_FLAT,
@@ -39,6 +42,9 @@ function getCalcParams(config) {
     REHAB_COST: config.rehabCost ?? DEFAULT_REHAB_COST,
     REHAB_TIME: config.rehabTime ?? DEFAULT_REHAB_TIME,
     MAX_TPC: config.maxTpc ?? DEFAULT_MAX_TPC,
+    MIN_FLIP_COC_PCT: config.minFlipCoCPct ?? 25,
+    MIN_BH_COC_PCT: config.minBhCoCPct ?? 10,
+    MIN_WHOLESALE_FEE: config.minWholesaleFee ?? 5000,
     DETROIT_TAX_SEV_RATIO: config.detroitTaxSevRatio ?? DEFAULT_DETROIT_TAX_SEV_RATIO,
     DETROIT_TAX_RATE: config.detroitTaxRate ?? DEFAULT_DETROIT_TAX_RATE,
     DETROIT_TAX_FLAT: config.detroitTaxFlat ?? DEFAULT_DETROIT_TAX_FLAT,
@@ -185,6 +191,8 @@ export function calc(inp, config = null) {
     realtorSaleFeePct,
     tenantAcquisition,
     recommendedReserves,
+    retailTenantAcquisition,
+    retailRecommendedReserves,
     downPaymentPct,
     mortgage2Amt: inpMortgage2Amt,
   } = inp;
@@ -291,6 +299,20 @@ export function calc(inp, config = null) {
       ? recommendedReserves
       : calculatedReserves;
   const bhTotalInvestment = bhPurchasePrice + tenantAcq + reserves;
+
+  const monthlyOperatingCosts =
+    annualInsurance / 12 + bhAnnualTax / 12 + bhPmFeeMonthly + mtg1Monthly + mtg2Monthly;
+  const retailReservesDefault = Math.round(6 * monthlyOperatingCosts);
+  const retailTenantAcq =
+    typeof retailTenantAcquisition === "number" && !isNaN(retailTenantAcquisition) && retailTenantAcquisition >= 0
+      ? retailTenantAcquisition
+      : 0;
+  const retailReserves =
+    typeof retailRecommendedReserves === "number" && !isNaN(retailRecommendedReserves) && retailRecommendedReserves >= 0
+      ? retailRecommendedReserves
+      : retailReservesDefault;
+  const retailTotalInvestment = arv + retailTenantAcq + retailReserves;
+  const capRateRetail = arv > 0 ? noi / arv : 0;
   const netRentMonthly =
     totalRent -
     totalRent * (vacancyPct / 100) -
@@ -302,6 +324,7 @@ export function calc(inp, config = null) {
   const capRate = totalCost > 0 ? noi / totalCost : 0;
   const bhCashFlowAfterDebt = noi - bhAnnualMtg1 - bhAnnualMtg2;
   const bhCashOnCash = bhTotalInvestment > 0 ? bhCashFlowAfterDebt / bhTotalInvestment : 0;
+  const retailCashOnCash = retailTotalInvestment > 0 ? bhCashFlowAfterDebt / retailTotalInvestment : 0;
 
   const realtorFeeBase = (realtorSaleFeePct / 100) * arv;
   const realtorFee = Math.max(realtorFeeBase, p.MIN_REALTOR_FEE);
@@ -322,8 +345,10 @@ export function calc(inp, config = null) {
   const cashOnCash = totalInvestment > 0 ? totalROI_flip / totalInvestment : 0;
   const annualizedROI = holdingMonths > 0 ? cashOnCash * 12 / holdingMonths : 0;
 
-  const dealCheck1 = cashOnCash < 0.25;
-  const dealCheck2 = bhCashOnCash < 0.1;
+  const minFlipCoC = (p.MIN_FLIP_COC_PCT ?? 25) / 100;
+  const minBhCoC = (p.MIN_BH_COC_PCT ?? 10) / 100;
+  const dealCheck1 = cashOnCash < minFlipCoC;
+  const dealCheck2 = bhCashOnCash < minBhCoC;
   const dealCheck3 = bhTotalInvestment > p.MAX_TPC;
   const isDeal = !dealCheck1 && !dealCheck2 && !dealCheck3;
 
@@ -414,6 +439,12 @@ export function calc(inp, config = null) {
     tenantAcq,
     reserves,
     bhTotalInvestment,
+    retailReservesDefault,
+    retailTenantAcq,
+    retailReserves,
+    retailTotalInvestment,
+    capRateRetail,
+    retailCashOnCash,
     netRentMonthly,
     noiWithReserves,
     capRate,
@@ -442,6 +473,96 @@ export function calc(inp, config = null) {
     dealCheck3,
     projections,
     gt,
+  };
+}
+
+/**
+ * Merge app config with per-deal risk overrides for wholesaler calculations.
+ * @param {object} appConfig - From ConfigContext (appConfig/params)
+ * @param {object} [riskOverrides] - Per-deal overrides from wholesalerDeals
+ */
+export function mergeWholesalerConfig(appConfig, riskOverrides) {
+  if (!riskOverrides || typeof riskOverrides !== "object") {
+    return appConfig;
+  }
+  const merged = { ...appConfig };
+  const keys = ["minWholesaleFee", "minFlipCoCPct", "minBhCoCPct", "maxTpc"];
+  for (const k of keys) {
+    if (riskOverrides[k] != null && typeof riskOverrides[k] === "number" && !isNaN(riskOverrides[k])) {
+      merged[k] = riskOverrides[k];
+    }
+  }
+  if (riskOverrides.rehabCost && typeof riskOverrides.rehabCost === "object") {
+    merged.rehabCost = { ...(merged.rehabCost || {}), ...riskOverrides.rehabCost };
+  }
+  if (riskOverrides.rehabTime && typeof riskOverrides.rehabTime === "object") {
+    merged.rehabTime = { ...(merged.rehabTime || {}), ...riskOverrides.rehabTime };
+  }
+  return merged;
+}
+
+/**
+ * Find the maximum offer to buyer (contract price + wholesale fee) where the deal indicator shows "Deal".
+ * Assumes wholesale fee = 0 so the result is the ceiling the wholesaler can allocate between
+ * purchase price and their fee. Does not change when purchase price or wholesale fee change.
+ * @param {object} inp - Deal input
+ * @param {object} config - Merged config
+ * @returns {number|null} Max offer to buyer where isDeal, or null if no valid range
+ */
+function findMaxOfferToBuyer(inp, config) {
+  const r = calc({ ...inp, wholesaleFee: 0 }, config);
+  const arv = r.arv ?? 0;
+  let hi = Math.max(arv * 1.2, 100000);
+  const tol = 50;
+
+  const test = (totalPrice) => {
+    const testInp = { ...inp, offerPrice: totalPrice, wholesaleFee: 0 };
+    return calc(testInp, config).isDeal;
+  };
+
+  if (!test(0)) return null;
+  if (test(hi)) return Math.round(hi);
+
+  let lo = 0;
+  let best = 0;
+  while (hi - lo > tol) {
+    const mid = (lo + hi) / 2;
+    if (test(mid)) {
+      best = mid;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return Math.round(best);
+}
+
+/**
+ * Wholesaler-specific calc. Uses calc() and adds wholesaler outputs.
+ * @param {object} inp - Deal input
+ * @param {object} config - Merged config (appConfig + riskOverrides)
+ */
+export function calcWholesaler(inp, config = null) {
+  const r = calc(inp, config);
+  const p = getCalcParams(config);
+  const minWholesaleFee = p.MIN_WHOLESALE_FEE ?? 5000;
+  const wholesaleFee = typeof inp.wholesaleFee === "number" && !isNaN(inp.wholesaleFee) ? inp.wholesaleFee : 0;
+  const offerPrice = typeof inp.offerPrice === "number" && !isNaN(inp.offerPrice) ? inp.offerPrice : 0;
+
+  const offerPriceToBuyer = offerPrice + wholesaleFee;
+  const wholesaleSpread = r.grossProfit + wholesaleFee;
+  const investorWouldTakeDeal = r.isDeal;
+  const isWholesalerDeal = wholesaleFee >= minWholesaleFee && investorWouldTakeDeal;
+
+  const maxOfferToBuyer = findMaxOfferToBuyer(inp, config) ?? offerPriceToBuyer;
+
+  return {
+    ...r,
+    offerPriceToBuyer,
+    wholesaleSpread,
+    maxOfferToBuyer,
+    investorWouldTakeDeal,
+    isWholesalerDeal,
   };
 }
 
@@ -495,6 +616,8 @@ export const DEFAULT_INPUT = {
   realtorSaleFeePct: 4,
   tenantAcquisition: undefined, // if provided, overrides calculated value (1 × totalRent)
   recommendedReserves: undefined, // if provided, overrides calculated value (3 × monthly expenses)
+  retailTenantAcquisition: undefined, // Retail Investor: if provided, overrides default $0
+  retailRecommendedReserves: undefined, // Retail Investor: if provided, overrides 6 × monthly operating costs
   bedrooms: 3,
   bathrooms: 1,
   sqft: 1000,

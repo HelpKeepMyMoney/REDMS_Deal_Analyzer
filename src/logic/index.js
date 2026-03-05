@@ -1,4 +1,4 @@
-export { calc, DEFAULT_INPUT, calcTitleInsurance } from "./redmsCalc.js";
+export { calc, calcWholesaler, mergeWholesalerConfig, DEFAULT_INPUT, calcTitleInsurance } from "./redmsCalc.js";
 export { REHAB_COST, REHAB_TIME, REHAB_LEVELS, MAX_TPC, RANGES } from "./constants.js";
 export { formatCurrency, formatPct, formatNumber } from "./formatters.js";
 export { clampNumber, sanitizeInput } from "./validation.js";

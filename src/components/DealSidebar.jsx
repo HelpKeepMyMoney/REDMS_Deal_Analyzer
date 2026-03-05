@@ -6,12 +6,14 @@ import { REHAB_LEVELS, DETROIT_TAX_SEV_RATIO, DETROIT_TAX_RATE, DETROIT_TAX_FLAT
 import { formatCurrency } from "../logic/formatters.js";
 import { calcTitleInsurance } from "../logic/redmsCalc.js";
 import { estimateMonthlyRent } from "../logic/rentEstimate.js";
+import { buildStreetViewUrlFromAddress } from "../logic/propertySearchApi.js";
 import styles from "../REDMS.module.css";
 
 const $ = formatCurrency;
 
 export function DealSidebar({
     isAdmin = true,
+    wholesaler = false,
     sidebarCollapsed,
     currentDealId,
     currentDealIsShared = false,
@@ -34,9 +36,12 @@ export function DealSidebar({
     costPct,
     maxTpc = 60000,
     saveInProgress,
+    saveError,
     refreshDeals,
     savedDealsLoading,
     onOpenSearch,
+    riskOverrides = {},
+    onRiskOverridesChange,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
 
@@ -105,7 +110,7 @@ export function DealSidebar({
             </div>
             )}
 
-            {!isAdmin && (
+            {!isAdmin && !wholesaler && (
             <div className={styles["saved-deals-sec"]} style={{ marginBottom: "1rem" }}>
                 <div className={styles["sec-label"]}>My Favorites</div>
                 <div className={styles["saved-deals-actions"]}>
@@ -184,6 +189,7 @@ export function DealSidebar({
                 </select>
             </div>
 
+            {onOpenSearch && (
             <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
                 <button
                     type="button"
@@ -206,6 +212,43 @@ export function DealSidebar({
                     🔍 Find Properties
                 </button>
             </div>
+            )}
+
+            {wholesaler && onRiskOverridesChange && (
+            <div>
+                <div className={styles["sec-label"]}>Risk Parameters (per property)</div>
+                <div className={styles["field-group"]}>
+                    <Field
+                        label="Min Wholesale Fee ($)"
+                        name="minWholesaleFee"
+                        value={riskOverrides.minWholesaleFee ?? ""}
+                        onChange={(k, v) => onRiskOverridesChange({ ...riskOverrides, [k]: v })}
+                        placeholder="5000"
+                    />
+                    <Field
+                        label="Min Flip CoC %"
+                        name="minFlipCoCPct"
+                        value={riskOverrides.minFlipCoCPct ?? ""}
+                        onChange={(k, v) => onRiskOverridesChange({ ...riskOverrides, [k]: v })}
+                        placeholder="25"
+                    />
+                    <Field
+                        label="Min B&H CoC %"
+                        name="minBhCoCPct"
+                        value={riskOverrides.minBhCoCPct ?? ""}
+                        onChange={(k, v) => onRiskOverridesChange({ ...riskOverrides, [k]: v })}
+                        placeholder="10"
+                    />
+                    <Field
+                        label="Max TPC ($)"
+                        name="maxTpc"
+                        value={riskOverrides.maxTpc ?? ""}
+                        onChange={(k, v) => onRiskOverridesChange({ ...riskOverrides, [k]: v })}
+                        placeholder="60000"
+                    />
+                </div>
+            </div>
+            )}
 
             <div className={styles["propertyImageWrap"]} style={{ margin: '0 0 1rem', flexShrink: 0 }}>
                 <img
@@ -224,6 +267,24 @@ export function DealSidebar({
                         }
                     }}
                 />
+                {!currentDealIsShared && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        const url = buildStreetViewUrlFromAddress(inp);
+                        if (url) {
+                            upd("image", url);
+                            upd("imageFallback", inp?.imageFallback ?? "");
+                        }
+                    }}
+                    disabled={!inp?.street && !inp?.city && !inp?.state && !inp?.zipCode}
+                    className={styles["btn-estimate-rent"]}
+                    title="Use Google Street View image for this address"
+                    style={{ marginTop: 8, width: '100%' }}
+                >
+                    Get Street View
+                </button>
+                )}
             </div>
 
             {currentDealIsShared && (
@@ -347,7 +408,7 @@ export function DealSidebar({
                 <div className={styles["field-group"]}>
                     <div className={styles["field-narrow"]}>
                         <Field
-                            label="Offer / Purchase Price ($)"
+                            label="Contract Price (to seller)"
                             name="offerPrice"
                             value={inp.offerPrice}
                             onChange={upd}
@@ -583,6 +644,8 @@ export function DealSidebar({
                         onChange={(k, v) => upd(k, v / 100)}
                         step="0.5"
                     />
+                    {!wholesaler && (
+                    <>
                     <Field
                         label="Preferred ROI %"
                         name="preferredROIPct"
@@ -596,6 +659,8 @@ export function DealSidebar({
                         value={inp.profitSplitPct}
                         onChange={upd}
                     />
+                    </>
+                    )}
                     <Field
                         label="Realtor/Sale Fee %"
                         name="realtorSaleFeePct"
@@ -683,6 +748,11 @@ export function DealSidebar({
             {isAdmin && (
             <div className={styles["saved-deals-sec"]}>
                 <div className={styles["sec-label"]}>Saved deals</div>
+                {saveError && (
+                <div style={{ padding: '8px 0', fontSize: 11, color: 'var(--red)' }} role="alert">
+                    {saveError}
+                </div>
+                )}
                 <div className={styles["saved-deals-actions"]}>
                     {isAdmin && (
                     <button

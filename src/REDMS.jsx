@@ -26,12 +26,15 @@ import {
   DealSidebar,
   FlipTab,
   BuyAndHoldTab,
+  RetailInvestorTab,
   ProjectionsTab,
   CpinTab,
   PropertySearch,
   DealInterestActions,
+  AdminDropdown,
+  WholesalerModuleDropdown,
 } from "./components";
-import { generateDealPDF } from "./utils/pdfExport.js";
+import { generateDealPDF, generateRetailInvestorPDF } from "./utils/pdfExport.js";
 import styles from "./REDMS.module.css";
 
 const $ = formatCurrency;
@@ -52,7 +55,7 @@ function getInitialInput() {
 }
 
 export default function REDMS() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isWholesaler, signOut } = useAuth();
   const { config } = useConfig();
   const navigate = useNavigate();
   const [inp, setInp] = useState(() => getInitialInput());
@@ -67,6 +70,7 @@ export default function REDMS() {
   const [currentDealId, setCurrentDealId] = useState(null);
   const [showPropertySearch, setShowPropertySearch] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [retailPdfExporting, setRetailPdfExporting] = useState(false);
 
   useEffect(() => {
     if (isAdmin || currentDealId) saveStoredInput(inp);
@@ -183,7 +187,7 @@ export default function REDMS() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   const handleLoadBlank = () => {
@@ -239,6 +243,17 @@ export default function REDMS() {
       console.error("PDF export failed", e);
     } finally {
       setPdfExporting(false);
+    }
+  };
+
+  const handleExportRetailPDF = async () => {
+    setRetailPdfExporting(true);
+    try {
+      await generateRetailInvestorPDF(inp, r, formatAddress);
+    } catch (e) {
+      console.error("Retail PDF export failed", e);
+    } finally {
+      setRetailPdfExporting(false);
     }
   };
 
@@ -326,20 +341,31 @@ export default function REDMS() {
           <img src="/logo.png" alt="" className={styles["hdr-logo"]} aria-hidden />
           <div className={styles["hdr-title"]}>REDMS</div>
           <div className={styles["hdr-sub"]}>
-            Real Estate Deal Management System · The BNIC Network LLC
+            Real Estate Deal Management System
           </div>
         </div>
         <div className={styles["hdr-right"]}>
           {!showPropertySearch && (
-            <button
-              type="button"
-              className={styles["hdr-pdf-btn"]}
-              onClick={handleExportPDF}
-              disabled={pdfExporting || (!isAdmin && !currentDealId)}
-              title={!isAdmin && !currentDealId ? "Select a deal first" : "Download deal summary as PDF"}
-            >
-              {pdfExporting ? "Generating…" : "Print PDF"}
-            </button>
+            <>
+              <button
+                type="button"
+                className={styles["hdr-pdf-btn"]}
+                onClick={handleExportPDF}
+                disabled={pdfExporting || retailPdfExporting || (!isAdmin && !currentDealId)}
+                title={!isAdmin && !currentDealId ? "Select a deal first" : "Download deal summary as PDF"}
+              >
+                {pdfExporting ? "Generating…" : "Investor Printout"}
+              </button>
+              <button
+                type="button"
+                className={styles["hdr-pdf-btn"]}
+                onClick={handleExportRetailPDF}
+                disabled={pdfExporting || retailPdfExporting || (!isAdmin && !currentDealId)}
+                title={!isAdmin && !currentDealId ? "Select a deal first" : "Download retail investor PDF"}
+              >
+                {retailPdfExporting ? "Generating…" : "Retail Investor Printout"}
+              </button>
+            </>
           )}
           <div
             className={`${styles.badge} ${styles["badge-" + dc]}`}
@@ -350,11 +376,19 @@ export default function REDMS() {
             {badgeText}
           </div>
           <nav className={styles["hdr-nav"]} aria-label="Account">
-            {isAdmin && (
-              <Link to="/admin" className={styles["hdr-nav-link"]}>Admin</Link>
+            {!isAdmin && (
+              <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
             )}
-            <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
-            <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+            {isAdmin ? (
+              <AdminDropdown email={user?.email} />
+            ) : isWholesaler ? (
+              <>
+                <WholesalerModuleDropdown />
+                <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+              </>
+            ) : (
+              <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+            )}
             <button
               type="button"
               className={styles["hdr-signout"]}
@@ -441,6 +475,7 @@ export default function REDMS() {
                     ["flip", "Purchase & Flip"],
                     ["bh", "Buy & Hold"],
                     ["proj", "30-Yr Projection"],
+                    ["retail", "Retail Investor"],
                     ["cpin", "CPIN / LP Offering"],
                   ].map(([k, l]) => (
                     <button
@@ -460,6 +495,7 @@ export default function REDMS() {
 
                 {tab === "flip" && <FlipTab r={r} inp={inp} />}
                 {tab === "bh" && <BuyAndHoldTab r={r} inp={inp} upd={upd} maxTpc={maxTpc} />}
+                {tab === "retail" && <RetailInvestorTab r={r} inp={inp} upd={upd} />}
                 {tab === "proj" && <ProjectionsTab r={r} />}
                 {tab === "cpin" && <CpinTab inp={inp} formatAddress={formatAddress} />}
               </div>

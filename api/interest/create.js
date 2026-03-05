@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { requireAuth } from "../lib/requireAuth.js";
 import { sendEmail } from "../lib/resend.js";
 
-const VALID_TYPES = ["request_analysis", "favorite", "request_zoom", "start_buying"];
+const VALID_TYPES = ["request_analysis", "favorite", "request_zoom", "start_buying", "request_wholesaler_access"];
 
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "helpkeepmymoney@gmail.com";
 
@@ -51,6 +51,7 @@ function buildEmailHtml(payload) {
     favorite: "Saved to Favorites",
     request_zoom: "Zoom meeting request",
     start_buying: "Purchase Interest",
+    request_wholesaler_access: "Request Wholesaler Access",
   };
 
   return `
@@ -80,6 +81,7 @@ function buildEmailSubject(payload) {
     favorite: "Saved to Favorites",
     request_zoom: "Zoom meeting request",
     start_buying: "Purchase Interest",
+    request_wholesaler_access: "Request Wholesaler Access",
   };
   const label = subjectLabels[type] || type;
   return `REDMS: ${label} - ${userEmail} - ${dealRef}`;
@@ -103,7 +105,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid type. Must be one of: " + VALID_TYPES.join(", ") });
   }
 
-  if (type !== "request_analysis" && !dealId) {
+  if (type !== "request_analysis" && type !== "request_wholesaler_access" && !dealId) {
     return res.status(400).json({ error: "dealId required for deal-level actions" });
   }
 
@@ -116,6 +118,13 @@ export default async function handler(req, res) {
   if (type === "request_analysis" && userIsAdmin) {
     return res.status(400).json({
       error: "Admins can analyze properties directly. Use the Analyze Deal button.",
+    });
+  }
+
+  const userIsWholesaler = await db.doc(`wholesalers/${decoded.uid}`).get().then((d) => d.exists);
+  if (type === "request_wholesaler_access" && userIsWholesaler) {
+    return res.status(400).json({
+      error: "You already have Wholesaler access.",
     });
   }
 

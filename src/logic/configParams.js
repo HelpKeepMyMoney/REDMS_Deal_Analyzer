@@ -20,10 +20,18 @@ import {
   TITLE_INSURANCE_RATES as DEFAULT_TITLE_INSURANCE_RATES,
 } from "./constants.js";
 
+/** Wholesaler deal-check defaults (per-property overridable) */
+export const DEFAULT_MIN_FLIP_COC_PCT = 25;
+export const DEFAULT_MIN_BH_COC_PCT = 10;
+export const DEFAULT_MIN_WHOLESALE_FEE = 5000;
+
 /** Default config (matches constants.js). Used when Firestore has no overrides. */
 export const DEFAULT_CONFIG = {
   maxTpc: DEFAULT_MAX_TPC,
   minLoanAmount: DEFAULT_MIN_LOAN_AMOUNT,
+  minFlipCoCPct: DEFAULT_MIN_FLIP_COC_PCT,
+  minBhCoCPct: DEFAULT_MIN_BH_COC_PCT,
+  minWholesaleFee: DEFAULT_MIN_WHOLESALE_FEE,
   rehabCost: { ...DEFAULT_REHAB_COST },
   rehabTime: { ...DEFAULT_REHAB_TIME },
   detroitTaxSevRatio: DEFAULT_DETROIT_TAX_SEV_RATIO,
@@ -50,7 +58,8 @@ export function mergeConfig(firestoreData) {
   }
   const out = { ...DEFAULT_CONFIG };
   const scalarKeys = [
-    "maxTpc", "minLoanAmount", "detroitTaxSevRatio", "detroitTaxRate", "detroitTaxFlat",
+    "maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minWholesaleFee",
+    "detroitTaxSevRatio", "detroitTaxRate", "detroitTaxFlat",
     "referralFraction", "mortgagePointsRate", "minAcqMgmtFee", "minRealtorFee",
     "depreciationYears", "depreciationLandFraction", "depreciationMinBasis",
   ];

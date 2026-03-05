@@ -281,7 +281,6 @@ export async function generateDealPDF(inp, r, formatAddress) {
     ["Rent/mo", $(inp.totalRent)],
     ["Rehab", inp.rehabLevel ?? "—"],
     ["Rehab $", $(r.rehabCost)],
-    ["Owner", inp.propertyOwner || "—"],
     ["APN", inp.apn || "—"],
   ];
 
@@ -353,7 +352,7 @@ export async function generateDealPDF(inp, r, formatAddress) {
     r.closing + r.holdingCosts + r.mortgage2Pts;
 
   const flipCosts = [
-    ["Offer / Purchase Price", $(r.offerPrice)],
+    ["Contract Price (to seller)", $(r.offerPrice)],
     ["Wholesale Fee", $(inp.wholesaleFee)],
     ["Rehab Cost", $(r.rehabCost)],
     ["1st Mortgage Upfront Points", $(r.mortgage1Pts)],
@@ -560,5 +559,319 @@ export async function generateDealPDF(inp, r, formatAddress) {
 
   // Save
   const filename = `Deal_Summary_${(formatAddress(inp) || "Property").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)}.pdf`;
+  doc.save(filename);
+}
+
+/** Format whole dollars with commas (e.g. 125000 → "$125,000") */
+function formatWholeDollars(v) {
+  if (v == null || isNaN(v)) return "—";
+  const s = Math.round(v).toLocaleString("en-US");
+  return `$${s}`;
+}
+
+/**
+ * Generate and download the Retail Investor PDF (3 pages).
+ * Cover: Property info (no notes), title with Sales Price, retail metrics.
+ * Page 2: Buy & Hold P&L with retail Cap Rate, Total Retail Investment, Retail Year-1 Cash-on-Cash; no ARV/Equity lines.
+ * Page 3: 30-year projection with retail ROI; Initial Investment = Sell to Retail Investor amount.
+ */
+export async function generateRetailInvestorPDF(inp, r, formatAddress) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  let y = MARGIN;
+
+  const logoUrl = `${window.location.origin}/logo.png`;
+  const logoData = await imageToBase64(logoUrl, "png");
+
+  // ─── COVER PAGE ─────────────────────────────────────────────────────────
+  doc.setFontSize(SMALL_SIZE);
+  doc.setFont(FONT_SANS, "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    "The information presented is for illustrative purposes only and are not guaranteed projections.",
+    PAGE_W / 2,
+    y,
+    { align: "center", maxWidth: PAGE_W - 2 * MARGIN }
+  );
+  y += 10;
+
+  doc.setFontSize(TITLE_SIZE);
+  doc.setFont(FONT_SANS, "bold");
+  doc.setTextColor(180, 100, 40);
+  doc.text("Retail Investor Property Summary", PAGE_W / 2, y, { align: "center" });
+  y += 14;
+
+  doc.setFontSize(BODY_SIZE);
+  doc.setFont(FONT_SANS, "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text("The BNIC Network LLC · REDMS Deal Analyzer", PAGE_W / 2, y, { align: "center" });
+  y += 10;
+
+  const ROW_H = 55;
+  const GAP = 8;
+  const usableW = PAGE_W - 2 * MARGIN;
+  const logoW = ROW_H;
+  const propImgW = usableW - logoW - GAP;
+
+  if (logoData) {
+    try {
+      doc.addImage(logoData, "PNG", MARGIN, y, logoW, ROW_H);
+    } catch {
+      doc.setFillColor(230, 230, 230);
+      doc.rect(MARGIN, y, logoW, ROW_H, "F");
+    }
+  } else {
+    doc.setFillColor(230, 230, 230);
+    doc.rect(MARGIN, y, logoW, ROW_H, "F");
+  }
+
+  const imgUrl = inp?.image || inp?.imageFallback || "";
+  const imgLoaded = await imageToBase64WithSize(imgUrl);
+  const propX = MARGIN + logoW + GAP;
+
+  if (imgLoaded?.data) {
+    try {
+      const { data, width, height } = imgLoaded;
+      const aspect = width / height;
+      let outW = propImgW;
+      let outH = ROW_H;
+      if (aspect > propImgW / ROW_H) {
+        outW = propImgW;
+        outH = propImgW / aspect;
+      } else {
+        outH = ROW_H;
+        outW = ROW_H * aspect;
+      }
+      const imgX = propX + (propImgW - outW) / 2;
+      const imgY = y + (ROW_H - outH) / 2;
+      doc.addImage(data, "JPEG", imgX, imgY, outW, outH);
+    } catch {
+      doc.setFillColor(230, 230, 230);
+      doc.rect(propX, y, propImgW, ROW_H, "F");
+      doc.setFontSize(SMALL_SIZE);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Property Photo", propX + propImgW / 2, y + ROW_H / 2 - 2, { align: "center" });
+    }
+  } else {
+    doc.setFillColor(230, 230, 230);
+    doc.rect(propX, y, propImgW, ROW_H, "F");
+    doc.setFontSize(SMALL_SIZE);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Property Photo (add via Find Properties)", propX + propImgW / 2, y + ROW_H / 2 - 2, { align: "center" });
+  }
+  y += ROW_H + 10;
+
+  // Property Info Section — title: "Property Information: Sales Price: $X,XXX" (no notes)
+  const salesPriceStr = formatWholeDollars(r.arv);
+  y = addSectionHeading(doc, `Property Information: Sales Price: ${salesPriceStr}`, y);
+
+  const address = formatAddress(inp);
+  doc.setFontSize(BODY_SIZE - 1);
+  doc.setFont(FONT_SANS, "bold");
+  doc.text("Address", MARGIN, y);
+  doc.setFont(FONT_SANS, "normal");
+  doc.text(address || "—", MARGIN, y + 5, { maxWidth: usableW });
+  y += 10;
+
+  const propInfo = [
+    ["Beds", inp.bedrooms ?? "—"],
+    ["Baths", inp.bathrooms ?? "—"],
+    ["Sq Ft", inp.sqft != null ? Number(inp.sqft).toLocaleString() : "—"],
+    ["Year", inp.yearBuilt ?? "—"],
+    ["Lot Size", fmtNum(inp.lotSize)],
+    ["Stories", inp.stories ?? "—"],
+    ["Basement", inp.basement ?? "—"],
+    ["Type", inp.use || "Single Family"],
+    ["Rent/mo", $(inp.totalRent)],
+    ["Rehab", inp.rehabLevel ?? "—"],
+    ["Rehab $", $(r.rehabCost)],
+    ["APN", inp.apn || "—"],
+  ];
+  y = addPropertyGrid(doc, propInfo, y);
+  // No notes for retail printout
+  y += 18;
+
+  // Key metrics — Investment Required (retail), Buy & Hold Cash-on-Cash ROI (retail), Projected Annual NOI
+  y = addSectionHeading(doc, "Key Investment Metrics", y, 8);
+
+  const boxW = (PAGE_W - 2 * MARGIN - 8) / 3;
+  const boxH = 24;
+  let boxY = y;
+  boxY = addMetricBox(
+    doc,
+    "Investment Required",
+    $(r.retailTotalInvestment),
+    MARGIN,
+    boxY,
+    boxW,
+    boxH,
+    "Total Retail Investment Amount"
+  );
+  boxY = addMetricBox(
+    doc,
+    "Buy & Hold Cash-on-Cash ROI",
+    pct(r.retailCashOnCash),
+    MARGIN + boxW + 4,
+    y,
+    boxW,
+    boxH,
+    "Retail Investor Year-1 Cash-on-Cash"
+  );
+  addMetricBox(
+    doc,
+    "Projected Annual NOI",
+    $(r.noi),
+    MARGIN + 2 * (boxW + 4),
+    y,
+    boxW,
+    boxH,
+    "Rental income minus operating expenses (before mortgage)"
+  );
+  y = boxY + 4;
+
+  doc.setFontSize(SMALL_SIZE);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`Generated ${new Date().toLocaleDateString()} · Page 1 of 3`, PAGE_W / 2, PAGE_H - 10, { align: "center" });
+
+  // ─── PAGE 2: BUY & HOLD (retail version) ─────────────────────────────────
+  doc.addPage();
+  y = MARGIN;
+  y = addSectionHeading(doc, "Buy & Hold — Annual P&L & Investment Summary", y);
+  addLogoToCorner(doc, logoData, PAGE_W, MARGIN, LOGO_CORNER_SIZE, MARGIN + 4);
+
+  const bhInfo = [
+    ["Annual Gross Rent", $(r.annualGrossRent), false],
+    ["Less: Insurance", `(${$(r.bhAnnualIns)})`, false],
+    ["Less: Property Tax", `(${$(r.bhAnnualTax)})`, false],
+    ["Less: Property Management Fee", `(${$(r.bhAnnualPmFee)})`, false],
+    ["Net Operating Income (NOI)", $(r.noi), true],
+    ...(r.bhAnnualMtg1 > 0 ? [["Less: 1st Mortgage (annual)", `(${$(r.bhAnnualMtg1)})`, false]] : []),
+    ...(r.bhAnnualMtg2 > 0 ? [["Less: 2nd Mortgage (annual)", `(${$(r.bhAnnualMtg2)})`, false]] : []),
+    ["Cash Flow After Debt", $(r.bhCashFlowAfterDebt), false],
+    ["Cap Rate", pct(r.capRateRetail), true],
+    ["Total Retail Investment", $(r.retailTotalInvestment), false],
+    ["Year-1 Cash-on-Cash", pct(r.retailCashOnCash), true],
+  ];
+
+  for (const [label, val, highlight] of bhInfo) {
+    y = addRow(doc, label, val, MARGIN, y, 0, highlight);
+  }
+  y += 14;
+
+  doc.setFontSize(SMALL_SIZE);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`Generated ${new Date().toLocaleDateString()} · Page 2 of 3`, PAGE_W / 2, PAGE_H - 10, { align: "center" });
+
+  // ─── PAGE 3: 30-YEAR RETAIL PROJECTION ───────────────────────────────────
+  doc.addPage("a4", "l");
+  const LAND_W = 297;
+  const LAND_H = 210;
+  const LAND_MARGIN = 12;
+  y = LAND_MARGIN;
+
+  doc.setFontSize(HEADING_SIZE);
+  doc.setFont(FONT_SANS, "bold");
+  doc.setTextColor(40, 40, 40);
+  doc.text("30-Year Retail Investor Projection", LAND_MARGIN, y);
+  doc.setDrawColor(200, 200, 200);
+  doc.line(LAND_MARGIN, y + 2, LAND_W - LAND_MARGIN, y + 2);
+  addLogoToCorner(doc, logoData, LAND_W, LAND_MARGIN, LOGO_CORNER_SIZE, LAND_MARGIN + 4);
+  y += 10;
+
+  doc.setFontSize(SMALL_SIZE);
+  doc.setFont(FONT_SANS, "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Initial investment: ${$(r.arv)}. Rent and value grow over time.`, LAND_MARGIN, y);
+  y += 6;
+
+  const rowH = 5;
+  const colW = [8, 24, 22, 20, 24, 20, 18, 14, 14, 26];
+  const headers = ["Yr", "Rental Income", "Prop Costs", "Mtg Pmt", "Net Cash", "Depr", "Reserves", "ROI", "ROE", "Prop Value"];
+
+  doc.setFontSize(7);
+  doc.setFont(FONT_SANS, "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.setDrawColor(180, 180, 180);
+  let x = LAND_MARGIN;
+  for (let i = 0; i < headers.length; i++) {
+    doc.rect(x, y, colW[i], 6, "S");
+    doc.text(headers[i], x + 2, y + 4);
+    x += colW[i];
+  }
+  y += 6;
+
+  doc.setFont(FONT_SANS, "normal");
+  doc.setFontSize(6);
+  const highlightYears = [1, 5, 10, 15, 20, 25, 30];
+  const retailInv = r.retailTotalInvestment;
+  for (const p of r.projections) {
+    if (highlightYears.includes(p.yr)) {
+      doc.setFillColor(252, 248, 240);
+      x = LAND_MARGIN;
+      for (let i = 0; i < colW.length; i++) {
+        doc.rect(x, y, colW[i], rowH, "F");
+        x += colW[i];
+      }
+    }
+    doc.setDrawColor(220, 220, 220);
+    const retailRoi = retailInv > 0 ? p.netCash / retailInv : 0;
+    x = LAND_MARGIN;
+    const cells = [
+      String(p.yr),
+      $(p.rentalIncome),
+      `(${$(p.propCosts)})`,
+      `(${$(p.mortgagePayment)})`,
+      $(p.netCash),
+      $(p.depr),
+      `(${$(Math.abs(p.reserves_yr))})`,
+      pct(retailRoi),
+      pct(p.roe),
+      $(p.propValue),
+    ];
+    for (let i = 0; i < cells.length; i++) {
+      doc.rect(x, y, colW[i], rowH, "S");
+      doc.text(cells[i], x + 2, y + 3.5);
+      x += colW[i];
+    }
+    y += rowH;
+  }
+
+  y += 1;
+  doc.setFont(FONT_SANS, "bold");
+  doc.setFontSize(6);
+  doc.setTextColor(0, 0, 0);
+  const gt = r.gt;
+  const totCells = [
+    "∑",
+    $(gt.rentalIncome),
+    `(${$(gt.propCosts)})`,
+    `(${$(gt.mortgagePayment)})`,
+    $(gt.netCash),
+    $(gt.depr),
+    `(${$(Math.abs(gt.reserves_yr))})`,
+    pct(retailInv > 0 ? gt.netCash / retailInv : 0),
+    "—",
+    $(r.projections[29]?.propValue),
+  ];
+  doc.setDrawColor(180, 180, 180);
+  x = LAND_MARGIN;
+  for (let i = 0; i < colW.length; i++) {
+    doc.rect(x, y, colW[i], 6, "S");
+    doc.text(totCells[i], x + 2, y + 4);
+    x += colW[i];
+  }
+  y += 10;
+
+  doc.setFont(FONT_SANS, "normal");
+  doc.setFontSize(SMALL_SIZE);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Total 30-yr Net Cash: ${$(gt.netCash)}`, LAND_MARGIN, y);
+  doc.text(`Total Return: ${retailInv > 0 ? ((gt.netCash / retailInv) * 100).toFixed(0) : 0}%`, LAND_MARGIN + 70, y);
+  doc.text(`Final Property Value: ${$(r.projections[29]?.propValue)}`, LAND_MARGIN + 140, y);
+
+  doc.setFontSize(SMALL_SIZE);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`Generated ${new Date().toLocaleDateString()} · Page 3 of 3`, LAND_W / 2, LAND_H - 8, { align: "center" });
+
+  const filename = `Retail_Investor_${(formatAddress(inp) || "Property").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)}.pdf`;
   doc.save(filename);
 }

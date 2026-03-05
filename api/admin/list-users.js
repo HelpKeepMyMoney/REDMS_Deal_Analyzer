@@ -22,11 +22,15 @@ export default async function handler(req, res) {
     do {
       const result = await auth.listUsers(1000, nextPageToken);
       for (const u of result.users) {
-        const adminDoc = await db.doc(`admins/${u.uid}`).get();
+        const [adminDoc, wholesalerDoc] = await Promise.all([
+          db.doc(`admins/${u.uid}`).get(),
+          db.doc(`wholesalers/${u.uid}`).get(),
+        ]);
+        const role = adminDoc.exists ? "admin" : wholesalerDoc.exists ? "wholesaler" : "user";
         users.push({
           uid: u.uid,
           email: u.email,
-          role: adminDoc.exists ? "admin" : "user",
+          role,
           created: u.metadata.creationTime,
         });
       }

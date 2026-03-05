@@ -26,6 +26,9 @@ export default async function handler(req, res) {
     if (role === "admin") {
       await db.doc(`admins/${userRecord.uid}`).set({});
     }
+    if (role === "wholesaler") {
+      await db.doc(`wholesalers/${userRecord.uid}`).set({});
+    }
 
     return res.status(200).json({ uid: userRecord.uid });
   } catch (err) {

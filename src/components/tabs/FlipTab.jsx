@@ -10,7 +10,7 @@ export function FlipTab({ r, inp }) {
         <div className={styles.two} style={{ marginTop: 12 }} role="tabpanel" id="panel-flip" aria-labelledby="tab-flip">
             <div className={styles.panel}>
                 <div className={styles.ph}>Cost Stack — Purchase & Flip Sheet</div>
-                <DetailRow label="Offer / Purchase Price" val={$(r.offerPrice)} cls="g" />
+                <DetailRow label="Contract Price (to seller)" val={$(r.offerPrice)} cls="g" />
                 <DetailRow label="Wholesale Fee" val={$(inp.wholesaleFee)} cls="g" />
                 <DetailRow label="Rehab Cost" val={$(r.rehabCost)} cls="g" />
                 <DetailRow label="1st Mtg Upfront Points" val={$(r.mortgage1Pts)} cls="g" />

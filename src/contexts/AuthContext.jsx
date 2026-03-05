@@ -32,19 +32,35 @@ export async function checkIsAdmin(uid) {
   }
 }
 
+/** Check if the current user is a wholesaler (document exists in wholesalers/{uid}). */
+export async function checkIsWholesaler(uid) {
+  if (!db || !uid) return false;
+  try {
+    const ref = doc(db, "wholesalers", uid);
+    const snap = await getDoc(ref);
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isWholesaler, setIsWholesaler] = useState(false);
 
   useEffect(() => {
     if (!auth) {
       setLoading(false);
+      setRolesLoading(false);
       return () => {};
     }
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
+      setRolesLoading(!!u);
     });
     return unsub;
   }, []);
@@ -52,11 +68,20 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) {
       setIsAdmin(false);
+      setIsWholesaler(false);
+      setRolesLoading(false);
       return;
     }
     let cancelled = false;
-    checkIsAdmin(user.uid).then((admin) => {
-      if (!cancelled) setIsAdmin(admin);
+    Promise.all([
+      checkIsAdmin(user.uid),
+      checkIsWholesaler(user.uid),
+    ]).then(([admin, wholesaler]) => {
+      if (!cancelled) {
+        setIsAdmin(admin);
+        setIsWholesaler(wholesaler);
+        setRolesLoading(false);
+      }
     });
     return () => { cancelled = true; };
   }, [user?.uid]);
@@ -95,8 +120,9 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
-    loading,
+    loading: loading || rolesLoading,
     isAdmin,
+    isWholesaler,
     signUp,
     signIn,
     signOut,

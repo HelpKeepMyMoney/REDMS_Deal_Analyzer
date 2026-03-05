@@ -7,6 +7,7 @@ import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
 import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
+import { AdminDropdown } from "../components";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -268,7 +269,7 @@ export default function Admin() {
       setMessage({ type: "error", text: "Admin API not available." });
       return;
     }
-    const newRole = currentRole === "admin" ? "user" : "admin";
+    const newRole = currentRole === "admin" || currentRole === "wholesaler" ? "user" : "admin";
     if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
       return;
     }
@@ -286,9 +287,57 @@ export default function Admin() {
     }
   };
 
+  const handleGrantWholesaler = async (uid) => {
+    if (!adminApi) {
+      setMessage({ type: "error", text: "Admin API not available." });
+      return;
+    }
+    if (!window.confirm("Grant this user Wholesaler access?")) {
+      return;
+    }
+    setLoading(true);
+    setMessage({ type: "", text: "" });
+    try {
+      await adminApi.setUserRole({ uid, role: "wholesaler" });
+      setMessage({ type: "success", text: "Wholesaler access granted." });
+      await loadUsers();
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: "error", text: "Failed to grant access: " + e.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveWholesalerRequest = async (request) => {
+    if (!adminApi) {
+      setMessage({ type: "error", text: "Admin API not available." });
+      return;
+    }
+    if (!window.confirm(`Grant Wholesaler access to ${request.userEmail}?`)) {
+      return;
+    }
+    setInterestStatusUpdating(request.id);
+    setMessage({ type: "", text: "" });
+    try {
+      await adminApi.setUserRole({ uid: request.userId, role: "wholesaler" });
+      await updateInterestRequestStatus(request.id, "completed");
+      setInterestRequests((prev) =>
+        prev.map((r) => (r.id === request.id ? { ...r, status: "completed" } : r))
+      );
+      setMessage({ type: "success", text: "Wholesaler access granted." });
+      await loadUsers();
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: "error", text: "Failed to grant access: " + e.message });
+    } finally {
+      setInterestStatusUpdating(null);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   if (!isAdmin) {
@@ -297,7 +346,7 @@ export default function Admin() {
         <div className={styles["admin-card"]}>
           <h1 className={styles["admin-title"]}>Access denied</h1>
           <p className={styles["admin-text"]}>You do not have admin access.</p>
-          <Link to="/" className={styles["admin-btn"]}>
+          <Link to="/investor" className={styles["admin-btn"]}>
             Back to deals
           </Link>
         </div>
@@ -313,8 +362,14 @@ export default function Admin() {
           <p>User Management · Parameters · Deal Sharing · Search Sharing</p>
         </div>
         <nav className={styles["admin-nav"]}>
-          <Link to="/" className={styles["admin-nav-link"]}>Back to App</Link>
-          <span className={styles["admin-email"]}>{user?.email}</span>
+          <AdminDropdown email={user?.email} />
+          <button
+            type="button"
+            className={`${styles["admin-btn"]} ${styles.secondary}`}
+            onClick={handleSignOut}
+          >
+            Sign out
+          </button>
         </nav>
       </header>
 
@@ -398,8 +453,9 @@ export default function Admin() {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >
-                  <option value="user">User (Standard Access)</option>
+                  <option value="user">User (Investor)</option>
                   <option value="admin">Admin (User Management)</option>
+                  <option value="wholesaler">Wholesaler</option>
                 </select>
               </div>
 
@@ -456,10 +512,21 @@ export default function Admin() {
                             onClick={() => handleToggleRole(u.uid, u.role)}
                             className={styles["btn-action"]}
                             disabled={loading || user.uid === u.uid}
-                            title={`Make ${u.role === 'admin' ? 'User' : 'Admin'}`}
+                            title={u.role === "admin" || u.role === "wholesaler" ? "Remove role" : "Make Admin"}
                           >
-                            Toggle Role
+                            {u.role === "admin" ? "Remove Admin" : u.role === "wholesaler" ? "Remove Wholesaler" : "Make Admin"}
                           </button>
+                          {u.role !== "wholesaler" && (
+                            <button
+                              onClick={() => handleGrantWholesaler(u.uid)}
+                              className={styles["btn-action"]}
+                              disabled={loading || user.uid === u.uid}
+                              title="Grant Wholesaler access"
+                              style={{ marginLeft: 8 }}
+                            >
+                              Grant Wholesaler
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -698,6 +765,7 @@ export default function Admin() {
                   >
                     <option value="all">All</option>
                     <option value="request_analysis">Request Analysis</option>
+                    <option value="request_wholesaler_access">Request Wholesaler Access</option>
                     <option value="favorite">Favorite</option>
                     <option value="request_zoom">Request Zoom</option>
                     <option value="start_buying">Start Buying</option>
@@ -734,6 +802,7 @@ export default function Admin() {
                           <td>
                             <span className={`${styles.badge} ${styles["badge-user"]}`}>
                               {r.type === "request_analysis" && "Request Analysis"}
+                              {r.type === "request_wholesaler_access" && "Request Wholesaler Access"}
                               {r.type === "favorite" && "Favorite"}
                               {r.type === "request_zoom" && "Request Zoom"}
                               {r.type === "start_buying" && "Start Buying"}
@@ -744,7 +813,9 @@ export default function Admin() {
                               ? [r.propertySnapshot.addressLine1, r.propertySnapshot.city, r.propertySnapshot.state]
                                   .filter(Boolean)
                                   .join(", ") || "—"
-                              : r.dealName || r.dealId || "—"}
+                              : r.type === "request_wholesaler_access"
+                                ? r.userEmail
+                                : r.dealName || r.dealId || "—"}
                           </td>
                           <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {r.message || "—"}
@@ -756,9 +827,19 @@ export default function Admin() {
                             </span>
                           </td>
                           <td>
+                            {r.type === "request_wholesaler_access" && r.status === "pending" && (
+                              <button
+                                type="button"
+                                className={styles["btn-action"]}
+                                onClick={() => handleApproveWholesalerRequest(r)}
+                                disabled={interestStatusUpdating === r.id}
+                              >
+                                Approve
+                              </button>
+                            )}
                             {r.status !== "completed" && (
                               <>
-                                {r.status === "pending" && (
+                                {r.status === "pending" && r.type !== "request_wholesaler_access" && (
                                   <button
                                     type="button"
                                     className={styles["btn-action"]}
@@ -773,6 +854,7 @@ export default function Admin() {
                                   className={styles["btn-action"]}
                                   onClick={() => handleUpdateInterestStatus(r.id, "completed")}
                                   disabled={interestStatusUpdating === r.id}
+                                  style={r.type === "request_wholesaler_access" ? { marginLeft: 8 } : undefined}
                                 >
                                   Complete
                                 </button>

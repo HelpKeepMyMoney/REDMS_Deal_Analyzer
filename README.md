@@ -4,6 +4,7 @@
 
 ## Features
 
+- **Auth & module selection** — Sign in/sign up; after login, users see a module picker with only the options they can access (Admin, Investor, Wholesaler).
 - **Deal analysis** — Enter property details, offer price, rehab level/cost, and financing to get a DEAL / NO DEAL badge and pass-fail checks (e.g. Flip Cash-on-Cash ≥ 25%, Investment Required within limit).
 - **Metric cards** — NOI, Investor Flip Profit, Sell to Retail Investor (ARV), Investor Cap Rate, Rent-to-Price Ratio, Flip Cash-on-Cash, B&H Cash-on-Cash, Investment Required, Cap Rate. Cards turn red when thresholds are missed.
 - **Purchase & Flip** — Flip sheet breakdown (ARV, fees, preferred ROI, profit split, investor/BNIC share, min sales price).
@@ -13,7 +14,8 @@
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
-- **Admin** — User management, deal sharing, search sharing, interest requests, parameters, email notifications.
+- **Admin** — User management, deal sharing, search sharing, interest requests, parameters, email notifications. Header sign-out and module switcher.
+- **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
 
 ## Tech Stack
 
@@ -40,7 +42,11 @@ npm run test:run
 
 ## Project Structure
 
-- `src/REDMS.jsx` — Main app (sidebar inputs, deal logic strip, metric cards, tabbed views).
+- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor).
+- `src/pages/Landing.jsx` — Login/signup and module selection for logged-in users.
+- `src/pages/Admin.jsx` — Admin dashboard (users, params, sharing, interest).
+- `src/pages/Wholesaler.jsx` — Wholesaler deal analyzer.
+- `src/REDMS.jsx` — Investor deal analyzer (sidebar inputs, deal logic strip, metric cards, tabbed views).
 - `src/REDMS.module.css` — Styles.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
@@ -49,10 +55,11 @@ npm run test:run
   - `validation.js` — sanitizeInput, clampNumber.
   - `storage.js` — loadStoredInput, saveStoredInput.
   - `firestoreStorage.js` — deals (load, save, share).
+  - `wholesalerDealStorage.js` — wholesaler deals (load, save) with risk overrides.
   - `userFavoritesStorage.js` — user favorites.
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
-- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch.
+- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, AdminDropdown, WholesalerModuleDropdown.
 - `api/` — Vercel serverless functions.
 
 ## Property Data Sources

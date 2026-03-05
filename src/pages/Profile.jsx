@@ -1,10 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { createInterestApi } from "../logic/interestApi.js";
+import { AdminDropdown } from "../components";
+
+function getAnalyzerPath(isWholesaler) {
+  return isWholesaler ? "/wholesaler" : "/investor";
+}
 import styles from "./Profile.module.css";
 
 export default function Profile() {
-  const { user, updateEmail, updatePassword } = useAuth();
+  const { user, isAdmin, isWholesaler, updateEmail, updatePassword } = useAuth();
+  const interestApi = useMemo(
+    () => (user ? createInterestApi(() => user.getIdToken()) : null),
+    [user]
+  );
+  const [wholesalerRequested, setWholesalerRequested] = useState(false);
+  const [wholesalerRequesting, setWholesalerRequesting] = useState(false);
+  const [wholesalerError, setWholesalerError] = useState("");
 
   const [emailForm, setEmailForm] = useState({
     newEmail: "",
@@ -44,6 +57,20 @@ export default function Profile() {
     }
   };
 
+  const handleRequestWholesalerAccess = async () => {
+    if (!interestApi) return;
+    setWholesalerRequesting(true);
+    setWholesalerError("");
+    try {
+      await interestApi.createInterest({ type: "request_wholesaler_access" });
+      setWholesalerRequested(true);
+    } catch (e) {
+      setWholesalerError(e.message || "Failed to submit request.");
+    } finally {
+      setWholesalerRequesting(false);
+    }
+  };
+
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     setPasswordError("");
@@ -71,7 +98,8 @@ export default function Profile() {
   return (
     <div className={styles.page}>
       <header className={styles.hdr}>
-        <Link to="/" className={styles.back}>← Back to Deal Analyzer</Link>
+        <Link to={getAnalyzerPath(isWholesaler)} className={styles.back}>← Back to Deal Analyzer</Link>
+        {isAdmin && <AdminDropdown email={user?.email} />}
       </header>
 
       <main className={styles.main}>
@@ -109,6 +137,32 @@ export default function Profile() {
               </button>
             </form>
           </section>
+
+          {!isWholesaler && (
+            <section className={styles.section} aria-labelledby="wholesaler-heading">
+              <h2 id="wholesaler-heading" className={styles.sectionTitle}>Wholesaler Access</h2>
+              <p className={styles.sub} style={{ marginBottom: 12 }}>
+                Request access to the Wholesaler module to analyze properties from a wholesaler perspective.
+              </p>
+              {wholesalerRequested ? (
+                <p className={styles.success} role="status">
+                  Request submitted. An admin will review and grant access.
+                </p>
+              ) : (
+                <>
+                  {wholesalerError && <div className={styles.error} role="alert">{wholesalerError}</div>}
+                  <button
+                  type="button"
+                  className={styles.submit}
+                  onClick={handleRequestWholesalerAccess}
+                  disabled={wholesalerRequesting}
+                >
+                  {wholesalerRequesting ? "Submitting…" : "Request Wholesaler Access"}
+                </button>
+                </>
+              )}
+            </section>
+          )}
 
           <section className={styles.section} aria-labelledby="password-heading">
             <h2 id="password-heading" className={styles.sectionTitle}>Password</h2>

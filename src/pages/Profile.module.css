@@ -9,6 +9,10 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .back {

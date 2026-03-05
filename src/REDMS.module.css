@@ -792,6 +792,21 @@
   background: var(--surface2);
 }
 
+.dr-highlight-yellow {
+  background: #ffeb3b;
+}
+
+.dr-highlight-yellow .dk,
+.dr-highlight-yellow .dv {
+  color: #000;
+}
+
+.dr-highlight-yellow .dv {
+  font-family: var(--display);
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
 .dr.div {
   border-top: 1px solid var(--amber);
 }

@@ -212,6 +212,29 @@ function buildStreetViewUrl(lat, lng) {
 }
 
 /**
+ * Builds a Google Street View Static API URL from a property address.
+ * Uses street, city, state, zipCode. Returns null if key or address is missing.
+ */
+export function buildStreetViewUrlFromAddress(inp) {
+  if (!GOOGLE_MAPS_KEY) return null;
+  const parts = [
+    inp?.street,
+    inp?.city,
+    inp?.state,
+    inp?.zipCode,
+  ].filter(Boolean).map((s) => String(s).trim());
+  if (parts.length === 0) return null;
+  const address = parts.join(", ");
+  if (!address) return null;
+  const params = new URLSearchParams({
+    size: "800x600",
+    location: address,
+    key: GOOGLE_MAPS_KEY,
+  });
+  return `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
+}
+
+/**
  * Normalizes RentCast listing data into our app's format.
  */
 function normalizeApiData(rawProp) {
