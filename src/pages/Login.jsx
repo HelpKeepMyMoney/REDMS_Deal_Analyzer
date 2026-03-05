@@ -33,7 +33,15 @@ export default function Login() {
           setBusy(false);
           return;
         }
-        await signUp(email, password);
+        const user = await signUp(email, password);
+        const token = await user.getIdToken();
+        fetch("/api/auth/signup-notification", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }).catch(() => {});
       } else {
         await signIn(email, password);
       }

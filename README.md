@@ -78,10 +78,10 @@ Admin features (user management, interest API, user metadata) use **Vercel serve
   - `FIREBASE_PROJECT_ID` — same as `VITE_FIREBASE_PROJECT_ID`
   - `FIREBASE_CLIENT_EMAIL` — from your [Firebase service account JSON](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
   - `FIREBASE_PRIVATE_KEY` — from the same JSON (paste the full key including `-----BEGIN PRIVATE KEY-----`; use literal `\n` for newlines in Vercel)
-- **Resend** (for interest notification emails — used by `api/interest/create.js`):
+- **Resend** (for interest and signup notification emails — used by `api/interest/create.js` and `api/auth/signup-notification.js`):
   - `RESEND_API_KEY` — Sign up at [resend.com](https://resend.com) (3,000 emails/month free)
   - `RESEND_FROM_EMAIL` — Verified sender domain
-- **Admin notifications** — `ADMIN_NOTIFICATION_EMAIL` — Email address for interest notifications (favorites, Zoom requests, etc.)
+- **Admin notifications** — `ADMIN_NOTIFICATION_EMAIL` — Email address for interest notifications (favorites, Zoom requests, etc.) and new user signups
 
 **Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
 
