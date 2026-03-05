@@ -195,6 +195,7 @@ export function calc(inp, config = null) {
     retailRecommendedReserves,
     downPaymentPct,
     mortgage2Amt: inpMortgage2Amt,
+    businessCosts,
   } = inp;
 
   const rehabCost =
@@ -277,7 +278,11 @@ export function calc(inp, config = null) {
   const bhPmFeeMonthly = (pmFeePct / 100) * totalRent;
   const bhAnnualPmFee = bhPmFeeMonthly * 12;
   const bhAnnualIns = annualInsurance;
-  const bhAnnualExpenses = bhAnnualIns + bhAnnualTax + bhAnnualPmFee;
+  const bhBusinessCosts =
+    typeof businessCosts === "number" && !isNaN(businessCosts) && businessCosts >= 0
+      ? businessCosts
+      : 0;
+  const bhAnnualExpenses = bhAnnualIns + bhAnnualTax + bhAnnualPmFee + bhBusinessCosts;
   const annualGrossRent = totalRent * 12;
   const annualCashExpNeg = -bhAnnualExpenses;
   const noi = annualGrossRent + annualCashExpNeg;
@@ -431,6 +436,7 @@ export function calc(inp, config = null) {
     bhAnnualTax,
     bhPmFeeMonthly,
     bhAnnualPmFee,
+    bhBusinessCosts,
     bhAnnualIns,
     bhAnnualExpenses,
     annualGrossRent,
@@ -618,6 +624,7 @@ export const DEFAULT_INPUT = {
   recommendedReserves: undefined, // if provided, overrides calculated value (3 × monthly expenses)
   retailTenantAcquisition: undefined, // Retail Investor: if provided, overrides default $0
   retailRecommendedReserves: undefined, // Retail Investor: if provided, overrides 6 × monthly operating costs
+  businessCosts: 0, // Annual business costs; subtracts from NOI
   bedrooms: 3,
   bathrooms: 1,
   sqft: 1000,

@@ -640,9 +640,9 @@ export function DealSidebar({
                     <Field
                         label="Retail Investor Cap Rate (%)"
                         name="retailCapRate"
-                        value={inp.retailCapRate * 100}
-                        onChange={(k, v) => upd(k, v / 100)}
-                        step="0.5"
+                        value={inp.retailCapRate != null ? (inp.retailCapRate * 100).toFixed(2) : ""}
+                        onChange={(k, v) => upd(k, v == null ? undefined : v / 100)}
+                        step="0.01"
                     />
                     {!wholesaler && (
                     <>

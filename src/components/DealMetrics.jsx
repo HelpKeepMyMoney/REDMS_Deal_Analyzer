@@ -90,7 +90,7 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                 />
                 <MetricCard
                     label="Investor Cap Rate"
-                    val={pct(inp.retailCapRate)}
+                    val={pct(inp.retailCapRate, 2)}
                     sub="Retail Investor Cap Rate (%)"
                 />
             </div>

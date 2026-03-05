@@ -119,4 +119,12 @@ describe("redmsCalc", () => {
     expect(r.gt.rentalIncome).toBeCloseTo(sumRental, 0);
     expect(r.gt.netCash).toBeCloseTo(sumNetCash, 0);
   });
+
+  it("businessCosts defaults to 0 and reduces NOI when set", () => {
+    const r0 = calc(DEFAULT_INPUT);
+    expect(r0.bhBusinessCosts).toBe(0);
+    const r1 = calc({ ...DEFAULT_INPUT, businessCosts: 1200 });
+    expect(r1.bhBusinessCosts).toBe(1200);
+    expect(r1.noi).toBe(r0.noi - 1200);
+  });
 });

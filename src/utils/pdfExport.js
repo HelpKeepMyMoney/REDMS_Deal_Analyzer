@@ -424,6 +424,7 @@ export async function generateDealPDF(inp, r, formatAddress) {
     ["Less: Insurance", `(${$(r.bhAnnualIns)})`, false],
     ["Less: Property Tax", `(${$(r.bhAnnualTax)})`, false],
     ["Less: Property Management Fee", `(${$(r.bhAnnualPmFee)})`, false],
+    ["Less: Business Costs", `(${$(r.bhBusinessCosts)})`, false],
     ["Net Operating Income (NOI)", $(r.noi), true],
     ...(r.bhAnnualMtg1 > 0 ? [["Less: 1st Mortgage (annual)", `(${$(r.bhAnnualMtg1)})`, false]] : []),
     ...(r.bhAnnualMtg2 > 0 ? [["Less: 2nd Mortgage (annual)", `(${$(r.bhAnnualMtg2)})`, false]] : []),
@@ -682,8 +683,6 @@ export async function generateRetailInvestorPDF(inp, r, formatAddress) {
     ["Basement", inp.basement ?? "—"],
     ["Type", inp.use || "Single Family"],
     ["Rent/mo", $(inp.totalRent)],
-    ["Rehab", inp.rehabLevel ?? "—"],
-    ["Rehab $", $(r.rehabCost)],
     ["APN", inp.apn || "—"],
   ];
   y = addPropertyGrid(doc, propInfo, y);
@@ -743,11 +742,12 @@ export async function generateRetailInvestorPDF(inp, r, formatAddress) {
     ["Less: Insurance", `(${$(r.bhAnnualIns)})`, false],
     ["Less: Property Tax", `(${$(r.bhAnnualTax)})`, false],
     ["Less: Property Management Fee", `(${$(r.bhAnnualPmFee)})`, false],
+    ["Less: Business Costs", `(${$(r.bhBusinessCosts)})`, false],
     ["Net Operating Income (NOI)", $(r.noi), true],
     ...(r.bhAnnualMtg1 > 0 ? [["Less: 1st Mortgage (annual)", `(${$(r.bhAnnualMtg1)})`, false]] : []),
     ...(r.bhAnnualMtg2 > 0 ? [["Less: 2nd Mortgage (annual)", `(${$(r.bhAnnualMtg2)})`, false]] : []),
     ["Cash Flow After Debt", $(r.bhCashFlowAfterDebt), false],
-    ["Cap Rate", pct(r.capRateRetail), true],
+    ["Cap Rate", pct(r.capRateRetail, 2), true],
     ["Total Retail Investment", $(r.retailTotalInvestment), false],
     ["Year-1 Cash-on-Cash", pct(r.retailCashOnCash), true],
   ];

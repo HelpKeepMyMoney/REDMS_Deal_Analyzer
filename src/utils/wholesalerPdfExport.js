@@ -216,6 +216,7 @@ export async function generateWholesalerProformaPDF(inp, r, formatAddress) {
   y = addRow(doc, "Less: Annual Insurance", `(${$(r.bhAnnualIns)})`, y);
   y = addRow(doc, "Less: Detroit Property Tax", `(${$(r.bhAnnualTax)})`, y);
   y = addRow(doc, "Less: Prop Mgmt Fee", `(${$(r.bhAnnualPmFee)})`, y);
+  y = addRow(doc, "Less: Business Costs", `(${$(r.bhBusinessCosts)})`, y);
   y = addRow(doc, "Net Operating Income / NOI", $(r.noi), y, true);
   if (r.bhAnnualMtg1 > 0) {
     y = addRow(doc, "Less: 1st Mortgage (annual)", `(${$(r.bhAnnualMtg1)})`, y);
