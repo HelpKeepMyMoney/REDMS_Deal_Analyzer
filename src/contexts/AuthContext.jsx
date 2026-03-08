@@ -62,7 +62,15 @@ export function AuthProvider({ children }) {
       setLoading(false);
       setRolesLoading(!!u);
     });
-    return unsub;
+    // Fallback: if Firebase Auth never responds (e.g. network/CORS), stop loading after 10s
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      setRolesLoading(false);
+    }, 10000);
+    return () => {
+      unsub();
+      clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {
