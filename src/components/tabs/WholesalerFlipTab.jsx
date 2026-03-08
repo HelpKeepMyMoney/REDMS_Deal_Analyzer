@@ -24,7 +24,6 @@ export function WholesalerFlipTab({ r, inp }) {
         <DetailRow label="  · Settlement" val={$(inp.settlementCosts)} />
         <DetailRow label="  · Misc Fees" val={$(inp.miscFees)} />
         <DetailRow label="  · Acq Management Fee" val={$(r.acqMgmtFee)} />
-        <DetailRow label="  · Prepaid Insurance" val={$(r.prepaidIns)} />
         <DetailRow label="  · Buyer's Property Tax" val={$(r.buyerTax)} />
         <DetailRow label="  · Rehab Insurance" val={$(r.rehabIns)} />
         <DetailRow label="Holding Costs" val={$(r.holdingCosts)} cls="g" />
