@@ -14,7 +14,7 @@
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
-- **Admin** — User management, deal sharing, search sharing, interest requests, app parameters, email notifications. Header sign-out and module switcher.
+- **Admin** — User management (search by email, role, date created; view deals and searches assigned to each user), deal sharing, search sharing, interest requests, app parameters, email notifications. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
 
 ## App Parameters (Admin)

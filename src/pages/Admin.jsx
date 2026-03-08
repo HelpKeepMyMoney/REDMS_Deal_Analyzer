@@ -44,10 +44,48 @@ export default function Admin() {
   const [interestFilter, setInterestFilter] = useState("all");
   const [interestStatusUpdating, setInterestStatusUpdating] = useState(null);
 
+  const [searchEmail, setSearchEmail] = useState("");
+  const [searchRole, setSearchRole] = useState("");
+  const [searchDateCreatedAfter, setSearchDateCreatedAfter] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+
   const adminApi = useMemo(
     () => (user ? createAdminApi(() => user.getIdToken()) : null),
     [user]
   );
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (searchEmail.trim()) {
+        const email = (u.email || "").toLowerCase();
+        const term = searchEmail.trim().toLowerCase();
+        if (!email.includes(term)) return false;
+      }
+      if (searchRole) {
+        if (u.role !== searchRole) return false;
+      }
+      if (searchDateCreatedAfter) {
+        const created = u.created ? new Date(u.created).getTime() : 0;
+        const after = new Date(searchDateCreatedAfter).getTime();
+        if (created < after) return false;
+      }
+      return true;
+    });
+  }, [users, searchEmail, searchRole, searchDateCreatedAfter]);
+
+  const selectedUserDeals = useMemo(() => {
+    if (!selectedUser?.uid) return [];
+    return allDeals.filter(
+      (d) => (d.sharedWith || []).includes(selectedUser.uid) || d.sharedWithAll
+    );
+  }, [selectedUser?.uid, allDeals]);
+
+  const selectedUserSearches = useMemo(() => {
+    if (!selectedUser?.uid) return [];
+    return allSearches.filter(
+      (s) => (s.sharedWith || []).includes(selectedUser.uid) || s.sharedWithAll
+    );
+  }, [selectedUser?.uid, allSearches]);
 
   const loadUsers = async () => {
     if (!adminApi) return;
@@ -82,7 +120,7 @@ export default function Admin() {
   }, [isAdmin, activeTab]);
 
   useEffect(() => {
-    if (isAdmin && activeTab === "sharing") {
+    if (isAdmin && (activeTab === "sharing" || activeTab === "users")) {
       setDealsLoading(true);
       loadAllDealsForAdmin()
         .then((deals) => {
@@ -100,7 +138,7 @@ export default function Admin() {
   }, [isAdmin, activeTab]);
 
   useEffect(() => {
-    if (isAdmin && activeTab === "searchSharing") {
+    if (isAdmin && (activeTab === "searchSharing" || activeTab === "users")) {
       setSearchesLoading(true);
       loadAllSavedSearchesForAdmin()
         .then(setAllSearches)
@@ -477,6 +515,44 @@ export default function Admin() {
               </button>
             </div>
 
+            <div className={styles["users-search-filters"]}>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="search-email">Search by email</label>
+                <input
+                  id="search-email"
+                  type="text"
+                  placeholder="Filter by email..."
+                  value={searchEmail}
+                  onChange={(e) => setSearchEmail(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="search-role">Role</label>
+                <select
+                  id="search-role"
+                  value={searchRole}
+                  onChange={(e) => setSearchRole(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="">All roles</option>
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                  <option value="wholesaler">Wholesaler</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="search-date">Created after</label>
+                <input
+                  id="search-date"
+                  type="date"
+                  value={searchDateCreatedAfter}
+                  onChange={(e) => setSearchDateCreatedAfter(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+            </div>
+
             <div className={styles["users-table-container"]}>
               <table className={styles["users-table"]}>
                 <thead>
@@ -494,9 +570,18 @@ export default function Admin() {
                         {loading ? "Loading users..." : "No users found or error loading."}
                       </td>
                     </tr>
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className={styles["text-center"]}>
+                        No users match the search filters.
+                      </td>
+                    </tr>
                   ) : (
-                    users.map((u) => (
-                      <tr key={u.uid}>
+                    filteredUsers.map((u) => (
+                      <tr
+                        key={u.uid}
+                        className={selectedUser?.uid === u.uid ? styles["user-row-selected"] : ""}
+                      >
                         <td>
                           {u.email}
                           {user.uid === u.uid && <span className={styles["badge-self"]}>You</span>}
@@ -509,10 +594,18 @@ export default function Admin() {
                         <td>{new Date(u.created).toLocaleDateString()}</td>
                         <td>
                           <button
+                            onClick={() => setSelectedUser(selectedUser?.uid === u.uid ? null : u)}
+                            className={styles["btn-action"]}
+                            title={selectedUser?.uid === u.uid ? "Deselect" : "View deals & searches"}
+                          >
+                            {selectedUser?.uid === u.uid ? "Deselect" : "View"}
+                          </button>
+                          <button
                             onClick={() => handleToggleRole(u.uid, u.role)}
                             className={styles["btn-action"]}
                             disabled={loading || user.uid === u.uid}
                             title={u.role === "admin" || u.role === "wholesaler" ? "Remove role" : "Make Admin"}
+                            style={{ marginLeft: 8 }}
                           >
                             {u.role === "admin" ? "Remove Admin" : u.role === "wholesaler" ? "Remove Wholesaler" : "Make Admin"}
                           </button>
@@ -534,6 +627,61 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+
+            {selectedUser && (
+              <div className={styles["user-detail-panel"]}>
+                <div className={styles["user-detail-header"]}>
+                  <h3>Assigned to {selectedUser.email}</h3>
+                  <button
+                    type="button"
+                    className={styles["btn-action"]}
+                    onClick={() => setSelectedUser(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {dealsLoading || searchesLoading ? (
+                  <p className={styles["admin-muted"]}>Loading deals and searches…</p>
+                ) : (
+                  <div className={styles["user-detail-grid"]}>
+                    <div className={styles["user-detail-section"]}>
+                      <h4>Deals ({selectedUserDeals.length})</h4>
+                      {selectedUserDeals.length === 0 ? (
+                        <p className={styles["admin-muted"]}>No deals assigned to this user.</p>
+                      ) : (
+                        <ul className={styles["user-detail-list"]}>
+                          {selectedUserDeals.map((d) => (
+                            <li key={d.id}>
+                              {d.dealName}
+                              {d.sharedWithAll && (
+                                <span className={styles["badge-user"]} style={{ marginLeft: 8 }}>Shared with all</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className={styles["user-detail-section"]}>
+                      <h4>Searches ({selectedUserSearches.length})</h4>
+                      {selectedUserSearches.length === 0 ? (
+                        <p className={styles["admin-muted"]}>No searches assigned to this user.</p>
+                      ) : (
+                        <ul className={styles["user-detail-list"]}>
+                          {selectedUserSearches.map((s) => (
+                            <li key={s.id}>
+                              {s.name} ({s.resultCount ?? 0} properties)
+                              {s.sharedWithAll && (
+                                <span className={styles["badge-user"]} style={{ marginLeft: 8 }}>Shared with all</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         )}
