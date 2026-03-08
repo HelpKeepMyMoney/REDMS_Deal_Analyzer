@@ -6,6 +6,8 @@ import {
   DETROIT_TAX_RATE as DEFAULT_DETROIT_TAX_RATE,
   DETROIT_TAX_FLAT as DEFAULT_DETROIT_TAX_FLAT,
   REFERRAL_FRACTION as DEFAULT_REFERRAL_FRACTION,
+  INITIAL_REFERRAL_PCT as DEFAULT_INITIAL_REFERRAL_PCT,
+  INVESTOR_REFERRAL_PCT as DEFAULT_INVESTOR_REFERRAL_PCT,
   MORTGAGE_POINTS_RATE as DEFAULT_MORTGAGE_POINTS_RATE,
   MIN_ACQ_MGMT_FEE as DEFAULT_MIN_ACQ_MGMT_FEE,
   MIN_REALTOR_FEE as DEFAULT_MIN_REALTOR_FEE,
@@ -29,6 +31,8 @@ function getCalcParams(config) {
       DETROIT_TAX_RATE: DEFAULT_DETROIT_TAX_RATE,
       DETROIT_TAX_FLAT: DEFAULT_DETROIT_TAX_FLAT,
       REFERRAL_FRACTION: DEFAULT_REFERRAL_FRACTION,
+      INITIAL_REFERRAL_PCT: DEFAULT_INITIAL_REFERRAL_PCT,
+      INVESTOR_REFERRAL_PCT: DEFAULT_INVESTOR_REFERRAL_PCT,
       MORTGAGE_POINTS_RATE: DEFAULT_MORTGAGE_POINTS_RATE,
       MIN_ACQ_MGMT_FEE: DEFAULT_MIN_ACQ_MGMT_FEE,
       MIN_REALTOR_FEE: DEFAULT_MIN_REALTOR_FEE,
@@ -49,6 +53,8 @@ function getCalcParams(config) {
     DETROIT_TAX_RATE: config.detroitTaxRate ?? DEFAULT_DETROIT_TAX_RATE,
     DETROIT_TAX_FLAT: config.detroitTaxFlat ?? DEFAULT_DETROIT_TAX_FLAT,
     REFERRAL_FRACTION: config.referralFraction ?? DEFAULT_REFERRAL_FRACTION,
+    INITIAL_REFERRAL_PCT: config.initialReferralPct ?? DEFAULT_INITIAL_REFERRAL_PCT,
+    INVESTOR_REFERRAL_PCT: config.investorReferralPct ?? DEFAULT_INVESTOR_REFERRAL_PCT,
     MORTGAGE_POINTS_RATE: config.mortgagePointsRate ?? DEFAULT_MORTGAGE_POINTS_RATE,
     MIN_ACQ_MGMT_FEE: config.minAcqMgmtFee ?? DEFAULT_MIN_ACQ_MGMT_FEE,
     MIN_REALTOR_FEE: config.minRealtorFee ?? DEFAULT_MIN_REALTOR_FEE,
@@ -334,15 +340,15 @@ export function calc(inp, config = null) {
   const realtorFeeBase = (realtorSaleFeePct / 100) * arv;
   const realtorFee = Math.max(realtorFeeBase, p.MIN_REALTOR_FEE);
   const preferredROI = totalInvestment * (preferredROIPct / 100);
-  const investorReferralFee = preferredROI * p.REFERRAL_FRACTION;
+  const initialReferralDeduct = preferredROI * (p.INITIAL_REFERRAL_PCT / 100);
+  const investorReferralFee = initialReferralDeduct;
   const netProceedsAfterPayoffs = arv - realtorFee - mortgage1Amt - mortgage2Amt;
   const minSalesPrice = totalInvestment + realtorFee + preferredROI + investorReferralFee + mortgage1Amt + mortgage2Amt;
   const grossProfit = netProceedsAfterPayoffs - totalInvestment;
-  const initialReferralDeduct = preferredROI * p.REFERRAL_FRACTION;
   const profitToSplit = grossProfit - preferredROI - initialReferralDeduct;
   const investorSplitPct = (100 - profitSplitPct) / 100;
   const investorSplit = profitToSplit * investorSplitPct;
-  const investorSplitReferral = investorSplit * p.REFERRAL_FRACTION;
+  const investorSplitReferral = preferredROI * (p.INVESTOR_REFERRAL_PCT / 100);
   const bnicSplit = profitToSplit - investorSplit - investorSplitReferral;
   const totalInvestorROI = preferredROI + investorSplit;
   const totalROI_flip =

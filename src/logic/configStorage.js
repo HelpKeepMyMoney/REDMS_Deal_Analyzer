@@ -34,6 +34,8 @@ export async function saveAppConfig(config) {
     detroitTaxRate: config.detroitTaxRate,
     detroitTaxFlat: config.detroitTaxFlat,
     referralFraction: config.referralFraction,
+    initialReferralPct: config.initialReferralPct,
+    investorReferralPct: config.investorReferralPct,
     mortgagePointsRate: config.mortgagePointsRate,
     minAcqMgmtFee: config.minAcqMgmtFee,
     minRealtorFee: config.minRealtorFee,

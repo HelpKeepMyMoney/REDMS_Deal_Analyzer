@@ -7,15 +7,25 @@
 - **Auth & module selection** — Sign in/sign up; after login, users see a module picker with only the options they can access (Admin, Investor, Wholesaler).
 - **Deal analysis** — Enter property details, offer price, rehab level/cost, and financing to get a DEAL / NO DEAL badge and pass-fail checks (e.g. Flip Cash-on-Cash ≥ 25%, Investment Required within limit).
 - **Metric cards** — NOI, Investor Flip Profit, Sell to Retail Investor (ARV), Investor Cap Rate, Rent-to-Price Ratio, Flip Cash-on-Cash, B&H Cash-on-Cash, Investment Required, Cap Rate. Cards turn red when thresholds are missed.
-- **Purchase & Flip** — Flip sheet breakdown (ARV, fees, preferred ROI, profit split, investor/BNIC share, min sales price).
+- **Purchase & Flip** — Flip sheet breakdown (ARV, fees, preferred ROI, profit split, investor/BNIC share, min sales price). Initial Referral and Investor Referral are configurable as percentages of Preferred ROI; rows are hidden when set to 0.
 - **Buy & Hold** — B&H sheet (total investment, NOI, cap rate, cash-on-cash, investment required).
 - **30-Year Buy & Hold Projection** — Year-by-year table: Rental Income, Prop Costs, Net Cash, Depreciation, Reserves, Net Cash/Tax, ROI, ROE, Prop Value; plus totals and summary stats.
 - **CPIN / LP Offering** — LP offering summary (targeted ROI, minimum investment, distribution frequency, structure, exemption, KYC/AML, property details).
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
-- **Admin** — User management, deal sharing, search sharing, interest requests, parameters, email notifications. Header sign-out and module switcher.
+- **Admin** — User management, deal sharing, search sharing, interest requests, app parameters, email notifications. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
+
+## App Parameters (Admin)
+
+Admins can override equation parameters in **Admin → App Parameters**:
+
+- **Max Total Project Cost**, **Min 1st Mortgage Loan Amount**, **Min Acquisition Mgmt Fee**, **Min Realtor/Sale Fee**, **Mortgage Points Rate**
+- **Initial Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
+- **Investor Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
+
+Values are stored in Firestore (`appConfig/params`) and apply to all deal calculations.
 
 ## Tech Stack
 
@@ -50,7 +60,7 @@ npm run test:run
 - `src/REDMS.module.css` — Styles.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
-  - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES.
+  - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT.
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
   - `storage.js` — loadStoredInput, saveStoredInput.

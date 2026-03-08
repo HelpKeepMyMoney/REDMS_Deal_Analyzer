@@ -11,6 +11,8 @@ import {
   DETROIT_TAX_RATE as DEFAULT_DETROIT_TAX_RATE,
   DETROIT_TAX_FLAT as DEFAULT_DETROIT_TAX_FLAT,
   REFERRAL_FRACTION as DEFAULT_REFERRAL_FRACTION,
+  INITIAL_REFERRAL_PCT as DEFAULT_INITIAL_REFERRAL_PCT,
+  INVESTOR_REFERRAL_PCT as DEFAULT_INVESTOR_REFERRAL_PCT,
   MORTGAGE_POINTS_RATE as DEFAULT_MORTGAGE_POINTS_RATE,
   MIN_ACQ_MGMT_FEE as DEFAULT_MIN_ACQ_MGMT_FEE,
   MIN_REALTOR_FEE as DEFAULT_MIN_REALTOR_FEE,
@@ -38,6 +40,8 @@ export const DEFAULT_CONFIG = {
   detroitTaxRate: DEFAULT_DETROIT_TAX_RATE,
   detroitTaxFlat: DEFAULT_DETROIT_TAX_FLAT,
   referralFraction: DEFAULT_REFERRAL_FRACTION,
+  initialReferralPct: DEFAULT_INITIAL_REFERRAL_PCT,
+  investorReferralPct: DEFAULT_INVESTOR_REFERRAL_PCT,
   mortgagePointsRate: DEFAULT_MORTGAGE_POINTS_RATE,
   minAcqMgmtFee: DEFAULT_MIN_ACQ_MGMT_FEE,
   minRealtorFee: DEFAULT_MIN_REALTOR_FEE,
@@ -60,7 +64,7 @@ export function mergeConfig(firestoreData) {
   const scalarKeys = [
     "maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minWholesaleFee",
     "detroitTaxSevRatio", "detroitTaxRate", "detroitTaxFlat",
-    "referralFraction", "mortgagePointsRate", "minAcqMgmtFee", "minRealtorFee",
+    "referralFraction", "initialReferralPct", "investorReferralPct", "mortgagePointsRate", "minAcqMgmtFee", "minRealtorFee",
     "depreciationYears", "depreciationLandFraction", "depreciationMinBasis",
   ];
   for (const k of scalarKeys) {

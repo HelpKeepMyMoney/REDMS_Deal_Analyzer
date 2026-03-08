@@ -18,6 +18,12 @@ export const DETROIT_TAX_FLAT = 240;
 /** Referral fee as fraction of preferred ROI / investor split */
 export const REFERRAL_FRACTION = 1 / 9;
 
+/** Initial Referral as percentage of Preferred ROI (e.g. 11.11 ≈ 1/9) */
+export const INITIAL_REFERRAL_PCT = (1 / 9) * 100;
+
+/** Investor Referral as percentage of Preferred ROI (e.g. 11.11 ≈ 1/9) */
+export const INVESTOR_REFERRAL_PCT = (1 / 9) * 100;
+
 /** Mortgage points (e.g. 4%) */
 export const MORTGAGE_POINTS_RATE = 0.04;
 
@@ -62,4 +68,6 @@ export const RANGES = {
   preferredROIPct: [0, 100],
   realtorSaleFeePct: [0, 100],
   marginalTaxBracket: [0, 100],
+  initialReferralPct: [0, 100],
+  investorReferralPct: [0, 100],
 };

@@ -603,6 +603,30 @@ export default function Admin() {
                     max={1}
                   />
                 </div>
+                <div className={styles["form-group"]}>
+                  <label htmlFor="initialReferralPct">Initial Referral (% of Preferred ROI) — e.g. 11.11</label>
+                  <input
+                    id="initialReferralPct"
+                    type="number"
+                    step="0.01"
+                    value={params.initialReferralPct ?? ""}
+                    onChange={(e) => setParams((p) => ({ ...p, initialReferralPct: Number(e.target.value) || 0 }))}
+                    min={0}
+                    max={100}
+                  />
+                </div>
+                <div className={styles["form-group"]}>
+                  <label htmlFor="investorReferralPct">Investor Referral (% of Preferred ROI) — e.g. 11.11</label>
+                  <input
+                    id="investorReferralPct"
+                    type="number"
+                    step="0.01"
+                    value={params.investorReferralPct ?? ""}
+                    onChange={(e) => setParams((p) => ({ ...p, investorReferralPct: Number(e.target.value) || 0 }))}
+                    min={0}
+                    max={100}
+                  />
+                </div>
                 <button type="submit" className={styles["admin-button"]} disabled={paramsSaving}>
                   {paramsSaving ? "Saving…" : "Save Parameters"}
                 </button>

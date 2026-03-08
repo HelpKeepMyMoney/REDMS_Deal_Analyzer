@@ -55,11 +55,13 @@ export function FlipTab({ r, inp }) {
                 <DetailRow label="Less: Total Investment" val={`(${$(r.totalInvestment)})`} cls="r" />
                 <DetailRow label="Gross Profit" val={$(r.grossProfit)} tot className="dr-white" />
                 <DetailRow label="Less: Preferred ROI / 10%" val={`(${$(r.preferredROI)})`} cls="r" />
-                <DetailRow
-                    label="Less: Initial Referral 1/9"
-                    val={`(${$(r.initialReferralDeduct)})`}
-                    cls="r"
-                />
+                {r.initialReferralDeduct > 0 && (
+                    <DetailRow
+                        label="Less: Initial Referral"
+                        val={`(${$(r.initialReferralDeduct)})`}
+                        cls="r"
+                    />
+                )}
                 <DetailRow label="Profit to Split" val={$(r.profitToSplit)} />
                 <DetailRow
                     label={`Investor ${100 - inp.profitSplitPct}% Share`}
@@ -67,11 +69,13 @@ export function FlipTab({ r, inp }) {
                     tot
                     className="dr-white"
                 />
-                <DetailRow
-                    label="Less: Investor Referral 1/9"
-                    val={`(${$(r.investorSplitReferral)})`}
-                    cls="r"
-                />
+                {r.investorSplitReferral > 0 && (
+                    <DetailRow
+                        label="Less: Investor Referral"
+                        val={`(${$(r.investorSplitReferral)})`}
+                        cls="r"
+                    />
+                )}
                 <DetailRow label={`BNIC ${inp.profitSplitPct}% Share`} val={$(r.bnicSplit)} />
                 <DetailRow label="+ Preferred ROI to Investor" val={$(r.preferredROI)} tot className="dr-white" />
                 <DetailRow

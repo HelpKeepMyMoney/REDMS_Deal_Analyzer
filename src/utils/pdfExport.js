@@ -390,10 +390,10 @@ export async function generateDealPDF(inp, r, formatAddress) {
     ["Less: Total Investment", `(${$(r.totalInvestment)})`, false],
     ["Gross Profit", $(r.grossProfit), true],
     ["Less: Preferred ROI to Investor", `(${$(r.preferredROI)})`, false],
-    ["Less: Referral Fee", `(${$(r.initialReferralDeduct)})`, false],
+    ...(r.initialReferralDeduct > 0 ? [["Less: Initial Referral", `(${$(r.initialReferralDeduct)})`, false]] : []),
     ["Profit to Split", $(r.profitToSplit), false],
     [`Investor Share (${100 - inp.profitSplitPct}%)`, $(r.investorSplit), true],
-    ["Less: Investor Referral", `(${$(r.investorSplitReferral)})`, false],
+    ...(r.investorSplitReferral > 0 ? [["Less: Investor Referral", `(${$(r.investorSplitReferral)})`, false]] : []),
     [`BNIC Share (${inp.profitSplitPct}%)`, $(r.bnicSplit), false],
     ["+ Preferred ROI to Investor", $(r.preferredROI), true],
   ];
