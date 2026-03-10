@@ -151,6 +151,25 @@ export async function loadAllSavedSearchesForAdmin() {
   });
 }
 
+/** Remove a property from a saved search's results array. */
+export async function removePropertyFromSavedSearch(searchId, propertyId) {
+  if (!db) throw new Error("Firebase is not configured");
+  if (!searchId || !propertyId) throw new Error("Search id and property id are required");
+  const saved = await loadSavedSearch(searchId);
+  if (!saved?.results?.length) return;
+  const filtered = saved.results.filter((p) => (p?.id || "") !== propertyId);
+  if (filtered.length === saved.results.length) return;
+  const ref = doc(db, SAVED_SEARCHES_COLLECTION, searchId);
+  await setDoc(
+    ref,
+    {
+      results: cleanForFirestore(filtered),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 /** Update saved search sharing (admin only). sharedWith = array of user IDs; sharedWithAll = true for all users. */
 export async function updateSavedSearchSharedWith(searchId, sharedWith, sharedWithAll) {
   if (!db) throw new Error("Firebase is not configured");

@@ -483,6 +483,30 @@
   color: var(--amber);
 }
 
+.deleteButton {
+  width: 100%;
+  background: transparent;
+  color: var(--red, #dc2626);
+  border: 1px solid var(--red, #dc2626);
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .loadingSpinner {
   display: inline-block;
   width: 1.5rem;

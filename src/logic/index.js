@@ -6,6 +6,7 @@ export { loadStoredInput, saveStoredInput } from "./storage.js";
 export { mergeStored } from "./mergeStored.js";
 export * from "./propertySearchApi.js";
 export * from "./savedSearchStorage.js";
+export * from "./investorPropertiesStorage.js";
 export {
   estimateMonthlyRent,
   estimateRentHeuristic,

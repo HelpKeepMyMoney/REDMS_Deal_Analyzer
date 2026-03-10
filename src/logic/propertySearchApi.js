@@ -132,8 +132,18 @@ export async function searchProperties(criteria) {
     if (criteria.minBaths) {
       params.append("bathrooms", `${Number(criteria.minBaths)}:*`);
     }
+    if (criteria.minSquareFootage) {
+      const minSqft = Number(criteria.minSquareFootage);
+      if (!isNaN(minSqft) && minSqft > 0) {
+        params.append("squareFootage", `${minSqft}:*`);
+      }
+    }
     if (criteria.propertyType && criteria.propertyType !== "Any") {
       params.append("propertyType", criteria.propertyType);
+    }
+    // daysOld: days since listed (e.g. "1:7" = listed 1-7 days ago, "1:30" = last 30 days)
+    if (criteria.daysOld && typeof criteria.daysOld === "string" && criteria.daysOld.trim()) {
+      params.append("daysOld", criteria.daysOld.trim());
     }
 
     params.append("limit", "50");
@@ -273,6 +283,10 @@ function matchFilters(property, criteria) {
   if (criteria.maxPrice && property.price > Number(criteria.maxPrice)) return false;
   if (criteria.minBeds && property.bedrooms < Number(criteria.minBeds)) return false;
   if (criteria.minBaths && property.bathrooms < Number(criteria.minBaths)) return false;
+  if (criteria.minSquareFootage) {
+    const minSqft = Number(criteria.minSquareFootage);
+    if (!isNaN(minSqft) && minSqft > 0 && (property.squareFootage ?? 0) < minSqft) return false;
+  }
   if (
     criteria.propertyType &&
     criteria.propertyType !== "Any" &&
@@ -302,6 +316,20 @@ function matchFilters(property, criteria) {
         ? Math.floor((Date.now() - new Date(property.listedDate).getTime()) / (24 * 60 * 60 * 1000))
         : null;
     if (daysOnMarket == null || daysOnMarket < minDays) return false;
+  }
+  // daysOld: "min:max" e.g. "1:7" = listed 1-7 days ago
+  if (criteria.daysOld && typeof criteria.daysOld === "string") {
+    const parts = criteria.daysOld.trim().split(":");
+    const minOld = parts[0] ? Number(parts[0]) : null;
+    const maxOld = parts[1] ? Number(parts[1]) : null;
+    const daysOnMarket = typeof property.daysOnMarket === "number" && !isNaN(property.daysOnMarket)
+      ? property.daysOnMarket
+      : property.listedDate
+        ? Math.floor((Date.now() - new Date(property.listedDate).getTime()) / (24 * 60 * 60 * 1000))
+        : null;
+    if (daysOnMarket == null) return false;
+    if (minOld != null && !isNaN(minOld) && daysOnMarket < minOld) return false;
+    if (maxOld != null && !isNaN(maxOld) && daysOnMarket > maxOld) return false;
   }
   return true;
 }
@@ -396,6 +424,12 @@ async function simulateSearchWithMockData(criteria) {
       }
       if (criteria.zipCode) {
         results = results.filter((p) => p.zipCode.includes(criteria.zipCode));
+      }
+      if (criteria.minSquareFootage) {
+        const minSqft = Number(criteria.minSquareFootage);
+        if (!isNaN(minSqft) && minSqft > 0) {
+          results = results.filter((p) => (p.squareFootage ?? 0) >= minSqft);
+        }
       }
 
       results = results.filter((p) => matchFilters(p, criteria));

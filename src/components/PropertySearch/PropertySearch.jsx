@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { searchProperties, loadSavedSearches, loadSavedSearch, saveSearchResults, deleteSavedSearch, fetchPropertyDetails, analyzePropertyForDeal, formatCurrency, formatPct } from '../../logic';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { searchProperties, loadSavedSearches, loadSavedSearch, saveSearchResults, deleteSavedSearch, fetchPropertyDetails, analyzePropertyForDeal, formatCurrency, formatPct, loadInvestorProperties, addInvestorProperty, removeInvestorProperty, loadInvestorPropertyIds, removePropertyFromSavedSearch } from '../../logic';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { createInterestApi } from '../../logic/interestApi.js';
@@ -8,7 +8,7 @@ import styles from './PropertySearch.module.css';
 
 const DEFAULT_IMAGE_PLACEHOLDER = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
 
-function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzing, isRequesting, analysis }) {
+export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzing, isRequesting, analysis, includeInInvestorSearch, onIncludeChange, sourceSearchNames, checkboxDisabled, onDelete, deleteDisabled }) {
     const [imageError, setImageError] = useState(false);
     const imageSrc = imageError
         ? (property.imageFallback || DEFAULT_IMAGE_PLACEHOLDER)
@@ -97,9 +97,26 @@ function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzin
                     <br />
                     {property.city}, {property.state} {property.zipCode}
                 </div>
-                {(onAnalyze || onRequestAnalysis) && (
-                <div className={styles.cardAction}>
-                    {onAnalyze ? (
+                {sourceSearchNames?.length > 0 && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.5rem' }}>
+                        From: {sourceSearchNames.join(', ')}
+                    </div>
+                )}
+                {onIncludeChange != null && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: checkboxDisabled ? 'not-allowed' : 'pointer', fontSize: '0.9rem', opacity: checkboxDisabled ? 0.7 : 1 }}>
+                        <input
+                            type="checkbox"
+                            checked={!!includeInInvestorSearch}
+                            onChange={(e) => onIncludeChange(property.id, e.target.checked)}
+                            disabled={checkboxDisabled}
+                            aria-label="Include in investor search"
+                        />
+                        <span>Include in investor search</span>
+                    </label>
+                )}
+                {(onAnalyze || onRequestAnalysis || onDelete) && (
+                <div className={styles.cardAction} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {onAnalyze && (
                         <button
                             type="button"
                             className={styles.analyzeButton}
@@ -108,7 +125,8 @@ function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzin
                         >
                             {isAnalyzing ? 'Loading…' : 'Analyze Deal'}
                         </button>
-                    ) : (
+                    )}
+                    {onRequestAnalysis && !onAnalyze && (
                         <button
                             type="button"
                             className={styles.analyzeButton}
@@ -116,6 +134,17 @@ function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzin
                             disabled={isRequesting}
                         >
                             {isRequesting ? 'Sending…' : 'Request Analysis'}
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => onDelete(property)}
+                            disabled={deleteDisabled}
+                            aria-label="Delete property"
+                        >
+                            Delete
                         </button>
                     )}
                 </div>
@@ -140,10 +169,12 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         maxPrice: '',
         minBeds: '',
         minBaths: '',
+        minSquareFootage: '',
         propertyType: 'Any',
         status: 'all',
         listedAfter: '',
-        listingsOlderThan: '0'
+        listingsOlderThan: '0',
+        daysOld: ''
     });
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -152,6 +183,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
     const [sortBy, setSortBy] = useState('price-asc');
     const [filterMinPrice, setFilterMinPrice] = useState('');
     const [filterMaxPrice, setFilterMaxPrice] = useState('');
+    const [filterMinSquareFootage, setFilterMinSquareFootage] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterDealStatus, setFilterDealStatus] = useState('all');
     const [addFinancing, setAddFinancing] = useState(false);
@@ -165,16 +197,22 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
     const [fetchedDetailsByPropertyId, setFetchedDetailsByPropertyId] = useState({});
     const [requestModalProperty, setRequestModalProperty] = useState(null);
     const [requestSubmitting, setRequestSubmitting] = useState(false);
+    const [investorProperties, setInvestorProperties] = useState([]);
+    const [investorPropertiesLoading, setInvestorPropertiesLoading] = useState(false);
+    const [includedPropertyIds, setIncludedPropertyIds] = useState(() => new Set());
+    const [currentSearchId, setCurrentSearchId] = useState(null);
+    const [deletingPropertyId, setDeletingPropertyId] = useState(null);
 
     useEffect(() => {
-        if (results.length === 0) {
+        const source = isAdmin ? results : investorProperties;
+        if (source.length === 0) {
             setFetchedDetailsByPropertyId({});
             return;
         }
         const isDetroit = (p) =>
             (p.state || '').toString().trim().toUpperCase() === 'MI' &&
             (p.city || '').toString().toLowerCase().includes('detroit');
-        const detroitProps = results.filter(isDetroit);
+        const detroitProps = source.filter(isDetroit);
         if (detroitProps.length === 0) {
             setFetchedDetailsByPropertyId({});
             return;
@@ -196,7 +234,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
             setFetchedDetailsByPropertyId(next);
         });
         return () => { cancelled = true; };
-    }, [results]);
+    }, [isAdmin, results, investorProperties]);
 
     const handleAnalyzeClick = async (property) => {
         setAnalyzingPropertyId(property.id);
@@ -253,6 +291,35 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         refreshSavedSearches();
     }, [userId]);
 
+    const refreshInvestorProperties = useCallback(async () => {
+        setInvestorPropertiesLoading(true);
+        try {
+            const list = await loadInvestorProperties();
+            setInvestorProperties(list);
+        } catch (e) {
+            console.error('Failed to load investor properties', e);
+        } finally {
+            setInvestorPropertiesLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isAdmin && userId) {
+            refreshInvestorProperties();
+        }
+    }, [isAdmin, userId, refreshInvestorProperties]);
+
+    useEffect(() => {
+        if (isAdmin && results.length > 0) {
+            loadInvestorPropertyIds().then((ids) => {
+                const included = new Set(results.filter((p) => p?.id && ids.has(p.id)).map((p) => p.id));
+                setIncludedPropertyIds(included);
+            });
+        } else if (isAdmin && results.length === 0) {
+            setIncludedPropertyIds(new Set());
+        }
+    }, [isAdmin, results]);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setCriteria(prev => ({ ...prev, [name]: value }));
@@ -264,6 +331,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         setLoading(true);
         setError(null);
         setHasSearched(true);
+        setCurrentSearchId(null);
 
         try {
             const data = await searchProperties(criteria);
@@ -280,7 +348,15 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         const name = saveName.trim() || `Search ${new Date().toLocaleDateString()}`;
         setSaveInProgress(true);
         try {
-            await saveSearchResults(userId, name, criteria, results);
+            const searchId = await saveSearchResults(userId, name, criteria, results);
+            for (const prop of results) {
+                if (!prop?.id) continue;
+                if (includedPropertyIds.has(prop.id)) {
+                    await addInvestorProperty(prop, searchId, userId);
+                } else {
+                    await removeInvestorProperty(prop.id);
+                }
+            }
             setSaveName('');
             await refreshSavedSearches();
         } catch (e) {
@@ -297,9 +373,31 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                 setCriteria(saved.criteria);
                 setResults(saved.results);
                 setHasSearched(true);
+                setCurrentSearchId(id);
             }
         } catch (e) {
             console.error('Failed to load saved search', e);
+        }
+    };
+
+    const handleDeleteProperty = async (property) => {
+        if (!property?.id || !isAdmin) return;
+        const addr = [property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(', ');
+        if (!window.confirm(`Delete this property from the database?\n\n${addr || property.id}`)) return;
+        setDeletingPropertyId(property.id);
+        try {
+            await removeInvestorProperty(property.id);
+            if (currentSearchId) {
+                await removePropertyFromSavedSearch(currentSearchId, property.id);
+                setResults((prev) => prev.filter((p) => p?.id !== property.id));
+                await refreshSavedSearches();
+            } else {
+                setResults((prev) => prev.filter((p) => p?.id !== property.id));
+            }
+        } catch (e) {
+            console.error('Failed to delete property', e);
+        } finally {
+            setDeletingPropertyId(null);
         }
     };
 
@@ -314,6 +412,25 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         }
     };
 
+    const handleIncludeChange = (propertyId, included) => {
+        setIncludedPropertyIds((prev) => {
+            const next = new Set(prev);
+            if (included) next.add(propertyId);
+            else next.delete(propertyId);
+            return next;
+        });
+    };
+
+    const handleSelectAll = () => {
+        setIncludedPropertyIds(new Set(filteredAndSortedResults.map((p) => p.id).filter(Boolean)));
+    };
+
+    const handleDeselectAll = () => {
+        setIncludedPropertyIds(new Set());
+    };
+
+    const displayResults = isAdmin ? results : investorProperties;
+
     const dealAnalysisByPropertyId = useMemo(() => {
         const financingOptions = addFinancing
             ? {
@@ -323,17 +440,17 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
               }
             : null;
         const map = {};
-        results.forEach((p) => {
+        displayResults.forEach((p) => {
             const details = fetchedDetailsByPropertyId[p.id];
             const merged = details ? { ...p, ...details } : p;
             const analysis = analyzePropertyForDeal(merged, financingOptions, config);
             if (analysis) map[p.id] = analysis;
         });
         return map;
-    }, [results, fetchedDetailsByPropertyId, addFinancing, financingDownPayment, financingRate, config]);
+    }, [displayResults, fetchedDetailsByPropertyId, addFinancing, financingDownPayment, financingRate, config]);
 
     const filteredAndSortedResults = useMemo(() => {
-        let list = [...results];
+        let list = [...displayResults];
 
         if (filterStatus === 'active') list = list.filter(p => (p.status || '').toLowerCase() === 'active');
         else if (filterStatus === 'inactive') list = list.filter(p => (p.status || '').toLowerCase() !== 'active');
@@ -345,6 +462,11 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
         const maxP = filterMaxPrice ? Number(filterMaxPrice) : null;
         if (minP != null && !isNaN(minP)) list = list.filter(p => p.price >= minP);
         if (maxP != null && !isNaN(maxP)) list = list.filter(p => p.price <= maxP);
+
+        const minSqft = filterMinSquareFootage ? Number(filterMinSquareFootage) : null;
+        if (minSqft != null && !isNaN(minSqft) && minSqft > 0) {
+            list = list.filter(p => (p.squareFootage ?? 0) >= minSqft);
+        }
 
         const [field, dir] = sortBy.split('-');
         list.sort((a, b) => {
@@ -359,7 +481,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
             return 0;
         });
         return list;
-    }, [results, sortBy, filterMinPrice, filterMaxPrice, filterStatus, filterDealStatus, dealAnalysisByPropertyId]);
+    }, [displayResults, sortBy, filterMinPrice, filterMaxPrice, filterMinSquareFootage, filterStatus, filterDealStatus, dealAnalysisByPropertyId]);
 
     return (
         <div className={styles.container}>
@@ -370,7 +492,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                         <p className={styles.subtitle}>
                             {isAdmin
                                 ? 'Search for active listings that match your investment criteria.'
-                                : 'View your saved searches. Contact an admin to run new property searches.'}
+                                : 'Browse properties marked for investor view by your admin.'}
                         </p>
                     </div>
                     <button type="button" onClick={onCancel} className={styles.backButton}>
@@ -379,16 +501,14 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                 </div>
             </header>
 
-            {userId && (
+            {userId && isAdmin && (
                 <div className={styles.savedSearchesSec}>
                     <h3 className={styles.savedSearchesTitle}>Saved searches</h3>
                     {savedSearchesLoading ? (
                         <p className={styles.savedSearchesEmpty}>Loading…</p>
                     ) : savedSearches.length === 0 ? (
                         <p className={styles.savedSearchesEmpty}>
-                            {isAdmin
-                                ? 'No saved searches yet. Run a search and click Save results to save.'
-                                : 'No saved searches shared with you yet. Contact an admin to share saved searches.'}
+                            No saved searches yet. Run a search and click Save results to save.
                         </p>
                     ) : (
                         <ul className={styles.savedSearchesList}>
@@ -400,9 +520,8 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                                         onClick={() => handleLoadSavedSearch(s.id)}
                                     >
                                         {s.name} ({s.resultCount} properties)
-                                        {s.isShared && ' (shared)'}
                                     </button>
-                                    {isAdmin && !s.isShared && (
+                                    {!s.isShared && (
                                         <button
                                             type="button"
                                             className={styles.savedSearchDelete}
@@ -473,6 +592,13 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                         />
                     </div>
                     <div className={styles.fieldGroup}>
+                        <label className={styles.label} htmlFor="minSquareFootage">Min Sq Ft</label>
+                        <input
+                            type="number" id="minSquareFootage" name="minSquareFootage" className={styles.input} min={0}
+                            value={criteria.minSquareFootage} onChange={handleInputChange} placeholder="Any"
+                        />
+                    </div>
+                    <div className={styles.fieldGroup}>
                         <label className={styles.label} htmlFor="propertyType">Property Type</label>
                         <select
                             id="propertyType" name="propertyType" className={styles.select}
@@ -514,6 +640,18 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                             <option value="90">90 days</option>
                         </select>
                     </div>
+                    <div className={styles.fieldGroup}>
+                        <label className={styles.label} htmlFor="daysOld">Listed within last (days)</label>
+                        <select
+                            id="daysOld" name="daysOld" className={styles.select}
+                            value={criteria.daysOld ?? ''} onChange={handleInputChange}
+                        >
+                            <option value="">Any</option>
+                            <option value="1:7">1–7 days (new this week)</option>
+                            <option value="1:14">1–14 days</option>
+                            <option value="1:30">1–30 days</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="submit" className={styles.searchButton} disabled={loading}>
                     {loading ? (
@@ -526,12 +664,14 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
             {error && <div className={styles.errorMsg}>{error}</div>}
 
             <div className={styles.resultsArea}>
-                {hasSearched && !loading && (
+                {(hasSearched || !isAdmin) && !loading && !investorPropertiesLoading && (
                     <>
                         <div className={styles.resultsHeader}>
-                            <h2 className={styles.title} style={{ fontSize: '1.25rem' }}>Search Results</h2>
+                            <h2 className={styles.title} style={{ fontSize: '1.25rem' }}>
+                                {isAdmin ? 'Search Results' : 'Available Properties'}
+                            </h2>
                             <span className={styles.resultsCount}>
-                                {filteredAndSortedResults.length} of {results.length} properties
+                                {filteredAndSortedResults.length} of {displayResults.length} properties
                             </span>
                         </div>
                         {userId && isAdmin && results.length > 0 && (
@@ -554,6 +694,16 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                             </div>
                         )}
                         <div className={styles.resultsToolbar}>
+                            {isAdmin && displayResults.length > 0 && (
+                                <div className={styles.sortFilterRow}>
+                                    <button type="button" className={styles.saveResultsButton} onClick={handleSelectAll} style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}>
+                                        Select all
+                                    </button>
+                                    <button type="button" className={styles.saveResultsButton} onClick={handleDeselectAll} style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}>
+                                        Deselect all
+                                    </button>
+                                </div>
+                            )}
                             <div className={styles.sortFilterRow}>
                                 <label className={styles.toolbarLabel}>Sort by</label>
                                 <select
@@ -583,6 +733,17 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                                     placeholder="Max $"
                                     value={filterMaxPrice}
                                     onChange={(e) => setFilterMaxPrice(e.target.value)}
+                                />
+                            </div>
+                            <div className={styles.sortFilterRow}>
+                                <label className={styles.toolbarLabel}>Min sq ft</label>
+                                <input
+                                    type="number"
+                                    className={styles.filterInput}
+                                    placeholder="Any"
+                                    min={0}
+                                    value={filterMinSquareFootage}
+                                    onChange={(e) => setFilterMinSquareFootage(e.target.value)}
                                 />
                             </div>
                             <div className={styles.sortFilterRow}>
@@ -656,10 +817,15 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                     </>
                 )}
 
-                {loading ? (
+                {loading || (!isAdmin && investorPropertiesLoading) ? (
                     <div className={styles.emptyState}>
                         <div className={styles.loadingSpinnerLarge}></div>
-                        <p>Searching for investment properties...</p>
+                        <p>{isAdmin ? 'Searching for investment properties...' : 'Loading properties...'}</p>
+                    </div>
+                ) : !isAdmin && investorProperties.length === 0 ? (
+                    <div className={styles.emptyState}>
+                        <div className={styles.emptyStateIcon}>🔍</div>
+                        <p>No properties available yet. Contact an admin.</p>
                     </div>
                 ) : hasSearched && results.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -667,7 +833,7 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                         <p>No properties found matching those criteria.</p>
                         <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Try broadening your search.</p>
                     </div>
-                ) : hasSearched && filteredAndSortedResults.length === 0 ? (
+                ) : filteredAndSortedResults.length === 0 ? (
                     <div className={styles.emptyState}>
                         <div className={styles.emptyStateIcon}>🔍</div>
                         <p>No properties match the current filters.</p>
@@ -684,6 +850,10 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                                 isAnalyzing={analyzingPropertyId === property.id}
                                 isRequesting={false}
                                 analysis={dealAnalysisByPropertyId[property.id]}
+                                includeInInvestorSearch={isAdmin ? includedPropertyIds.has(property.id) : undefined}
+                                onIncludeChange={isAdmin ? handleIncludeChange : undefined}
+                                onDelete={isAdmin ? handleDeleteProperty : undefined}
+                                deleteDisabled={deletingPropertyId === property.id}
                             />
                         ))}
                     </div>

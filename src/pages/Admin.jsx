@@ -5,9 +5,11 @@ import { useConfig } from "../contexts/ConfigContext.jsx";
 import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
 import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
-import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith } from "../logic/savedSearchStorage.js";
+import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removePropertyFromSavedSearch } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
-import { AdminDropdown } from "../components";
+import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
+import { AdminDropdown, PropertyResultCard } from "../components";
+import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -49,6 +51,26 @@ export default function Admin() {
   const [searchDateCreatedAfter, setSearchDateCreatedAfter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
 
+  const [allPropertiesForAdmin, setAllPropertiesForAdmin] = useState([]);
+  const [propertiesLoading, setPropertiesLoading] = useState(false);
+  const [propertyFilterSearch, setPropertyFilterSearch] = useState("");
+  const [propertyFilterInclusion, setPropertyFilterInclusion] = useState("all");
+  const [propertyFilterSourceSearch, setPropertyFilterSourceSearch] = useState("");
+  const [propertyFilterCity, setPropertyFilterCity] = useState("");
+  const [propertyFilterState, setPropertyFilterState] = useState("");
+  const [propertyFilterZipCode, setPropertyFilterZipCode] = useState("");
+  const [propertyFilterMinPrice, setPropertyFilterMinPrice] = useState("");
+  const [propertyFilterMaxPrice, setPropertyFilterMaxPrice] = useState("");
+  const [propertyFilterMinBeds, setPropertyFilterMinBeds] = useState("");
+  const [propertyFilterMinBaths, setPropertyFilterMinBaths] = useState("");
+  const [propertyFilterMinSquareFootage, setPropertyFilterMinSquareFootage] = useState("");
+  const [propertyFilterPropertyType, setPropertyFilterPropertyType] = useState("Any");
+  const [propertyFilterStatus, setPropertyFilterStatus] = useState("all");
+  const [propertyFilterDealStatus, setPropertyFilterDealStatus] = useState("all");
+  const [propertySortBy, setPropertySortBy] = useState("price-asc");
+  const [propertyToggleUpdating, setPropertyToggleUpdating] = useState(null);
+  const [propertyDeletingId, setPropertyDeletingId] = useState(null);
+
   const adminApi = useMemo(
     () => (user ? createAdminApi(() => user.getIdToken()) : null),
     [user]
@@ -86,6 +108,115 @@ export default function Admin() {
       (s) => (s.sharedWith || []).includes(selectedUser.uid) || s.sharedWithAll
     );
   }, [selectedUser?.uid, allSearches]);
+
+  const filteredPropertiesForAdmin = useMemo(() => {
+    let list = [...allPropertiesForAdmin];
+    if (propertyFilterSearch.trim()) {
+      const term = propertyFilterSearch.trim().toLowerCase();
+      list = list.filter((item) => {
+        const addr = [item.property?.addressLine1, item.property?.city, item.property?.state, item.property?.zipCode]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return addr.includes(term);
+      });
+    }
+    if (propertyFilterInclusion === "included") {
+      list = list.filter((item) => item.isIncluded);
+    } else if (propertyFilterInclusion === "excluded") {
+      list = list.filter((item) => !item.isIncluded);
+    }
+    if (propertyFilterSourceSearch) {
+      list = list.filter((item) =>
+        (item.sourceSearchIds || []).includes(propertyFilterSourceSearch)
+      );
+    }
+    if (propertyFilterCity.trim()) {
+      const city = propertyFilterCity.trim().toLowerCase();
+      list = list.filter((item) => (item.property?.city || "").toLowerCase().includes(city));
+    }
+    if (propertyFilterState.trim()) {
+      const state = propertyFilterState.trim().toUpperCase();
+      list = list.filter((item) => (item.property?.state || "").toUpperCase() === state);
+    }
+    if (propertyFilterZipCode.trim()) {
+      const zip = propertyFilterZipCode.trim();
+      list = list.filter((item) => (item.property?.zipCode || "").includes(zip));
+    }
+    const minP = propertyFilterMinPrice ? Number(propertyFilterMinPrice) : null;
+    const maxP = propertyFilterMaxPrice ? Number(propertyFilterMaxPrice) : null;
+    if (minP != null && !isNaN(minP)) list = list.filter((item) => (item.property?.price ?? 0) >= minP);
+    if (maxP != null && !isNaN(maxP)) list = list.filter((item) => (item.property?.price ?? 0) <= maxP);
+    if (propertyFilterMinBeds) {
+      const minBeds = Number(propertyFilterMinBeds);
+      if (!isNaN(minBeds)) list = list.filter((item) => (item.property?.bedrooms ?? 0) >= minBeds);
+    }
+    if (propertyFilterMinBaths) {
+      const minBaths = Number(propertyFilterMinBaths);
+      if (!isNaN(minBaths)) list = list.filter((item) => (item.property?.bathrooms ?? 0) >= minBaths);
+    }
+    if (propertyFilterMinSquareFootage) {
+      const minSqft = Number(propertyFilterMinSquareFootage);
+      if (!isNaN(minSqft) && minSqft > 0) {
+        list = list.filter((item) => (item.property?.squareFootage ?? 0) >= minSqft);
+      }
+    }
+    if (propertyFilterPropertyType && propertyFilterPropertyType !== "Any") {
+      const ft = (propertyFilterPropertyType || "").replace(/\s+/g, "").toLowerCase();
+      list = list.filter((item) => {
+        const pt = (item.property?.propertyType || "").replace(/\s+/g, "").toLowerCase();
+        if (ft === "condo") return pt.includes("condo") || pt.includes("townhouse");
+        return pt === ft || pt.includes(ft);
+      });
+    }
+    if (propertyFilterStatus === "active") {
+      list = list.filter((item) => (item.property?.status || "").toLowerCase() === "active");
+    } else if (propertyFilterStatus === "inactive") {
+      list = list.filter((item) => (item.property?.status || "").toLowerCase() !== "active");
+    }
+    if (propertyFilterDealStatus === "deal" || propertyFilterDealStatus === "nodeal") {
+      list = list.filter((item) => {
+        const analysis = analyzePropertyForDeal(item.property, null, config);
+        const isDeal = analysis?.isDeal === true;
+        return propertyFilterDealStatus === "deal" ? isDeal : !isDeal;
+      });
+    }
+    const [field, dir] = propertySortBy.split("-");
+    list.sort((a, b) => {
+      const pa = a.property;
+      const pb = b.property;
+      if (field === "price") {
+        const va = pa?.price ?? 0;
+        const vb = pb?.price ?? 0;
+        return dir === "asc" ? va - vb : vb - va;
+      }
+      if (field === "date") {
+        const da = pa?.listedDate ? new Date(pa.listedDate).getTime() : 0;
+        const db = pb?.listedDate ? new Date(pb.listedDate).getTime() : 0;
+        return dir === "asc" ? da - db : db - da;
+      }
+      return 0;
+    });
+    return list;
+  }, [
+    allPropertiesForAdmin,
+    propertyFilterSearch,
+    propertyFilterInclusion,
+    propertyFilterSourceSearch,
+    propertyFilterCity,
+    propertyFilterState,
+    propertyFilterZipCode,
+    propertyFilterMinPrice,
+    propertyFilterMaxPrice,
+    propertyFilterMinBeds,
+    propertyFilterMinBaths,
+    propertyFilterMinSquareFootage,
+    propertyFilterPropertyType,
+    propertyFilterStatus,
+    propertyFilterDealStatus,
+    propertySortBy,
+    config,
+  ]);
 
   const loadUsers = async () => {
     if (!adminApi) return;
@@ -138,7 +269,7 @@ export default function Admin() {
   }, [isAdmin, activeTab]);
 
   useEffect(() => {
-    if (isAdmin && (activeTab === "searchSharing" || activeTab === "users")) {
+    if (isAdmin && (activeTab === "searchSharing" || activeTab === "users" || activeTab === "propertyMgmt")) {
       setSearchesLoading(true);
       loadAllSavedSearchesForAdmin()
         .then(setAllSearches)
@@ -160,6 +291,19 @@ export default function Admin() {
           setMessage({ type: "error", text: "Failed to load interest requests: " + e.message });
         })
         .finally(() => setInterestLoading(false));
+    }
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === "propertyMgmt") {
+      setPropertiesLoading(true);
+      loadAllPropertiesForAdmin()
+        .then(setAllPropertiesForAdmin)
+        .catch((e) => {
+          console.error(e);
+          setMessage({ type: "error", text: "Failed to load properties: " + e.message });
+        })
+        .finally(() => setPropertiesLoading(false));
     }
   }, [isAdmin, activeTab]);
 
@@ -275,6 +419,87 @@ export default function Admin() {
       setMessage({ type: "error", text: "Failed to update sharing: " + e.message });
     } finally {
       setSearchShareSaving(false);
+    }
+  };
+
+  const handlePropertyIncludeToggle = async (item) => {
+    const prop = item.property;
+    if (!prop?.id) return;
+    setPropertyToggleUpdating(prop.id);
+    setMessage({ type: "", text: "" });
+    try {
+      if (item.isIncluded) {
+        await removeInvestorProperty(prop.id);
+      } else {
+        await addInvestorProperty(prop, item.sourceSearchIds?.[0] || null, user?.uid);
+      }
+      setAllPropertiesForAdmin((prev) =>
+        prev.map((p) =>
+          p.property?.id === prop.id ? { ...p, isIncluded: !item.isIncluded } : p
+        )
+      );
+      setMessage({ type: "success", text: "Property updated." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update: " + e.message });
+    } finally {
+      setPropertyToggleUpdating(null);
+    }
+  };
+
+  const handlePropertyIncludeChange = (propertyId, included) => {
+    const item = allPropertiesForAdmin.find((i) => i.property?.id === propertyId);
+    if (item) handlePropertyIncludeToggle({ ...item, isIncluded: !included });
+  };
+
+  const handlePropertyDelete = async (property) => {
+    if (!property?.id) return;
+    const addr = [property.addressLine1, property.city, property.state, property.zipCode].filter(Boolean).join(", ");
+    if (!window.confirm(`Delete this property from the database?\n\n${addr || property.id}`)) return;
+    setPropertyDeletingId(property.id);
+    setMessage({ type: "", text: "" });
+    try {
+      await removeInvestorProperty(property.id);
+      const item = allPropertiesForAdmin.find((i) => i.property?.id === property.id);
+      const searchIds = item?.sourceSearchIds || [];
+      for (const searchId of searchIds) {
+        await removePropertyFromSavedSearch(searchId, property.id);
+      }
+      setAllPropertiesForAdmin((prev) => prev.filter((i) => i.property?.id !== property.id));
+      setMessage({ type: "success", text: "Property deleted." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to delete: " + e.message });
+    } finally {
+      setPropertyDeletingId(null);
+    }
+  };
+
+  const handleIncludeAllFromSearch = async (searchId) => {
+    const toInclude = allPropertiesForAdmin.filter(
+      (item) => (item.sourceSearchIds || []).includes(searchId) && !item.isIncluded
+    );
+    if (toInclude.length === 0) {
+      setMessage({ type: "success", text: "All properties from this search are already included." });
+      return;
+    }
+    setPropertyToggleUpdating("bulk");
+    setMessage({ type: "", text: "" });
+    try {
+      for (const item of toInclude) {
+        const prop = item.property;
+        if (prop?.id) {
+          await addInvestorProperty(prop, searchId, user?.uid);
+        }
+      }
+      setAllPropertiesForAdmin((prev) =>
+        prev.map((p) =>
+          (p.sourceSearchIds || []).includes(searchId) ? { ...p, isIncluded: true } : p
+        )
+      );
+      setMessage({ type: "success", text: `Added ${toInclude.length} properties to investor view.` });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update: " + e.message });
+    } finally {
+      setPropertyToggleUpdating(null);
     }
   };
 
@@ -447,6 +672,13 @@ export default function Admin() {
             onClick={() => setActiveTab("interest")}
           >
             Interest Requests
+          </button>
+          <button
+            type="button"
+            className={`${styles["admin-tab"]} ${activeTab === "propertyMgmt" ? styles.active : ""}`}
+            onClick={() => setActiveTab("propertyMgmt")}
+          >
+            Property Management
           </button>
         </div>
 
@@ -1044,6 +1276,278 @@ export default function Admin() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "propertyMgmt" && (
+          <div className={styles["admin-card"]} style={{ maxWidth: "100%" }}>
+            <div className={styles["users-header"]}>
+              <h2 className={styles["admin-section-title"]}>Investor Property Management</h2>
+              <button
+                onClick={() => {
+                  setPropertiesLoading(true);
+                  loadAllPropertiesForAdmin()
+                    .then(setAllPropertiesForAdmin)
+                    .catch((e) => setMessage({ type: "error", text: "Failed to load: " + e.message }))
+                    .finally(() => setPropertiesLoading(false));
+                }}
+                className={styles["btn-refresh"]}
+                disabled={propertiesLoading}
+              >
+                Refresh
+              </button>
+            </div>
+            <p className={styles["admin-muted"]} style={{ marginBottom: 16 }}>
+              Manage which properties from saved searches are visible to investors. Toggle include/exclude for each property.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", marginBottom: "1rem" }}>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-address">Address</label>
+                <input
+                  id="property-filter-address"
+                  type="text"
+                  placeholder="Search address..."
+                  value={propertyFilterSearch}
+                  onChange={(e) => setPropertyFilterSearch(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-city">City</label>
+                <input
+                  id="property-filter-city"
+                  type="text"
+                  placeholder="e.g., Detroit"
+                  value={propertyFilterCity}
+                  onChange={(e) => setPropertyFilterCity(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-state">State</label>
+                <input
+                  id="property-filter-state"
+                  type="text"
+                  placeholder="e.g., MI"
+                  maxLength={2}
+                  value={propertyFilterState}
+                  onChange={(e) => setPropertyFilterState(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-zip">Zip Code</label>
+                <input
+                  id="property-filter-zip"
+                  type="text"
+                  placeholder="e.g., 48201"
+                  value={propertyFilterZipCode}
+                  onChange={(e) => setPropertyFilterZipCode(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-min-price">Min Price ($)</label>
+                <input
+                  id="property-filter-min-price"
+                  type="number"
+                  placeholder="e.g., 50000"
+                  value={propertyFilterMinPrice}
+                  onChange={(e) => setPropertyFilterMinPrice(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-max-price">Max Price ($)</label>
+                <input
+                  id="property-filter-max-price"
+                  type="number"
+                  placeholder="e.g., 500000"
+                  value={propertyFilterMaxPrice}
+                  onChange={(e) => setPropertyFilterMaxPrice(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-min-beds">Min Beds</label>
+                <input
+                  id="property-filter-min-beds"
+                  type="number"
+                  min={0}
+                  placeholder="Any"
+                  value={propertyFilterMinBeds}
+                  onChange={(e) => setPropertyFilterMinBeds(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-min-baths">Min Baths</label>
+                <input
+                  id="property-filter-min-baths"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  placeholder="Any"
+                  value={propertyFilterMinBaths}
+                  onChange={(e) => setPropertyFilterMinBaths(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-min-sqft">Min Sq Ft</label>
+                <input
+                  id="property-filter-min-sqft"
+                  type="number"
+                  min={0}
+                  placeholder="Any"
+                  value={propertyFilterMinSquareFootage}
+                  onChange={(e) => setPropertyFilterMinSquareFootage(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-type">Property Type</label>
+                <select
+                  id="property-filter-type"
+                  value={propertyFilterPropertyType}
+                  onChange={(e) => setPropertyFilterPropertyType(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="Any">Any Type</option>
+                  <option value="Single Family">Single Family</option>
+                  <option value="Multi-Family">Multi-Family</option>
+                  <option value="Condo">Condo / Townhouse</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-status">Status</label>
+                <select
+                  id="property-filter-status"
+                  value={propertyFilterStatus}
+                  onChange={(e) => setPropertyFilterStatus(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-deal">Deal Status</label>
+                <select
+                  id="property-filter-deal"
+                  value={propertyFilterDealStatus}
+                  onChange={(e) => setPropertyFilterDealStatus(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="all">All</option>
+                  <option value="deal">Deal only</option>
+                  <option value="nodeal">No Deal only</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-sort">Sort by</label>
+                <select
+                  id="property-filter-sort"
+                  value={propertySortBy}
+                  onChange={(e) => setPropertySortBy(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="date-desc">Listed: Newest First</option>
+                  <option value="date-asc">Listed: Oldest First</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-inclusion">Inclusion</label>
+                <select
+                  id="property-filter-inclusion"
+                  value={propertyFilterInclusion}
+                  onChange={(e) => setPropertyFilterInclusion(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="all">All</option>
+                  <option value="included">Included only</option>
+                  <option value="excluded">Excluded only</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="property-filter-source">From search</label>
+                <select
+                  id="property-filter-source"
+                  value={propertyFilterSourceSearch}
+                  onChange={(e) => setPropertyFilterSourceSearch(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="">All searches</option>
+                  {allSearches.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {!propertiesLoading && allSearches.length > 0 && filteredPropertiesForAdmin.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                <span className={styles["admin-muted"]}>Bulk:</span>
+                <select
+                  value={propertyFilterSourceSearch}
+                  onChange={(e) => setPropertyFilterSourceSearch(e.target.value)}
+                  style={{ padding: "0.4rem 0.75rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text)" }}
+                >
+                  <option value="">Select search</option>
+                  {allSearches.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className={styles["btn-action"]}
+                  onClick={() => propertyFilterSourceSearch && handleIncludeAllFromSearch(propertyFilterSourceSearch)}
+                  disabled={!propertyFilterSourceSearch || propertyToggleUpdating === "bulk"}
+                >
+                  Include all from selected search
+                </button>
+              </div>
+            )}
+            {!propertiesLoading && filteredPropertiesForAdmin.length > 0 && (
+              <p className={styles["admin-muted"]} style={{ marginBottom: "1rem" }}>
+                {filteredPropertiesForAdmin.length} of {allPropertiesForAdmin.length} properties
+              </p>
+            )}
+            {propertiesLoading ? (
+              <p className={styles["admin-muted"]}>Loading properties…</p>
+            ) : filteredPropertiesForAdmin.length === 0 ? (
+              <p className={styles["admin-muted"]}>
+                {allPropertiesForAdmin.length === 0
+                  ? "No properties from saved searches yet. Run a property search and save results first."
+                  : "No properties match the current filters."}
+              </p>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1rem" }}>
+                {filteredPropertiesForAdmin.map((item) => {
+                  const prop = item.property;
+                  const analysis = analyzePropertyForDeal(prop, null, config);
+                  return (
+                    <PropertyResultCard
+                      key={prop?.id}
+                      property={prop}
+                      analysis={analysis}
+                      includeInInvestorSearch={item.isIncluded}
+                      onIncludeChange={(propertyId, included) => handlePropertyIncludeChange(propertyId, included)}
+                      sourceSearchNames={item.sourceSearchNames}
+                      checkboxDisabled={propertyToggleUpdating === prop?.id || propertyToggleUpdating === "bulk"}
+                      onDelete={handlePropertyDelete}
+                      deleteDisabled={propertyDeletingId === prop?.id}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>

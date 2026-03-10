@@ -11,7 +11,7 @@ export { BuyAndHoldTab } from "./tabs/BuyAndHoldTab.jsx";
 export { RetailInvestorTab } from "./tabs/RetailInvestorTab.jsx";
 export { ProjectionsTab } from "./tabs/ProjectionsTab.jsx";
 export { CpinTab } from "./tabs/CpinTab.jsx";
-export { default as PropertySearch } from "./PropertySearch/index.js";
+export { default as PropertySearch, PropertyResultCard } from "./PropertySearch/index.js";
 export { DealInterestActions } from "./DealInterestActions.jsx";
 export { AdminDropdown } from "./AdminDropdown.jsx";
 export { WholesalerModuleDropdown } from "./WholesalerModuleDropdown.jsx";

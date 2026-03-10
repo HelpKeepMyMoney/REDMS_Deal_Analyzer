@@ -1,1 +1,1 @@
-export { default } from './PropertySearch.jsx';
+export { default, PropertyResultCard } from './PropertySearch.jsx';
