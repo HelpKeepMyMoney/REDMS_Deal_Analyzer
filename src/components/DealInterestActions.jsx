@@ -106,7 +106,7 @@ function DealInterestModal({ type, dealName, onClose, onSubmit, isSubmitting }) 
   );
 }
 
-export function DealInterestActions({ dealId, dealName, interestApi, onFavoriteSuccess }) {
+export function DealInterestActions({ dealId, dealName, dealStatus, interestApi, onFavoriteSuccess }) {
   const { user } = useAuth();
   const [modalType, setModalType] = useState(null);
   const [showZoomConfirmation, setShowZoomConfirmation] = useState(false);
@@ -187,9 +187,12 @@ export function DealInterestActions({ dealId, dealName, interestApi, onFavoriteS
           >
             Start Buying Process
           </button>
-          {dealName && dealName !== "—" && (
-            <span className={styles.streetAddress}>{dealName}</span>
-          )}
+          <span className={styles.dealInfo}>
+            <span className={`${styles.dealStatus} ${styles[`dealStatus${(dealStatus ?? "Available").replace(/ /g, "")}`] ?? styles.dealStatusAvailable}`}>
+              Status: {dealStatus ?? "Available"}
+            </span>
+            {dealName && dealName !== "—" && <span className={styles.streetAddress}>{dealName}</span>}
+          </span>
         </span>
       </div>
 

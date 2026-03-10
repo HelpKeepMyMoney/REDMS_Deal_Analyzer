@@ -650,6 +650,7 @@ export default function REDMS() {
                 <DealInterestActions
                   dealId={currentDealId}
                   dealName={formatAddress(inp)}
+                  dealStatus={inp.status}
                   interestApi={interestApi}
                   onFavoriteSuccess={refreshFavorites}
                 />
