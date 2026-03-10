@@ -102,7 +102,7 @@ Admin features (user management, interest API, user metadata) use **Vercel serve
 
 **Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
 
-**Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available.
+**Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 
 ## License
 
