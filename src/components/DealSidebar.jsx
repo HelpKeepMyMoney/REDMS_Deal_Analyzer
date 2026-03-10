@@ -154,6 +154,7 @@ export function DealSidebar({
             </div>
             )}
 
+            <div className={isAdmin ? styles["deal-section-sticky"] : undefined}>
             <div className={styles["deal-select-wrap"]}>
                 <label htmlFor="redms-deal-select" className={styles["deal-select-label"]}>
                     Deal
@@ -213,6 +214,7 @@ export function DealSidebar({
                 </button>
             </div>
             )}
+            </div>
 
             {wholesaler && onRiskOverridesChange && (
             <div>

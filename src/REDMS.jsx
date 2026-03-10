@@ -159,6 +159,7 @@ export default function REDMS() {
     try {
       const loaded = await loadDeal(id);
       if (!loaded) return;
+      setShowPropertySearch(false);
       const { _ownerId, ...dealData } = loaded;
       const base = { ...DEFAULT_INPUT, ...dealData };
       setInp(mergeStored(base, dealData));

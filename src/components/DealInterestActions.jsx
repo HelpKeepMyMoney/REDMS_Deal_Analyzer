@@ -179,13 +179,18 @@ export function DealInterestActions({ dealId, dealName, interestApi, onFavoriteS
         >
           {submitting ? "Sending…" : "Request Zoom Meeting"}
         </button>
-        <button
-          type="button"
-          className={styles.actionBtn}
-          onClick={() => setModalType("start_buying")}
-        >
-          Start Buying Process
-        </button>
+        <span className={styles.startBuyingWrap}>
+          <button
+            type="button"
+            className={styles.actionBtn}
+            onClick={() => setModalType("start_buying")}
+          >
+            Start Buying Process
+          </button>
+          {dealName && dealName !== "—" && (
+            <span className={styles.streetAddress}>{dealName}</span>
+          )}
+        </span>
       </div>
 
       {showZoomConfirmation && (
