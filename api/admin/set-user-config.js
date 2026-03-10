@@ -1,8 +1,8 @@
 /**
  * Admin: get or set user config (deal params overrides). GET returns paramsOverrides; POST sets them.
  */
-import { getAdminFirestore } from "../lib/firebase-admin.js";
-import { requireAdmin } from "../lib/requireAdmin.js";
+import { getAdminFirestore } from "../../lib/firebase-admin.js";
+import { requireAdmin } from "../../lib/requireAdmin.js";
 
 const SCALAR_KEYS = [
   "maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minWholesaleFee",

@@ -1,7 +1,7 @@
-import { getAdminAuth, getAdminFirestore } from "../lib/firebase-admin.js";
+import { getAdminAuth, getAdminFirestore } from "../../lib/firebase-admin.js";
 import { FieldValue } from "firebase-admin/firestore";
-import { requireAuth } from "../lib/requireAuth.js";
-import { sendEmail } from "../lib/resend.js";
+import { requireAuth } from "../../lib/requireAuth.js";
+import { sendEmail } from "../../lib/resend.js";
 
 const VALID_TYPES = ["request_analysis", "favorite", "request_zoom", "start_buying", "request_wholesaler_access"];
 

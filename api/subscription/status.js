@@ -1,8 +1,8 @@
 /**
  * Get subscription status for current user. GET with auth.
  */
-import { requireAuth } from "../lib/requireAuth.js";
-import { getAdminFirestore } from "../lib/firebase-admin.js";
+import { requireAuth } from "../../lib/requireAuth.js";
+import { getAdminFirestore } from "../../lib/firebase-admin.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {

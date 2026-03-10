@@ -2,9 +2,9 @@
  * Charge $10 overage. GET with auth: creates Order, redirects to PayPal.
  * GET with ?token=... (return from PayPal): captures, increments overagePaidCounts, redirects to /investor?overagePaid=1
  */
-import { requireAuth } from "../lib/requireAuth.js";
-import { getOrdersController } from "../lib/paypal.js";
-import { getAdminFirestore } from "../lib/firebase-admin.js";
+import { requireAuth } from "../../lib/requireAuth.js";
+import { getOrdersController } from "../../lib/paypal.js";
+import { getAdminFirestore } from "../../lib/firebase-admin.js";
 import { CheckoutPaymentIntent } from "@paypal/paypal-server-sdk";
 
 const OVERAGE_AMOUNT = "10.00";

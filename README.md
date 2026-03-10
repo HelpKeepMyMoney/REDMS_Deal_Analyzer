@@ -82,7 +82,8 @@ npm run test:run
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
-- `api/` — Vercel serverless functions.
+- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata). Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
+- `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal). Lives outside `api/` so it does not count as serverless functions.
 
 ## Property Data Sources
 
@@ -99,7 +100,7 @@ npm run test:run
 
 ## Deployment (Firebase + Vercel)
 
-Admin features (user management, interest API, user metadata) use **Vercel serverless functions** instead of Firebase Cloud Functions (no Blaze plan required).
+Admin features (user management, interest API, user metadata, subscriptions) use **Vercel serverless functions** instead of Firebase Cloud Functions (no Blaze plan required). Shared utilities live in `lib/` (not under `api/`) to stay under Vercel Hobby's 12-function limit.
 
 **Vercel environment variables:**
 - All `VITE_*` vars for the frontend

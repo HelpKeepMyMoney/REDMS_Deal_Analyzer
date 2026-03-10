@@ -1,5 +1,5 @@
-import { getAdminAuth, getAdminFirestore } from "../lib/firebase-admin.js";
-import { requireAdmin } from "../lib/requireAdmin.js";
+import { getAdminAuth, getAdminFirestore } from "../../lib/firebase-admin.js";
+import { requireAdmin } from "../../lib/requireAdmin.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {

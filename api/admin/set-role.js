@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { getAdminFirestore } from "../lib/firebase-admin.js";
-import { requireAdmin } from "../lib/requireAdmin.js";
+import { getAdminFirestore } from "../../lib/firebase-admin.js";
+import { requireAdmin } from "../../lib/requireAdmin.js";
 
 const VALID_ROLES = ["free", "investor", "pro", "client", "wholesaler", "admin"];
 

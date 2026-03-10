@@ -2,8 +2,8 @@
  * Create PayPal subscription. GET with ?plan=investor|pro|wholesaler&cycle=monthly|annual
  * Requires Authorization: Bearer <token>. Returns JSON { approvalUrl } for fetch; redirects when no auth (legacy).
  */
-import { requireAuth } from "../lib/requireAuth.js";
-import { getSubscriptionsController, getPlanId } from "../lib/paypal.js";
+import { requireAuth } from "../../lib/requireAuth.js";
+import { getSubscriptionsController, getPlanId } from "../../lib/paypal.js";
 
 function getBaseUrl(req) {
   const host = req.headers["x-forwarded-host"] || req.headers.host;

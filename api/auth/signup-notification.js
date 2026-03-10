@@ -2,9 +2,9 @@
  * Sends an email notification to admins when a new user signs up.
  * Called by the client after successful signup. Uses same Resend + ADMIN_NOTIFICATION_EMAIL as interest notifications.
  */
-import { getAdminAuth, getAdminFirestore } from "../lib/firebase-admin.js";
-import { requireAuth } from "../lib/requireAuth.js";
-import { sendEmail } from "../lib/resend.js";
+import { getAdminAuth, getAdminFirestore } from "../../lib/firebase-admin.js";
+import { requireAuth } from "../../lib/requireAuth.js";
+import { sendEmail } from "../../lib/resend.js";
 
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "helpkeepmymoney@gmail.com";
 
