@@ -8,6 +8,7 @@ import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreSt
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removePropertyFromSavedSearch } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
+import { saveImportProperty } from "../logic/storage.js";
 import { AdminDropdown, PropertyResultCard } from "../components";
 import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
 import styles from "./Admin.module.css";
@@ -30,6 +31,7 @@ export default function Admin() {
   const [allDeals, setAllDeals] = useState([]);
   const [dealsLoading, setDealsLoading] = useState(false);
   const [selectedDealId, setSelectedDealId] = useState("");
+  const [shareDealSearch, setShareDealSearch] = useState("");
   const [shareWithUserIds, setShareWithUserIds] = useState([]);
   const [shareWithAll, setShareWithAll] = useState(false);
   const [shareSaving, setShareSaving] = useState(false);
@@ -108,6 +110,21 @@ export default function Admin() {
       (s) => (s.sharedWith || []).includes(selectedUser.uid) || s.sharedWithAll
     );
   }, [selectedUser?.uid, allSearches]);
+
+  const filteredDealsForSharing = useMemo(() => {
+    const term = shareDealSearch.trim().toLowerCase();
+    if (!term) return allDeals;
+    const filtered = allDeals.filter((d) => {
+      const name = (d.dealName || "").toLowerCase();
+      const ownerEmail = (users.find((u) => u.uid === d.userId)?.email ?? "").toLowerCase();
+      return name.includes(term) || ownerEmail.includes(term);
+    });
+    const selected = selectedDealId ? allDeals.find((d) => d.id === selectedDealId) : null;
+    if (selected && !filtered.some((d) => d.id === selectedDealId)) {
+      return [selected, ...filtered];
+    }
+    return filtered;
+  }, [allDeals, shareDealSearch, users, selectedDealId]);
 
   const filteredPropertiesForAdmin = useMemo(() => {
     let list = [...allPropertiesForAdmin];
@@ -1025,20 +1042,56 @@ export default function Admin() {
                 Select a deal, then choose which users (or all users) can view it in read-only mode.
               </p>
               <div className={styles["form-group"]} style={{ marginBottom: 16 }}>
-                <label htmlFor="share-deal-select">Deal</label>
-                <select
-                  id="share-deal-select"
-                  value={selectedDealId}
-                  onChange={(e) => setSelectedDealId(e.target.value)}
-                  style={{ padding: 10, width: "100%", maxWidth: 400, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", color: "var(--text)" }}
+                <label htmlFor="share-deal-search">Deal</label>
+                <input
+                  id="share-deal-search"
+                  type="text"
+                  placeholder="Type address or owner email to filter..."
+                  value={shareDealSearch}
+                  onChange={(e) => setShareDealSearch(e.target.value)}
+                  className={styles["search-input"]}
+                  style={{ width: "100%", maxWidth: 400 }}
+                />
+                <div
+                  style={{
+                    marginTop: 8,
+                    maxHeight: 240,
+                    overflowY: "auto",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                    background: "var(--surface2)",
+                  }}
                 >
-                  <option value="">— Select a deal —</option>
-                  {allDeals.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.dealName} {d.userId ? `(owner: ${users.find((u) => u.uid === d.userId)?.email ?? d.userId})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  {filteredDealsForSharing.length === 0 ? (
+                    <div style={{ padding: 12, color: "var(--muted)", fontSize: 12 }}>
+                      {shareDealSearch.trim() ? `No deals match "${shareDealSearch}"` : "No deals yet"}
+                    </div>
+                  ) : (
+                    filteredDealsForSharing.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDealId(d.id);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          border: "none",
+                          background: selectedDealId === d.id ? "var(--amber-soft)" : "transparent",
+                          color: "var(--text)",
+                          cursor: "pointer",
+                          fontFamily: "var(--mono)",
+                          fontSize: 12,
+                        }}
+                      >
+                        {d.dealName} {d.userId ? `(owner: ${users.find((u) => u.uid === d.userId)?.email ?? d.userId})` : ""}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
               {dealsLoading ? (
                 <p className={styles["admin-muted"]}>Loading deals…</p>
@@ -1545,6 +1598,28 @@ export default function Admin() {
                       checkboxDisabled={propertyToggleUpdating === prop?.id || propertyToggleUpdating === "bulk"}
                       onDelete={handlePropertyDelete}
                       deleteDisabled={propertyDeletingId === prop?.id}
+                      onAnalyze={(property) => {
+                        const data = {
+                          addressLine1: property.addressLine1 || "",
+                          city: property.city || "",
+                          state: property.state || "",
+                          zipCode: property.zipCode || "",
+                          price: property.price || 0,
+                          bedrooms: property.bedrooms,
+                          bathrooms: property.bathrooms,
+                          squareFootage: property.squareFootage,
+                          yearBuilt: property.yearBuilt,
+                          lotSize: property.lotSize,
+                          propertyType: property.propertyType || "Single Family",
+                          image: property.image,
+                          imageFallback: property.imageFallback,
+                          apn: property.apn,
+                          propertyOwner: property.propertyOwner,
+                          notes: property.notes,
+                        };
+                        saveImportProperty(data);
+                        window.open(`${window.location.origin}/investor`, "_blank");
+                      }}
                     />
                   );
                 })}

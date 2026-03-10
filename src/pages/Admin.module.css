@@ -275,6 +275,7 @@
   border-bottom: 1px solid var(--border);
 }
 
+.search-input,
 .users-search-filters .search-input {
   min-width: 160px;
   padding: 8px 12px;

@@ -8,6 +8,7 @@ import {
   sanitizeInput,
   loadStoredInput,
   saveStoredInput,
+  loadImportProperty,
   clampNumber,
   RANGES,
   estimateMonthlyRent,
@@ -75,6 +76,55 @@ export default function REDMS() {
   useEffect(() => {
     if (isAdmin || currentDealId) saveStoredInput(inp);
   }, [inp, isAdmin, currentDealId]);
+
+  useEffect(() => {
+    const propertyData = loadImportProperty();
+    if (!propertyData) return;
+    const applyImport = async () => {
+      const newInp = {
+        ...DEFAULT_INPUT,
+        address: undefined,
+        street: propertyData.addressLine1 || "",
+        city: propertyData.city || "",
+        state: propertyData.state || "",
+        zipCode: propertyData.zipCode || "",
+        offerPrice: propertyData.price || 0,
+        bedrooms: propertyData.bedrooms ?? DEFAULT_INPUT.bedrooms,
+        bathrooms: propertyData.bathrooms ?? DEFAULT_INPUT.bathrooms,
+        sqft: propertyData.squareFootage ?? DEFAULT_INPUT.sqft,
+        yearBuilt: propertyData.yearBuilt ?? DEFAULT_INPUT.yearBuilt,
+        lotSize: propertyData.lotSize ?? DEFAULT_INPUT.lotSize,
+        apn: propertyData.apn ?? "",
+        propertyOwner: propertyData.propertyOwner ?? "",
+        notes: propertyData.notes ?? propertyData.legalDescription ?? "",
+        currentYearTax: propertyData.currentYearTax ?? DEFAULT_INPUT.currentYearTax,
+        newPropertyTax: propertyData.newPropertyTax ?? propertyData.currentYearTax ?? DEFAULT_INPUT.newPropertyTax,
+        image: propertyData.image ?? "",
+        imageFallback: propertyData.imageFallback ?? "",
+      };
+      try {
+        const { rent } = await estimateMonthlyRent({
+          street: newInp.street,
+          city: newInp.city,
+          state: newInp.state,
+          zipCode: newInp.zipCode,
+          bedrooms: newInp.bedrooms,
+          bathrooms: newInp.bathrooms,
+          sqft: newInp.sqft,
+          basement: newInp.basement,
+          offerPrice: newInp.offerPrice,
+          rehabCost: newInp.rehabCost ?? REHAB_COST[newInp.rehabLevel],
+          propertyType: propertyData.propertyType || "Single Family",
+        });
+        newInp.totalRent = rent;
+      } catch (e) {
+        console.warn("Rent estimate skipped:", e);
+      }
+      setInp(mergeStored(newInp, loadStoredInput()));
+      setCurrentDealId(null);
+    };
+    applyImport();
+  }, []);
 
   const refreshDeals = async () => {
     if (!user?.uid) return;

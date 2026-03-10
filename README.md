@@ -14,7 +14,7 @@
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
-- **Admin** — User management (search by email, role, date created; view deals and searches assigned to each user), deal sharing, search sharing, interest requests, app parameters, email notifications. Header sign-out and module switcher.
+- **Admin** — User management (search by email, role, date created; view deals and searches assigned to each user), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), email notifications. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
 
 ## App Parameters (Admin)
@@ -63,7 +63,7 @@ npm run test:run
   - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT.
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
-  - `storage.js` — loadStoredInput, saveStoredInput.
+  - `storage.js` — loadStoredInput, saveStoredInput; loadImportProperty, saveImportProperty (for property import across tabs).
   - `firestoreStorage.js` — deals (load, save, share).
   - `wholesalerDealStorage.js` — wholesaler deals (load, save) with risk overrides.
   - `userFavoritesStorage.js` — user favorites.
