@@ -46,13 +46,22 @@ function dealToListItem(d, currentUserId) {
     dealName: data.dealName || addr || "Untitled",
     updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() ?? null,
     isShared,
+    street: data.street ?? null,
+    city: data.city ?? null,
+    state: data.state ?? null,
+    zipCode: data.zipCode ?? null,
   };
 }
 
-/** Load list of saved deals for a user (own + shared). Includes isShared flag for read-only indicator. */
-export async function loadDeals(userId) {
+/**
+ * Load list of saved deals for a user (own + shared). Includes isShared flag for read-only indicator.
+ * @param {string} userId - User's Firebase UID
+ * @param {{ skipSharedWithAll?: boolean }} [opts] - If skipSharedWithAll is true, exclude deals shared with all users (e.g. for Free tier)
+ */
+export async function loadDeals(userId, opts = {}) {
   if (!db) return [];
   if (!userId) return [];
+  const { skipSharedWithAll = false } = opts;
   const results = new Map();
   try {
     // Own deals: use orderBy (usually has index from userId)
@@ -78,17 +87,19 @@ export async function loadDeals(userId) {
       console.warn("Shared deals query failed (index may be needed):", sharedErr);
     }
 
-    // Shared with all users: no orderBy to avoid composite index requirement
-    try {
-      const allSnap = await getDocs(query(
-        collection(db, DEALS_COLLECTION),
-        where("sharedWithAll", "==", true)
-      ));
-      for (const d of allSnap.docs) {
-        if (!results.has(d.id)) results.set(d.id, dealToListItem(d, userId));
+    // Shared with all users: skip for Free tier (share with all = paid tiers only)
+    if (!skipSharedWithAll) {
+      try {
+        const allSnap = await getDocs(query(
+          collection(db, DEALS_COLLECTION),
+          where("sharedWithAll", "==", true)
+        ));
+        for (const d of allSnap.docs) {
+          if (!results.has(d.id)) results.set(d.id, dealToListItem(d, userId));
+        }
+      } catch (allErr) {
+        console.warn("Shared-with-all query failed:", allErr);
       }
-    } catch (allErr) {
-      console.warn("Shared-with-all query failed:", allErr);
     }
 
     return Array.from(results.values()).sort((a, b) => {

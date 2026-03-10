@@ -15,7 +15,7 @@
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — address shown next to Start Buying button); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer.
 - **Admin** — User management (search by email, role, date created; view deals and searches each user can access with links and access badges), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
-- **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
+- **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
 
 ## Deal Management (Admin)
 
@@ -111,6 +111,11 @@ Admin features (user management, interest API, user metadata) use **Vercel serve
   - `RESEND_API_KEY` — Sign up at [resend.com](https://resend.com) (3,000 emails/month free)
   - `RESEND_FROM_EMAIL` — Verified sender domain
 - **Admin notifications** — `ADMIN_NOTIFICATION_EMAIL` — Email address for interest notifications (favorites, Zoom requests, etc.) and new user signups
+- **PayPal** (for `/api/subscription/*` — create, webhook, charge-overage, status):
+  - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` — from [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox)
+  - `PAYPAL_MODE` — `sandbox` or `live`
+  - `PAYPAL_WEBHOOK_ID` — from PayPal Developer Dashboard → Webhooks (after creating webhook with URL `https://your-domain/api/subscription/webhook`)
+  - `PAYPAL_PLAN_INVESTOR_MONTHLY`, `PAYPAL_PLAN_INVESTOR_ANNUAL`, `PAYPAL_PLAN_PRO_MONTHLY`, `PAYPAL_PLAN_PRO_ANNUAL`, `PAYPAL_PLAN_WHOLESALER_MONTHLY`, `PAYPAL_PLAN_WHOLESALER_ANNUAL` — Plan IDs from PayPal
 
 **Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
 

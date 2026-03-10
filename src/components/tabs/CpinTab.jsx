@@ -1,8 +1,10 @@
 import { DetailRow } from "../DetailRow.jsx";
+import { BlurIfFree } from "../BlurIfFree.jsx";
 import styles from "../../REDMS.module.css";
 
-export function CpinTab({ inp, formatAddress }) {
+export function CpinTab({ inp, formatAddress, isFreeTier = false }) {
     return (
+        <BlurIfFree isFreeTier={isFreeTier}>
         <div className={styles.two} style={{ marginTop: 12 }} role="tabpanel" id="panel-cpin" aria-labelledby="tab-cpin">
             <div className={styles.panel}>
                 <div className={styles.ph}>CPIN LP Offering Summary · Section 4(a)(2)</div>
@@ -29,5 +31,6 @@ export function CpinTab({ inp, formatAddress }) {
                 <DetailRow label="Address" val={formatAddress(inp)} />
             </div>
         </div>
+        </BlurIfFree>
     );
 }

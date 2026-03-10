@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   calc,
   DEFAULT_INPUT,
@@ -15,11 +15,16 @@ import {
   mergeStored,
 } from "./logic";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase.js";
 import { loadDeals, loadDeal, saveDeal, deleteDeal } from "./logic/firestoreStorage.js";
+import { incrementUsage } from "./logic/dealUsageStorage.js";
+import { saveUserConfig } from "./logic/userConfigStorage.js";
 import { loadUserFavorites, removeFavorite } from "./logic/userFavoritesStorage.js";
 import { getLastLoginAt, setLastLoginAt } from "./logic/userMetadataStorage.js";
 import { createInterestApi } from "./logic/interestApi.js";
 import { useAuth } from "./contexts/AuthContext.jsx";
+import { useTier } from "./contexts/TierContext.jsx";
 import { useConfig } from "./contexts/ConfigContext.jsx";
 import {
   PropertyBrief,
@@ -57,9 +62,10 @@ function getInitialInput() {
 
 export default function REDMS() {
   const { user, isAdmin, isWholesaler, signOut } = useAuth();
-  const { config } = useConfig();
+  const { tier, canSaveDeal, canExport, isClient, isFreeTier, usageCount, usageLimit, usageOverage, canAnalyzeWhenOverage, atOverageWarningThreshold, refreshUsage, dealParamsLevel } = useTier();
+  const { config, refreshConfig } = useConfig();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [inp, setInp] = useState(() => getInitialInput());
   const [tab, setTab] = useState("flip");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -73,10 +79,32 @@ export default function REDMS() {
   const [showPropertySearch, setShowPropertySearch] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
   const [retailPdfExporting, setRetailPdfExporting] = useState(false);
+  const hasInitialBlankLoad = useRef(false);
 
   useEffect(() => {
     if (isAdmin || currentDealId) saveStoredInput(inp);
   }, [inp, isAdmin, currentDealId]);
+
+  // Non-clients: auto-load blank template when landing on deal page with no deal selected
+  useEffect(() => {
+    const dealIdFromUrl = searchParams.get("dealId");
+    if (user?.uid && !isClient && !dealIdFromUrl && !hasInitialBlankLoad.current) {
+      hasInitialBlankLoad.current = true;
+      setInp(sanitizeInput({ ...DEFAULT_INPUT }));
+    }
+  }, [user?.uid, isClient, searchParams]);
+
+  useEffect(() => {
+    const overagePaid = searchParams.get("overagePaid");
+    if (overagePaid === "1" && refreshUsage) {
+      refreshUsage();
+      setSearchParams((p) => {
+        const next = new URLSearchParams(p);
+        next.delete("overagePaid");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, refreshUsage, setSearchParams]);
 
   useEffect(() => {
     const propertyData = loadImportProperty();
@@ -123,6 +151,7 @@ export default function REDMS() {
       }
       setInp(mergeStored(newInp, loadStoredInput()));
       setCurrentDealId(null);
+      setIsViewingSystemGeneratedDeal(true);
     };
     applyImport();
   }, []);
@@ -131,8 +160,8 @@ export default function REDMS() {
     if (!user?.uid) return;
     setSavedDealsLoading(true);
     try {
-      let list = await loadDeals(user.uid);
-      if (!isAdmin) list = list.filter((d) => d.isShared);
+      let list = await loadDeals(user.uid, { skipSharedWithAll: isFreeTier });
+      if (!isAdmin && isClient) list = list.filter((d) => d.isShared);
       list.sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
       setSavedDeals(list);
       if (currentDealId) {
@@ -140,6 +169,7 @@ export default function REDMS() {
         if (!meta && !isAdmin) {
           setCurrentDealId(null);
           setCurrentDealIsShared(false);
+          setIsViewingSystemGeneratedDeal(false);
         } else {
           setCurrentDealIsShared(meta?.isShared ?? false);
         }
@@ -153,18 +183,30 @@ export default function REDMS() {
 
   useEffect(() => {
     refreshDeals();
-  }, [user?.uid, isAdmin]);
+  }, [user?.uid, isAdmin, isClient, isFreeTier]);
 
   const handleLoadDeal = useCallback(async (id) => {
     try {
       const loaded = await loadDeal(id);
       if (!loaded) return;
       setShowPropertySearch(false);
-      const { _ownerId, ...dealData } = loaded;
+      const { _ownerId, importedFromPropertySearch, ...dealData } = loaded;
       const base = { ...DEFAULT_INPUT, ...dealData };
       setInp(mergeStored(base, dealData));
       setCurrentDealId(id);
-      setCurrentDealIsShared(_ownerId != null && _ownerId !== user?.uid);
+      const isShared = _ownerId != null && _ownerId !== user?.uid;
+      setCurrentDealIsShared(isShared);
+      let ownerIsAdmin = false;
+      if (_ownerId && db) {
+        try {
+          const adminSnap = await getDoc(doc(db, "admins", _ownerId));
+          ownerIsAdmin = adminSnap.exists();
+        } catch {
+          // ignore
+        }
+      }
+      setCurrentDealOwnerIsAdmin(ownerIsAdmin);
+      setIsViewingSystemGeneratedDeal((ownerIsAdmin && isShared) || !!importedFromPropertySearch);
     } catch (e) {
       console.error("Failed to load deal", e);
     }
@@ -203,12 +245,12 @@ export default function REDMS() {
         const lastLogin = await getLastLoginAt(() => user.getIdToken(), user.uid);
         if (cancelled) return;
         if (lastLogin === null) {
-          const sorted = [...savedDeals].sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
+          const sorted = [...savedDeals].filter((d) => d.isShared).sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
           setNewSharedDeals(sorted);
           return;
         }
         const newDeals = savedDeals
-          .filter((d) => (d.updatedAt || "") > lastLogin)
+          .filter((d) => d.isShared && (d.updatedAt || "") > lastLogin)
           .sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
         setNewSharedDeals(newDeals);
       } catch (e) {
@@ -228,14 +270,50 @@ export default function REDMS() {
   };
 
   const [currentDealIsShared, setCurrentDealIsShared] = useState(false);
+  const [currentDealOwnerIsAdmin, setCurrentDealOwnerIsAdmin] = useState(false);
+  const [isViewingSystemGeneratedDeal, setIsViewingSystemGeneratedDeal] = useState(false);
 
   const handleSaveDeal = async () => {
-    if (!isAdmin || !user?.uid) return;
+    if (!user?.uid) return;
+    if (isClient || !canSaveDeal) return;
+    if (!isAdmin && isFreeTier && usageCount >= usageLimit) {
+      alert(`You've reached your limit of ${usageLimit} deals. Upgrade to Investor for unlimited analyses.`);
+      return;
+    }
+    if (!isAdmin && usageOverage && !canAnalyzeWhenOverage) {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/subscription/charge-overage", { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (data.approvalUrl) {
+          window.location.href = data.approvalUrl;
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      alert("You've exceeded your monthly deal limit. Additional analyses are $10 each. Please try again or upgrade.");
+      return;
+    }
     setSaveInProgress(true);
     try {
-      const payload = { ...inp, dealName: formatAddress(inp) || "Untitled" };
+      const payload = {
+        ...inp,
+        dealName: formatAddress(inp) || "Untitled",
+        ...(isViewingSystemGeneratedDeal ? { importedFromPropertySearch: true } : {}),
+      };
+      const isCreate = !currentDealId;
       const id = await saveDeal(payload, currentDealId, user.uid);
+      if (isCreate && !isAdmin) {
+        if (!isViewingSystemGeneratedDeal) {
+          await incrementUsage(user.uid, tier);
+        }
+        await refreshUsage?.();
+      }
       setCurrentDealId(id);
+      setCurrentDealOwnerIsAdmin(isAdmin);
+      setCurrentDealIsShared(false);
+      if (!isViewingSystemGeneratedDeal) setIsViewingSystemGeneratedDeal(false);
       await refreshDeals();
     } catch (e) {
       console.error("Failed to save deal", e);
@@ -250,10 +328,12 @@ export default function REDMS() {
   };
 
   const handleLoadBlank = () => {
-    if (!isAdmin) return;
+    if (!isAdmin && !canSaveDeal) return;
     setInp(sanitizeInput({ ...DEFAULT_INPUT }));
     setCurrentDealId(null);
     setCurrentDealIsShared(false);
+    setCurrentDealOwnerIsAdmin(false);
+    setIsViewingSystemGeneratedDeal(false);
   };
 
   const handleRemoveFavorite = async (fav, e) => {
@@ -263,6 +343,7 @@ export default function REDMS() {
       await removeFavorite(fav.id);
       if (currentDealId === fav.dealId) {
         setCurrentDealId(null);
+        setIsViewingSystemGeneratedDeal(false);
       }
       await refreshFavorites();
     } catch (e) {
@@ -272,7 +353,9 @@ export default function REDMS() {
 
   const handleDeleteDeal = async (id, e) => {
     e?.stopPropagation?.();
-    if (!isAdmin || !id) return;
+    if (!id) return;
+    const deal = savedDeals.find((d) => d.id === id);
+    if (!window.confirm(`Delete "${deal?.dealName || "this deal"}"?`)) return;
     try {
       await deleteDeal(id);
       if (currentDealId === id) {
@@ -287,17 +370,22 @@ export default function REDMS() {
   const handleDealSelect = (e) => {
     const value = e.target.value;
     if (value === "") {
-      if (isAdmin) handleLoadBlank();
-      else setCurrentDealId(null);
+      if (isAdmin || canSaveDeal) handleLoadBlank();
+      else {
+        setCurrentDealId(null);
+        setIsViewingSystemGeneratedDeal(false);
+      }
     } else {
       handleLoadDeal(value);
     }
   };
 
+  const showUserCreatedDisclaimer = !isViewingSystemGeneratedDeal && !isAdmin && !isClient && currentDealId && !currentDealIsShared;
+
   const handleExportPDF = async () => {
     setPdfExporting(true);
     try {
-      await generateDealPDF(inp, r, formatAddress);
+      await generateDealPDF(inp, r, formatAddress, isViewingSystemGeneratedDeal, showUserCreatedDisclaimer);
     } catch (e) {
       console.error("PDF export failed", e);
     } finally {
@@ -308,7 +396,7 @@ export default function REDMS() {
   const handleExportRetailPDF = async () => {
     setRetailPdfExporting(true);
     try {
-      await generateRetailInvestorPDF(inp, r, formatAddress);
+      await generateRetailInvestorPDF(inp, r, formatAddress, isViewingSystemGeneratedDeal, showUserCreatedDisclaimer);
     } catch (e) {
       console.error("Retail PDF export failed", e);
     } finally {
@@ -317,7 +405,27 @@ export default function REDMS() {
   };
 
   const handleImportProperty = async (propertyData) => {
-    if (!isAdmin) return;
+    if (!isAdmin && !canSaveDeal) return;
+    if (!isAdmin && isFreeTier && usageCount >= usageLimit) {
+      alert(`You've reached your limit of ${usageLimit} deals. Upgrade to Investor for unlimited analyses.`);
+      return;
+    }
+    if (!isAdmin && usageOverage && !canAnalyzeWhenOverage) {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/subscription/charge-overage", { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (data.approvalUrl) {
+          window.location.href = data.approvalUrl;
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      alert("You've exceeded your monthly deal limit. Additional analyses are $10 each. Please try again.");
+      return;
+    }
+    const rehabLevel = propertyData.rehabLevel ?? DEFAULT_INPUT.rehabLevel;
     const newInp = {
       ...DEFAULT_INPUT,
       address: undefined,
@@ -338,6 +446,9 @@ export default function REDMS() {
       newPropertyTax: propertyData.newPropertyTax ?? propertyData.currentYearTax ?? DEFAULT_INPUT.newPropertyTax,
       image: propertyData.image ?? "",
       imageFallback: propertyData.imageFallback ?? "",
+      rehabLevel,
+      rehabCost: REHAB_COST[rehabLevel] ?? DEFAULT_INPUT.rehabCost,
+      rehabMonths: REHAB_TIME[rehabLevel] ?? DEFAULT_INPUT.rehabMonths,
     };
 
     try {
@@ -362,6 +473,11 @@ export default function REDMS() {
     setInp(mergeStored(newInp, loadStoredInput()));
     setShowPropertySearch(false);
     setCurrentDealId(null);
+    setIsViewingSystemGeneratedDeal(true);
+    if (!isAdmin && user?.uid) {
+      await incrementUsage(user.uid, tier);
+      await refreshUsage?.();
+    }
   };
 
   const upd = (k, v) => {
@@ -410,8 +526,8 @@ export default function REDMS() {
                 type="button"
                 className={styles["hdr-pdf-btn"]}
                 onClick={handleExportPDF}
-                disabled={pdfExporting || retailPdfExporting || (!isAdmin && !currentDealId)}
-                title={!isAdmin && !currentDealId ? "Select a deal first" : "Download deal summary as PDF"}
+                disabled={pdfExporting || retailPdfExporting || !canExport || (!currentDealId && !isAdmin)}
+                title={!canExport ? "Upgrade to export" : !currentDealId && !isAdmin ? "Select a deal first" : "Download deal summary as PDF"}
               >
                 {pdfExporting ? "Generating…" : "Investor Printout"}
               </button>
@@ -419,8 +535,8 @@ export default function REDMS() {
                 type="button"
                 className={styles["hdr-pdf-btn"]}
                 onClick={handleExportRetailPDF}
-                disabled={pdfExporting || retailPdfExporting || (!isAdmin && !currentDealId)}
-                title={!isAdmin && !currentDealId ? "Select a deal first" : "Download retail investor PDF"}
+                disabled={pdfExporting || retailPdfExporting || !canExport || (!currentDealId && !isAdmin)}
+                title={!canExport ? "Upgrade to export" : !currentDealId && !isAdmin ? "Select a deal first" : "Download retail investor PDF"}
               >
                 {retailPdfExporting ? "Generating…" : "Retail Investor Printout"}
               </button>
@@ -472,6 +588,12 @@ export default function REDMS() {
       <div className={styles.main}>
         <DealSidebar
           isAdmin={isAdmin}
+          canSaveDeal={canSaveDeal}
+          isClient={isClient}
+          isFreeTier={isFreeTier}
+          usageCount={usageCount}
+          usageLimit={usageLimit}
+          atOverageWarningThreshold={atOverageWarningThreshold}
           sidebarCollapsed={sidebarCollapsed}
           currentDealId={currentDealId}
           currentDealIsShared={currentDealIsShared}
@@ -497,6 +619,10 @@ export default function REDMS() {
           refreshDeals={refreshDeals}
           savedDealsLoading={savedDealsLoading}
           onOpenSearch={() => setShowPropertySearch(true)}
+          dealParamsLevel={dealParamsLevel}
+          config={config}
+          refreshConfig={refreshConfig}
+          onSaveUserConfig={user && (dealParamsLevel === "full" || dealParamsLevel === "limited") ? (overrides) => saveUserConfig(user.uid, overrides, dealParamsLevel) : null}
         />
 
         <main className={styles.output}>
@@ -504,14 +630,17 @@ export default function REDMS() {
             <PropertySearch
               userId={user?.uid}
               isAdmin={isAdmin}
-              onImportProperty={isAdmin ? handleImportProperty : undefined}
+              isClient={isClient}
+              savedDeals={savedDeals}
+              onImportProperty={(isAdmin || canSaveDeal) ? handleImportProperty : undefined}
+              onViewDeal={(dealId) => { setShowPropertySearch(false); handleLoadDeal(dealId); }}
               onCancel={() => setShowPropertySearch(false)}
             />
-          ) : !isAdmin && !currentDealId ? (
+          ) : !currentDealId && isClient ? (
             <div className={styles["no-deal-placeholder"]}>
               <p className={styles["no-deal-msg"]}>
                 {userFavorites.length === 0 && savedDeals.length === 0
-                  ? "No deals yet. Contact an admin to get a shared deal, then save it to favorites."
+                  ? (isClient ? "Contact an admin to get a shared deal." : "No deals yet. Contact an admin to get a shared deal, then save it to favorites.")
                   : "Select a deal from the dropdown or My Favorites above to view."}
               </p>
             </div>
@@ -524,6 +653,17 @@ export default function REDMS() {
                   interestApi={interestApi}
                   onFavoriteSuccess={refreshFavorites}
                 />
+              )}
+
+              {isViewingSystemGeneratedDeal && (
+                <div className={styles["proforma-disclaimer"]} role="status">
+                  <strong>Disclaimer:</strong> The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord&apos;s Insurance) that have not been verified by The BNIC Network LLC. We verify all assumptions for our Clients&apos; deals as we move through the deal process.
+                </div>
+              )}
+              {!isViewingSystemGeneratedDeal && !isAdmin && !isClient && currentDealId && !currentDealIsShared && (
+                <div className={styles["proforma-disclaimer"]} role="status">
+                  <strong>Disclaimer:</strong> The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord&apos;s Insurance) that have not been verified by The BNIC Network LLC. Please verify all assumptions before making investment decisions.
+                </div>
               )}
 
               <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
@@ -552,11 +692,11 @@ export default function REDMS() {
                   ))}
                 </div>
 
-                {tab === "flip" && <FlipTab r={r} inp={inp} />}
-                {tab === "bh" && <BuyAndHoldTab r={r} inp={inp} upd={upd} maxTpc={maxTpc} />}
-                {tab === "retail" && <RetailInvestorTab r={r} inp={inp} upd={upd} />}
-                {tab === "proj" && <ProjectionsTab r={r} />}
-                {tab === "cpin" && <CpinTab inp={inp} formatAddress={formatAddress} />}
+                {tab === "flip" && <FlipTab r={r} inp={inp} isFreeTier={isFreeTier} />}
+                {tab === "bh" && <BuyAndHoldTab r={r} inp={inp} upd={upd} maxTpc={maxTpc} isFreeTier={isFreeTier} readOnly={isClient || currentDealIsShared} />}
+                {tab === "retail" && <RetailInvestorTab r={r} inp={inp} upd={upd} isFreeTier={isFreeTier} readOnly={isClient || currentDealIsShared} />}
+                {tab === "proj" && <ProjectionsTab r={r} isFreeTier={isFreeTier} />}
+                {tab === "cpin" && <CpinTab inp={inp} formatAddress={formatAddress} isFreeTier={isFreeTier} />}
               </div>
 
               <PropertyBrief inp={inp} r={r} formatAddress={formatAddress} />

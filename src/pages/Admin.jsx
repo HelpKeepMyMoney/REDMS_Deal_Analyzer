@@ -22,7 +22,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState("free");
   const [message, setMessage] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +53,9 @@ export default function Admin() {
   const [searchRole, setSearchRole] = useState("");
   const [searchDateCreatedAfter, setSearchDateCreatedAfter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [clientParams, setClientParams] = useState(null);
+  const [clientParamsLoading, setClientParamsLoading] = useState(false);
+  const [clientParamsSaving, setClientParamsSaving] = useState(false);
 
   const [allPropertiesForAdmin, setAllPropertiesForAdmin] = useState([]);
   const [propertiesLoading, setPropertiesLoading] = useState(false);
@@ -486,6 +489,38 @@ export default function Admin() {
     }
   }, [selectedSearchId, allSearches]);
 
+  useEffect(() => {
+    if (selectedUser?.role === "client" && adminApi) {
+      setClientParamsLoading(true);
+      setClientParams(null);
+      adminApi
+        .getUserConfig(selectedUser.uid)
+        .then((r) => setClientParams(r.paramsOverrides || {}))
+        .catch((e) => {
+          console.error(e);
+          setMessage({ type: "error", text: "Failed to load client params: " + e.message });
+        })
+        .finally(() => setClientParamsLoading(false));
+    } else {
+      setClientParams(null);
+    }
+  }, [selectedUser?.uid, selectedUser?.role, adminApi]);
+
+  const handleSaveClientParams = async () => {
+    if (!selectedUser || !clientParams || !adminApi) return;
+    setClientParamsSaving(true);
+    setMessage({ type: "", text: "" });
+    try {
+      await adminApi.setUserConfig({ uid: selectedUser.uid, paramsOverrides: clientParams });
+      setMessage({ type: "success", text: "Client deal parameters saved." });
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: "error", text: "Failed to save: " + e.message });
+    } finally {
+      setClientParamsSaving(false);
+    }
+  };
+
   const handleSaveParams = async () => {
     if (!params) return;
     setParamsSaving(true);
@@ -706,7 +741,7 @@ export default function Admin() {
       setMessage({ type: "success", text: `User created successfully: ${result.uid}` });
       setEmail("");
       setPassword("");
-      setRole("user");
+      setRole("free");
       await loadUsers();
     } catch (e) {
       console.error(e);
@@ -716,17 +751,16 @@ export default function Admin() {
     }
   };
 
-  const handleToggleRole = async (uid, currentRole) => {
+  const handleSetRole = async (uid, newRole) => {
     if (!adminApi) {
       setMessage({ type: "error", text: "Admin API not available." });
       return;
     }
-    const newRole = currentRole === "admin" || currentRole === "wholesaler" ? "user" : "admin";
-    if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+    if (!window.confirm(`Set this user's role to ${newRole}? Admin upgrades bypass subscription.`)) {
       return;
     }
-
     setLoading(true);
+    setMessage({ type: "", text: "" });
     try {
       await adminApi.setUserRole({ uid, role: newRole });
       setMessage({ type: "success", text: `User role updated to ${newRole}` });
@@ -734,28 +768,6 @@ export default function Admin() {
     } catch (e) {
       console.error(e);
       setMessage({ type: "error", text: "Failed to update role: " + e.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGrantWholesaler = async (uid) => {
-    if (!adminApi) {
-      setMessage({ type: "error", text: "Admin API not available." });
-      return;
-    }
-    if (!window.confirm("Grant this user Wholesaler access?")) {
-      return;
-    }
-    setLoading(true);
-    setMessage({ type: "", text: "" });
-    try {
-      await adminApi.setUserRole({ uid, role: "wholesaler" });
-      setMessage({ type: "success", text: "Wholesaler access granted." });
-      await loadUsers();
-    } catch (e) {
-      console.error(e);
-      setMessage({ type: "error", text: "Failed to grant access: " + e.message });
     } finally {
       setLoading(false);
     }
@@ -919,9 +931,12 @@ export default function Admin() {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >
-                  <option value="user">User (Investor)</option>
-                  <option value="admin">Admin (User Management)</option>
+                  <option value="free">Free</option>
+                  <option value="investor">Investor</option>
+                  <option value="pro">Pro</option>
+                  <option value="client">Client</option>
                   <option value="wholesaler">Wholesaler</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
 
@@ -964,9 +979,12 @@ export default function Admin() {
                   className={styles["search-input"]}
                 >
                   <option value="">All roles</option>
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
+                  <option value="free">Free</option>
+                  <option value="investor">Investor</option>
+                  <option value="pro">Pro</option>
+                  <option value="client">Client</option>
                   <option value="wholesaler">Wholesaler</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
               <div className={styles["form-group"]} style={{ margin: 0 }}>
@@ -1028,26 +1046,21 @@ export default function Admin() {
                           >
                             {selectedUser?.uid === u.uid ? "Deselect" : "View"}
                           </button>
-                          <button
-                            onClick={() => handleToggleRole(u.uid, u.role)}
-                            className={styles["btn-action"]}
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleSetRole(u.uid, e.target.value)}
                             disabled={loading || user.uid === u.uid}
-                            title={u.role === "admin" || u.role === "wholesaler" ? "Remove role" : "Make Admin"}
+                            title="Upgrade or change role (admin bypasses subscription)"
+                            className={styles["role-select"]}
                             style={{ marginLeft: 8 }}
                           >
-                            {u.role === "admin" ? "Remove Admin" : u.role === "wholesaler" ? "Remove Wholesaler" : "Make Admin"}
-                          </button>
-                          {u.role !== "wholesaler" && (
-                            <button
-                              onClick={() => handleGrantWholesaler(u.uid)}
-                              className={styles["btn-action"]}
-                              disabled={loading || user.uid === u.uid}
-                              title="Grant Wholesaler access"
-                              style={{ marginLeft: 8 }}
-                            >
-                              Grant Wholesaler
-                            </button>
-                          )}
+                            <option value="free">Free</option>
+                            <option value="investor">Investor</option>
+                            <option value="pro">Pro</option>
+                            <option value="client">Client</option>
+                            <option value="wholesaler">Wholesaler</option>
+                            <option value="admin">Admin</option>
+                          </select>
                         </td>
                       </tr>
                     ))
@@ -1117,6 +1130,123 @@ export default function Admin() {
                         </ul>
                       )}
                     </div>
+                    {selectedUser.role === "client" && (
+                      <div className={styles["user-detail-section"]} style={{ gridColumn: "1 / -1" }}>
+                        <h4>Edit Deal Parameters (Client)</h4>
+                        <p className={styles["admin-muted"]} style={{ marginBottom: 12 }}>
+                          Override deal calculation parameters for this client. Leave blank to use app defaults.
+                        </p>
+                        {clientParamsLoading ? (
+                          <p className={styles["admin-muted"]}>Loading…</p>
+                        ) : clientParams ? (
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); handleSaveClientParams(); }}
+                            className={styles["admin-form"]}
+                          >
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-maxTpc">Max Total Project Cost ($)</label>
+                              <input
+                                id="client-maxTpc"
+                                type="number"
+                                value={clientParams.maxTpc ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, maxTpc: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={1000}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-minLoanAmount">Min 1st Mortgage Loan Amount ($)</label>
+                              <input
+                                id="client-minLoanAmount"
+                                type="number"
+                                value={clientParams.minLoanAmount ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, minLoanAmount: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={1000}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-minFlipCoCPct">Min Flip Cash-on-Cash (%)</label>
+                              <input
+                                id="client-minFlipCoCPct"
+                                type="number"
+                                value={clientParams.minFlipCoCPct ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, minFlipCoCPct: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={0.1}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-minBhCoCPct">Min B&amp;H Cash-on-Cash (%)</label>
+                              <input
+                                id="client-minBhCoCPct"
+                                type="number"
+                                value={clientParams.minBhCoCPct ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, minBhCoCPct: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={0.1}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-minAcqMgmtFee">Min Acquisition Mgmt Fee ($)</label>
+                              <input
+                                id="client-minAcqMgmtFee"
+                                type="number"
+                                value={clientParams.minAcqMgmtFee ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, minAcqMgmtFee: Number(e.target.value) || 0 }))}
+                                min={0}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-minRealtorFee">Min Realtor/Sale Fee ($)</label>
+                              <input
+                                id="client-minRealtorFee"
+                                type="number"
+                                value={clientParams.minRealtorFee ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, minRealtorFee: Number(e.target.value) || 0 }))}
+                                min={0}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-mortgagePointsRate">Mortgage Points Rate (e.g. 0.04)</label>
+                              <input
+                                id="client-mortgagePointsRate"
+                                type="number"
+                                value={clientParams.mortgagePointsRate ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, mortgagePointsRate: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={0.01}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-initialReferralPct">Initial Referral (%)</label>
+                              <input
+                                id="client-initialReferralPct"
+                                type="number"
+                                value={clientParams.initialReferralPct ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, initialReferralPct: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={0.1}
+                              />
+                            </div>
+                            <div className={styles["form-group"]}>
+                              <label htmlFor="client-investorReferralPct">Investor Referral (%)</label>
+                              <input
+                                id="client-investorReferralPct"
+                                type="number"
+                                value={clientParams.investorReferralPct ?? ""}
+                                onChange={(e) => setClientParams((p) => ({ ...p, investorReferralPct: Number(e.target.value) || 0 }))}
+                                min={0}
+                                step={0.1}
+                              />
+                            </div>
+                            <button type="submit" className={styles["admin-button"]} disabled={clientParamsSaving}>
+                              {clientParamsSaving ? "Saving…" : "Save Client Parameters"}
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

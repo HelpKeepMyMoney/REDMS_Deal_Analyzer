@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import { TierProvider, useTier } from "./contexts/TierContext.jsx";
 import { ConfigProvider } from "./contexts/ConfigContext.jsx";
 import REDMS from "./REDMS.jsx";
 import Landing from "./pages/Landing.jsx";
@@ -38,8 +39,9 @@ function AdminRoute({ children }) {
 }
 
 function WholesalerRoute({ children }) {
-  const { user, loading, isWholesaler, isAdmin } = useAuth();
-  if (loading) {
+  const { user, loading, isAdmin } = useAuth();
+  const { hasWholesalerModule, loading: tierLoading } = useTier();
+  if (loading || tierLoading) {
     return (
       <div className="app-loading">
         <span>Loading…</span>
@@ -49,7 +51,7 @@ function WholesalerRoute({ children }) {
   if (!user) {
     return <Navigate to="/" replace />;
   }
-  if (!isWholesaler && !isAdmin) {
+  if (!hasWholesalerModule && !isAdmin) {
     return <Navigate to="/investor" replace />;
   }
   return children;
@@ -58,6 +60,7 @@ function WholesalerRoute({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <TierProvider>
       <ConfigProvider>
       <BrowserRouter>
         <Routes>
@@ -98,6 +101,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       </ConfigProvider>
+      </TierProvider>
     </AuthProvider>
   );
 }

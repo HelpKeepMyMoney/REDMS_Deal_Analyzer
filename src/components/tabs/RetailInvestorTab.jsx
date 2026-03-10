@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { DetailRow } from "../DetailRow.jsx";
+import { BlurIfFree } from "../BlurIfFree.jsx";
 import { formatCurrency, formatPct } from "../../logic/formatters.js";
 import styles from "../../REDMS.module.css";
 
 const $ = formatCurrency;
 const pct = formatPct;
 
-export function RetailInvestorTab({ r, inp, upd }) {
+export function RetailInvestorTab({ r, inp, upd, isFreeTier = false, readOnly = false }) {
     const [focused, setFocused] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
     const val = inp.businessCosts ?? r.bhBusinessCosts ?? 0;
     return (
+        <BlurIfFree isFreeTier={isFreeTier}>
         <div className={styles.two} style={{ marginTop: 12 }} role="tabpanel" id="panel-retail" aria-labelledby="tab-retail">
             <div className={styles.panel}>
                 <div className={styles.ph}>Annual P&L — Retail Investor</div>
@@ -26,12 +28,14 @@ export function RetailInvestorTab({ r, inp, upd }) {
                         className={styles["bh-cost-input"]}
                         value={focused ? String(val) : (val ? `(${$(val)})` : "($0)")}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             const num = parseFloat(raw);
                             upd("businessCosts", raw === "" ? undefined : (Number.isFinite(num) ? num : 0));
                         }}
-                        onFocus={() => setFocused(true)}
+                        onFocus={() => !readOnly && setFocused(true)}
                         onBlur={() => setFocused(false)}
+                        disabled={readOnly}
                     />
                 </div>
                 <DetailRow
@@ -73,11 +77,13 @@ export function RetailInvestorTab({ r, inp, upd }) {
                         className={styles["bh-cost-input"]}
                         value={focusedField === "retailTenantAcquisition" ? String(inp.retailTenantAcquisition ?? 0) : $(inp.retailTenantAcquisition ?? 0)}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             upd("retailTenantAcquisition", raw === "" ? undefined : (Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0));
                         }}
-                        onFocus={() => setFocusedField("retailTenantAcquisition")}
+                        onFocus={() => !readOnly && setFocusedField("retailTenantAcquisition")}
                         onBlur={() => setFocusedField(null)}
+                        disabled={readOnly}
                     />
                 </div>
                 <div className={styles.dr}>
@@ -88,11 +94,13 @@ export function RetailInvestorTab({ r, inp, upd }) {
                         className={styles["bh-cost-input"]}
                         value={focusedField === "retailRecommendedReserves" ? String(inp.retailRecommendedReserves ?? r.retailReservesDefault ?? "") : $(inp.retailRecommendedReserves ?? r.retailReservesDefault)}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             upd("retailRecommendedReserves", raw === "" ? undefined : (Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0));
                         }}
-                        onFocus={() => setFocusedField("retailRecommendedReserves")}
+                        onFocus={() => !readOnly && setFocusedField("retailRecommendedReserves")}
                         onBlur={() => setFocusedField(null)}
+                        disabled={readOnly}
                     />
                 </div>
                 <DetailRow
@@ -206,5 +214,6 @@ export function RetailInvestorTab({ r, inp, upd }) {
                 </div>
             </div>
         </div>
+        </BlurIfFree>
     );
 }

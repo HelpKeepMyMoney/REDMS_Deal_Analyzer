@@ -8,7 +8,7 @@ import styles from './PropertySearch.module.css';
 
 const DEFAULT_IMAGE_PLACEHOLDER = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
 
-export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isAnalyzing, isRequesting, analysis, includeInInvestorSearch, onIncludeChange, sourceSearchNames, checkboxDisabled, onDelete, deleteDisabled }) {
+export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, matchingDealId, onViewDeal, isAnalyzing, isRequesting, analysis, includeInInvestorSearch, onIncludeChange, sourceSearchNames, checkboxDisabled, onDelete, deleteDisabled }) {
     const [imageError, setImageError] = useState(false);
     const imageSrc = imageError
         ? (property.imageFallback || DEFAULT_IMAGE_PLACEHOLDER)
@@ -114,9 +114,18 @@ export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isA
                         <span>Include in investor search</span>
                     </label>
                 )}
-                {(onAnalyze || onRequestAnalysis || onDelete) && (
+                {(onAnalyze || onRequestAnalysis || onViewDeal || onDelete) && (
                 <div className={styles.cardAction} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {onAnalyze && (
+                    {onViewDeal && (
+                        <button
+                            type="button"
+                            className={styles.analyzeButton}
+                            onClick={onViewDeal}
+                        >
+                            View Deal
+                        </button>
+                    )}
+                    {onAnalyze && !onViewDeal && (
                         <button
                             type="button"
                             className={styles.analyzeButton}
@@ -126,7 +135,7 @@ export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isA
                             {isAnalyzing ? 'Loading…' : 'Analyze Deal'}
                         </button>
                     )}
-                    {onRequestAnalysis && !onAnalyze && (
+                    {onRequestAnalysis && !onAnalyze && !onViewDeal && (
                         <button
                             type="button"
                             className={styles.analyzeButton}
@@ -154,7 +163,26 @@ export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, isA
     );
 }
 
-export default function PropertySearch({ userId, isAdmin = false, onImportProperty, onCancel }) {
+/** Normalize address for matching property to deal. */
+function normalizeAddressForMatch(street, city, state, zipCode) {
+  let raw = (street || '').toString().trim().toLowerCase();
+  raw = raw.replace(/\s+/g, ' ').replace(/\.\s*$/, '');
+  const suffixes = [
+    [' street', ' st'], [' avenue', ' ave'], [' boulevard', ' blvd'], [' drive', ' dr'],
+    [' lane', ' ln'], [' road', ' rd'], [' court', ' ct'], [' circle', ' cir'],
+    [' place', ' pl'], [' trail', ' trl'], [' highway', ' hwy'],
+  ];
+  for (const [long, short] of suffixes) {
+    raw = raw.replace(new RegExp(long + '\\b', 'gi'), short);
+  }
+  const s = raw;
+  const c = (city || '').toString().trim().toLowerCase();
+  const st = (state || '').toString().trim().toUpperCase();
+  const z = (zipCode || '').toString().replace(/\D/g, '').slice(0, 5);
+  return `${s}|${c}|${st}|${z}`;
+}
+
+export default function PropertySearch({ userId, isAdmin = false, isClient = false, savedDeals = [], onImportProperty, onViewDeal, onCancel }) {
     const { config } = useConfig();
     const { user } = useAuth();
     const interestApi = useMemo(
@@ -244,12 +272,15 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
             const details = address
                 ? await fetchPropertyDetails(address, { city: property.city, state: property.state })
                 : null;
+            const analysis = dealAnalysisByPropertyId[property.id];
+            const rehabLevel = analysis?.dealRehabLevel ?? 'Full';
             const data = {
                 ...property,
                 ...(details || {}),
                 notes: details?.legalDescription ?? property.notes ?? '',
                 apn: (details?.apn || property.apn || '').trim() || 'Not Available',
                 propertyOwner: (details?.propertyOwner || property.propertyOwner || '').trim() || 'Not Available',
+                rehabLevel,
             };
             await onImportProperty(data);
         } catch (e) {
@@ -430,6 +461,23 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
     };
 
     const displayResults = isAdmin ? results : investorProperties;
+
+    const addressToDealId = useMemo(() => {
+        const map = new Map();
+        if (savedDeals.length === 0) return map;
+        // Prefer user's own deal over shared when multiple deals match same address
+        savedDeals.forEach((d) => {
+            const key = normalizeAddressForMatch(d.street, d.city, d.state, d.zipCode);
+            if (key && key !== '|||') {
+                if (d.isShared) {
+                    if (!map.has(key)) map.set(key, d.id);
+                } else {
+                    map.set(key, d.id);
+                }
+            }
+        });
+        return map;
+    }, [savedDeals]);
 
     const dealAnalysisByPropertyId = useMemo(() => {
         const financingOptions = addFinancing
@@ -841,12 +889,19 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                     </div>
                 ) : (
                     <div className={styles.resultsGrid}>
-                        {filteredAndSortedResults.map(property => (
+                        {filteredAndSortedResults.map(property => {
+                            const propStreet = property.addressLine1 ?? property.street;
+                            const matchingDealId = onViewDeal
+                                ? addressToDealId.get(normalizeAddressForMatch(propStreet, property.city, property.state, property.zipCode))
+                                : null;
+                            return (
                             <PropertyResultCard
                                 key={property.id}
                                 property={property}
-                                onAnalyze={isAdmin && onImportProperty ? handleAnalyzeClick : undefined}
-                                onRequestAnalysis={!isAdmin && interestApi ? (p) => setRequestModalProperty(p) : undefined}
+                                onAnalyze={onImportProperty ? handleAnalyzeClick : undefined}
+                                onRequestAnalysis={!onImportProperty && !matchingDealId && interestApi ? (p) => setRequestModalProperty(p) : undefined}
+                                matchingDealId={matchingDealId}
+                                onViewDeal={matchingDealId && onViewDeal ? () => onViewDeal(matchingDealId) : undefined}
                                 isAnalyzing={analyzingPropertyId === property.id}
                                 isRequesting={false}
                                 analysis={dealAnalysisByPropertyId[property.id]}
@@ -855,7 +910,8 @@ export default function PropertySearch({ userId, isAdmin = false, onImportProper
                                 onDelete={isAdmin ? handleDeleteProperty : undefined}
                                 deleteDisabled={deletingPropertyId === property.id}
                             />
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

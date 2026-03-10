@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Field } from "./Field.jsx";
+import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
 
 const IMAGE_PLACEHOLDER_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect fill='%23374151' width='400' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='16' x='50%25' y='50%25' text-anchor='middle' dy='.35em'%3ENo Image%3C/text%3E%3C/svg%3E";
 import { REHAB_LEVELS, DETROIT_TAX_SEV_RATIO, DETROIT_TAX_RATE, DETROIT_TAX_FLAT } from "../logic/constants.js";
@@ -13,6 +14,12 @@ const $ = formatCurrency;
 
 export function DealSidebar({
     isAdmin = true,
+    canSaveDeal = false,
+    isClient = false,
+    isFreeTier = false,
+    usageCount = 0,
+    usageLimit = 3,
+    atOverageWarningThreshold = false,
     wholesaler = false,
     sidebarCollapsed,
     currentDealId,
@@ -42,8 +49,17 @@ export function DealSidebar({
     onOpenSearch,
     riskOverrides = {},
     onRiskOverridesChange,
+    dealParamsLevel = null,
+    config = null,
+    onSaveUserConfig = null,
+    refreshConfig = null,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
+    const [dealParamsExpanded, setDealParamsExpanded] = useState(false);
+    const [dealParamsOverrides, setDealParamsOverrides] = useState({});
+    const [dealParamsSaving, setDealParamsSaving] = useState(false);
+    const showDealParams = (dealParamsLevel === "full" || dealParamsLevel === "limited") && onSaveUserConfig && refreshConfig && config && !isClient;
+    const dealParamKeys = dealParamsLevel === "limited" ? FREE_TIER_PARAM_KEYS : ["maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minAcqMgmtFee", "minRealtorFee", "mortgagePointsRate", "initialReferralPct", "investorReferralPct"];
 
     const handleEstimateRent = async () => {
         setRentEstimateLoading(true);
@@ -68,12 +84,25 @@ export function DealSidebar({
             setRentEstimateLoading(false);
         }
     };
+    const showUsageRemaining = !isAdmin && canSaveDeal && !isClient && Number.isFinite(usageLimit) && usageLimit > 0;
+    const remainingDeals = showUsageRemaining ? Math.max(0, usageLimit - usageCount) : 0;
+    const usagePeriodLabel = isFreeTier ? "" : " this month";
+
     return (
         <aside
             id="redms-sidebar"
             className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}
             aria-hidden={sidebarCollapsed}
         >
+            {showUsageRemaining && (
+            <div className={styles["usage-remaining"]}>
+                <span className={styles["usage-remaining-count"]}>{remainingDeals}</span>
+                <span className={styles["usage-remaining-label"]}>
+                    {remainingDeals === 1 ? "deal" : "deals"} remaining{usagePeriodLabel}
+                </span>
+            </div>
+            )}
+
             {!isAdmin && newSharedDeals.length > 0 && (
             <div className={styles["new-deals-notification"]}>
                 <div className={styles["new-deals-notification-header"]}>
@@ -164,9 +193,9 @@ export function DealSidebar({
                     className={styles["deal-select"]}
                     value={currentDealId ?? ""}
                     onChange={handleDealSelect}
-                    aria-label={isAdmin ? "Load a saved deal or blank template" : "Select a deal to view"}
+                    aria-label={isAdmin || canSaveDeal ? "Load a saved deal or blank template" : "Select a deal to view"}
                 >
-                    {isAdmin ? (
+                    {isAdmin || canSaveDeal ? (
                         <>
                             <option value="">New deal (blank template)</option>
                             {savedDeals.map((deal) => (
@@ -215,6 +244,60 @@ export function DealSidebar({
             </div>
             )}
             </div>
+
+            {showDealParams && (
+            <div style={{ marginBottom: "1rem" }}>
+                <button
+                    type="button"
+                    onClick={() => setDealParamsExpanded((e) => !e)}
+                    className={styles["sec-label"]}
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "inherit", font: "inherit" }}
+                >
+                    {dealParamsExpanded ? "▼" : "▶"} Deal Parameters
+                </button>
+                {dealParamsExpanded && (
+                <div style={{ marginTop: 8 }}>
+                    <div className={styles["field-group"]}>
+                        {dealParamKeys.map((key) => (
+                            <Field
+                                key={key}
+                                label={key === "maxTpc" ? "Max TPC ($)" : key === "minLoanAmount" ? "Min Loan ($)" : key === "minFlipCoCPct" ? "Min Flip CoC %" : key === "minBhCoCPct" ? "Min B&H CoC %" : key === "minAcqMgmtFee" ? "Min Acq Mgmt Fee ($)" : key === "minRealtorFee" ? "Min Realtor Fee ($)" : key === "mortgagePointsRate" ? "Mortgage Points" : key === "initialReferralPct" ? "Initial Referral %" : key === "investorReferralPct" ? "Investor Referral %" : key}
+                                name={key}
+                                value={dealParamsOverrides[key] ?? config[key] ?? ""}
+                                onChange={(k, v) => setDealParamsOverrides((p) => ({ ...p, [k]: v }))}
+                            />
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            setDealParamsSaving(true);
+                            try {
+                                const toSave = {};
+                                for (const k of dealParamKeys) {
+                                    const v = dealParamsOverrides[k] ?? config[k];
+                                    if (v != null && v !== "") {
+                                        const num = typeof v === "number" ? v : Number(v);
+                                        if (!isNaN(num)) toSave[k] = num;
+                                    }
+                                }
+                                await onSaveUserConfig(toSave);
+                                await refreshConfig();
+                                setDealParamsOverrides({});
+                            } finally {
+                                setDealParamsSaving(false);
+                            }
+                        }}
+                        disabled={dealParamsSaving}
+                        className={styles["btn-estimate-rent"]}
+                        style={{ marginTop: 8 }}
+                    >
+                        {dealParamsSaving ? "Saving…" : "Save Parameters"}
+                    </button>
+                </div>
+                )}
+            </div>
+            )}
 
             {wholesaler && onRiskOverridesChange && (
             <div>
@@ -289,13 +372,13 @@ export function DealSidebar({
                 )}
             </div>
 
-            {currentDealIsShared && (
+            {(currentDealIsShared || isClient) && (
                 <div style={{ padding: '0 1rem', marginBottom: '0.5rem', fontSize: 11, color: 'var(--amber)' }}>
                     Read-only: This deal is shared with you
                 </div>
             )}
 
-            <fieldset disabled={currentDealIsShared} style={{ border: 'none', padding: 0, margin: 0 }}>
+            <fieldset disabled={currentDealIsShared || isClient} style={{ border: 'none', padding: 0, margin: 0 }}>
             <div>
                 <div className={styles["sec-label"]}>Property Info</div>
                 <div className={styles["field-group"]}>
@@ -747,22 +830,29 @@ export function DealSidebar({
                 <div className={styles["cost-bar-foot"]}>{costPct.toFixed(1)}% of limit used</div>
             </div>
 
-            {isAdmin && (
+            </fieldset>
+
+            {(isAdmin || (canSaveDeal && !isClient)) && (
             <div className={styles["saved-deals-sec"]}>
                 <div className={styles["sec-label"]}>Saved deals</div>
+                {atOverageWarningThreshold && !isAdmin && (
+                <div style={{ padding: '6px 0', fontSize: 11, color: 'var(--amber)' }} role="status">
+                    You&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses are $10 each.
+                </div>
+                )}
                 {saveError && (
                 <div style={{ padding: '8px 0', fontSize: 11, color: 'var(--red)' }} role="alert">
                     {saveError}
                 </div>
                 )}
                 <div className={styles["saved-deals-actions"]}>
-                    {isAdmin && (
+                    {(isAdmin || canSaveDeal) && (
                     <button
                         type="button"
                         className={styles["btn-save-deal"]}
                         onClick={handleSaveDeal}
-                        disabled={saveInProgress || currentDealIsShared}
-                        title={currentDealIsShared ? "Read-only: you cannot edit this shared deal" : ""}
+                        disabled={saveInProgress || currentDealIsShared || isClient}
+                        title={(currentDealIsShared || isClient) ? "Read-only: you cannot edit this shared deal" : ""}
                     >
                         {saveInProgress ? "Saving…" : currentDealId ? "Update deal" : "Save deal"}
                     </button>
@@ -792,13 +882,13 @@ export function DealSidebar({
                             >
                                 {deal.dealName}
                             </button>
-                            {isAdmin && (
+                            {(isAdmin || (!deal.isShared && canSaveDeal)) && (
                             <button
                                 type="button"
                                 className={styles["saved-deals-delete"]}
                                 onClick={(e) => handleDeleteDeal(deal.id, e)}
                                 aria-label={`Delete ${deal.dealName}`}
-                                title="Delete deal"
+                                title={deal.isShared ? "Cannot delete shared deals" : "Delete deal"}
                                 disabled={deal.isShared}
                             >
                                 ×
@@ -809,7 +899,6 @@ export function DealSidebar({
                 </ul>
             </div>
             )}
-            </fieldset>
         </aside>
     );
 }

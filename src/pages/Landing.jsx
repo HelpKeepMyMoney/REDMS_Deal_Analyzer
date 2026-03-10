@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useTier } from "../contexts/TierContext.jsx";
 import styles from "./Login.module.css";
 
 export default function Landing() {
@@ -10,7 +11,8 @@ export default function Landing() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const { user, loading, isAdmin, isWholesaler, signIn, signUp } = useAuth();
+  const { user, loading, isAdmin, signIn, signUp, signOut } = useAuth();
+  const { hasWholesalerModule, isFreeTier, isClient, loading: tierLoading } = useTier();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ export default function Landing() {
     }
   };
 
-  if (loading) {
+  if (loading || (user && tierLoading)) {
     return (
       <div className={styles["login-page"]}>
         <div className={styles["login-card"]}>
@@ -71,14 +73,21 @@ export default function Landing() {
               </Link>
             )}
             <Link to="/investor" className={styles["module-link"]}>
-              Investor
+              {isFreeTier ? "Free" : isClient ? "Client" : "Investor"}
             </Link>
-            {(isWholesaler || isAdmin) && (
+            {(hasWholesalerModule || isAdmin) && (
               <Link to="/wholesaler" className={styles["module-link"]}>
                 Wholesaler
               </Link>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className={styles["sign-out-link"]}
+          >
+            Sign out
+          </button>
         </div>
       </div>
     );

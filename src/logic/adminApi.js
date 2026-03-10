@@ -42,5 +42,14 @@ export function createAdminApi(getIdToken) {
         body: JSON.stringify({ uid, role }),
       });
     },
+    async getUserConfig(uid) {
+      return fetchWithAuth(`/api/admin/set-user-config?uid=${encodeURIComponent(uid)}`);
+    },
+    async setUserConfig({ uid, paramsOverrides }) {
+      return fetchWithAuth("/api/admin/set-user-config", {
+        method: "POST",
+        body: JSON.stringify({ uid, paramsOverrides }),
+      });
+    },
   };
 }

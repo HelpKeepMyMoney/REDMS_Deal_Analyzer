@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { DetailRow } from "../DetailRow.jsx";
+import { BlurIfFree } from "../BlurIfFree.jsx";
 import { formatCurrency, formatPct } from "../../logic/formatters.js";
 import styles from "../../REDMS.module.css";
 
 const $ = formatCurrency;
 const pct = formatPct;
 
-export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
+export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000, isFreeTier = false, readOnly = false }) {
     const [focused, setFocused] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
     const val = inp.businessCosts ?? r.bhBusinessCosts ?? 0;
@@ -14,6 +15,7 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
         <div className={styles.two} style={{ marginTop: 12 }} role="tabpanel" id="panel-bh" aria-labelledby="tab-bh">
             <div className={styles.panel}>
                 <div className={styles.ph}>Annual P&L — Buy & Hold Sheet</div>
+                <BlurIfFree isFreeTier={isFreeTier}>
                 <DetailRow label="Annual Gross Rent" val={$(r.annualGrossRent)} cls="g" />
                 <DetailRow label="Less: Annual Insurance" val={`(${$(r.bhAnnualIns)})`} cls="r" />
                 <DetailRow label="Less: Detroit Property Tax" val={`(${$(r.bhAnnualTax)})`} cls="r" />
@@ -26,14 +28,17 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                         className={styles["bh-cost-input"]}
                         value={focused ? String(val) : (val ? `(${$(val)})` : "($0)")}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             const num = parseFloat(raw);
                             upd("businessCosts", raw === "" ? undefined : (Number.isFinite(num) ? num : 0));
                         }}
-                        onFocus={() => setFocused(true)}
+                        onFocus={() => !readOnly && setFocused(true)}
                         onBlur={() => setFocused(false)}
+                        disabled={readOnly}
                     />
                 </div>
+                </BlurIfFree>
                 <DetailRow
                     label="Net Operating Income / NOI"
                     val={$(r.noi)}
@@ -73,11 +78,13 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                         className={styles["bh-cost-input"]}
                         value={focusedField === "tenantAcquisition" ? String(inp.tenantAcquisition ?? r.tenantAcq ?? "") : $(inp.tenantAcquisition ?? r.tenantAcq)}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             upd("tenantAcquisition", raw === "" ? undefined : (Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0));
                         }}
-                        onFocus={() => setFocusedField("tenantAcquisition")}
+                        onFocus={() => !readOnly && setFocusedField("tenantAcquisition")}
                         onBlur={() => setFocusedField(null)}
+                        disabled={readOnly}
                     />
                 </div>
                 <div className={styles.dr}>
@@ -88,11 +95,13 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                         className={styles["bh-cost-input"]}
                         value={focusedField === "recommendedReserves" ? String(inp.recommendedReserves ?? r.reserves ?? "") : $(inp.recommendedReserves ?? r.reserves)}
                         onChange={(e) => {
+                            if (readOnly) return;
                             const raw = e.target.value.replace(/[$,()\s]/g, "");
                             upd("recommendedReserves", raw === "" ? undefined : (Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0));
                         }}
-                        onFocus={() => setFocusedField("recommendedReserves")}
+                        onFocus={() => !readOnly && setFocusedField("recommendedReserves")}
                         onBlur={() => setFocusedField(null)}
+                        disabled={readOnly}
                     />
                 </div>
                 <DetailRow
@@ -102,6 +111,7 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                     className="dr-white"
                 />
                 <DetailRow label="Annual NOI" val={$(r.noi)} cls="a" />
+                <BlurIfFree isFreeTier={isFreeTier}>
                 <DetailRow
                     label="Year-1 Cash-on-Cash"
                     val={pct(r.bhCashOnCash)}
@@ -115,6 +125,7 @@ export function BuyAndHoldTab({ r, inp, upd, maxTpc = 60000 }) {
                     val={$(r.arv - r.bhTotalInvestment)}
                     cls={r.arv > r.bhTotalInvestment ? "g" : "r"}
                 />
+                </BlurIfFree>
             </div>
         </div>
     );

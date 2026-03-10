@@ -1,16 +1,56 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useTier } from "../contexts/TierContext.jsx";
 import { createInterestApi } from "../logic/interestApi.js";
 import { AdminDropdown } from "../components";
+import { TIERS } from "../logic/tierConstants.js";
 
 function getAnalyzerPath(isWholesaler) {
   return isWholesaler ? "/wholesaler" : "/investor";
 }
+
+function UpgradeButton({ plan, cycle, label, user }) {
+  const [loading, setLoading] = useState(false);
+  const handleClick = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/subscription/create?plan=${plan}&cycle=${cycle}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.approvalUrl) {
+        window.location.href = data.approvalUrl;
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || "Failed to create subscription");
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Failed to start upgrade. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={loading}
+      className={styles.submit}
+      style={{ textDecoration: "none", textAlign: "center" }}
+    >
+      {loading ? "Loading…" : label}
+    </button>
+  );
+}
+
 import styles from "./Profile.module.css";
 
 export default function Profile() {
   const { user, isAdmin, isWholesaler, updateEmail, updatePassword } = useAuth();
+  const { tier, isClient, isFreeTier, usageCount, usageLimit, hasWholesalerModule } = useTier();
   const interestApi = useMemo(
     () => (user ? createInterestApi(() => user.getIdToken()) : null),
     [user]
@@ -98,7 +138,7 @@ export default function Profile() {
   return (
     <div className={styles.page}>
       <header className={styles.hdr}>
-        <Link to={getAnalyzerPath(isWholesaler)} className={styles.back}>← Back to Deal Analyzer</Link>
+        <Link to={getAnalyzerPath(hasWholesalerModule || isWholesaler)} className={styles.back}>← Back to Deal Analyzer</Link>
         {isAdmin && <AdminDropdown email={user?.email} />}
       </header>
 
@@ -106,6 +146,47 @@ export default function Profile() {
         <div className={styles.card}>
           <h1 className={styles.title}>Profile</h1>
           <p className={styles.sub}>Update your account settings</p>
+
+          <section className={styles.section} aria-labelledby="subscription-heading">
+            <h2 id="subscription-heading" className={styles.sectionTitle}>Subscription</h2>
+            {isClient ? (
+              <p className={styles.sub}>
+                Client — view shared deals and export. Deal parameters are set by your admin. You cannot create or save your own deals.
+              </p>
+            ) : isFreeTier ? (
+              <>
+                <p className={styles.sub} style={{ marginBottom: 12 }}>
+                  Free tier: {usageCount} of {usageLimit} deals used (lifetime). Upgrade for unlimited analyses, export, and more.
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  <UpgradeButton plan="investor" cycle="monthly" label="Investor $39/mo" user={user} />
+                  <UpgradeButton plan="pro" cycle="monthly" label="Pro $99/mo" user={user} />
+                  <UpgradeButton plan="wholesaler" cycle="monthly" label="Wholesaler $149/mo" user={user} />
+                  <UpgradeButton plan="investor" cycle="annual" label="Investor $390/yr" user={user} />
+                  <UpgradeButton plan="pro" cycle="annual" label="Pro $990/yr" user={user} />
+                  <UpgradeButton plan="wholesaler" cycle="annual" label="Wholesaler $1,490/yr" user={user} />
+                </div>
+                <p className={styles.sub} style={{ marginTop: 12, fontSize: 11 }}>
+                  Annual billing saves 2 months vs monthly.
+                </p>
+              </>
+            ) : (
+              <p className={styles.sub}>
+                {tier === TIERS.ADMIN && "Admin — full access, subscription bypassed."}
+                {tier === TIERS.INVESTOR && `Investor — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
+                {tier === TIERS.PRO && `Pro — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
+                {tier === TIERS.WHOLESALER && `Wholesaler — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
+                {tier !== TIERS.ADMIN && (
+                  <>
+                    {" "}
+                    <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer" className={styles["hdr-nav-link"]}>
+                      Manage subscription
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
+          </section>
 
           <section className={styles.section} aria-labelledby="email-heading">
             <h2 id="email-heading" className={styles.sectionTitle}>Email address</h2>
@@ -138,7 +219,7 @@ export default function Profile() {
             </form>
           </section>
 
-          {!isWholesaler && (
+          {!hasWholesalerModule && !isWholesaler && (
             <section className={styles.section} aria-labelledby="wholesaler-heading">
               <h2 id="wholesaler-heading" className={styles.sectionTitle}>Wholesaler Access</h2>
               <p className={styles.sub} style={{ marginBottom: 12 }}>

@@ -22,11 +22,22 @@ export default async function handler(req, res) {
     do {
       const result = await auth.listUsers(1000, nextPageToken);
       for (const u of result.users) {
-        const [adminDoc, wholesalerDoc] = await Promise.all([
+        const [adminDoc, wholesalerDoc, clientDoc, userTiersDoc] = await Promise.all([
           db.doc(`admins/${u.uid}`).get(),
           db.doc(`wholesalers/${u.uid}`).get(),
+          db.doc(`clients/${u.uid}`).get(),
+          db.doc(`userTiers/${u.uid}`).get(),
         ]);
-        const role = adminDoc.exists ? "admin" : wholesalerDoc.exists ? "wholesaler" : "user";
+        const tier = userTiersDoc.data()?.tier;
+        const role = adminDoc.exists
+          ? "admin"
+          : wholesalerDoc.exists
+            ? "wholesaler"
+            : clientDoc.exists
+              ? "client"
+              : tier && ["investor", "pro"].includes(tier)
+                ? tier
+                : "free";
         users.push({
           uid: u.uid,
           email: u.email,

@@ -1,3 +1,8 @@
+/* Free tier blur overlay */
+.tierBlurWrap {
+  /* Applied inline: filter: blur(6px); pointer-events: none; */
+}
+
 .app {
   display: grid;
   grid-template-rows: 56px 1fr;
@@ -165,6 +170,22 @@
   color: var(--muted);
   text-align: center;
   max-width: 360px;
+}
+
+.proforma-disclaimer {
+  padding: 10px 14px;
+  margin-bottom: 1rem;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted2);
+  background: var(--amber-soft);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius);
+}
+
+.proforma-disclaimer strong {
+  color: var(--amber);
 }
 
 .sidebar {
@@ -445,6 +466,28 @@
   color: var(--muted);
   margin-top: 5px;
   text-align: right;
+}
+
+.usage-remaining {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-soft);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.usage-remaining-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.usage-remaining-label {
+  letter-spacing: 0.3px;
 }
 
 .new-deals-notification {

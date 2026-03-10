@@ -172,7 +172,24 @@ function addLogoToCorner(doc, logoData, pageW, margin, size = LOGO_CORNER_SIZE, 
   }
 }
 
-export async function generateDealPDF(inp, r, formatAddress) {
+const PROFORMA_DISCLAIMER_SYSTEM =
+  "Disclaimer: The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord's Insurance) that have not been verified by The BNIC Network LLC. We verify all assumptions for our Clients' deals as we move through the deal process.";
+
+const PROFORMA_DISCLAIMER_USER =
+  "Disclaimer: The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord's Insurance) that have not been verified by The BNIC Network LLC. Please verify all assumptions before making investment decisions.";
+
+function addProformaDisclaimer(doc, y, text) {
+  const maxW = PAGE_W - 2 * MARGIN;
+  doc.setFontSize(SMALL_SIZE);
+  doc.setFont(FONT_SANS, "italic");
+  doc.setTextColor(120, 120, 120);
+  const lines = doc.splitTextToSize(text, maxW);
+  doc.text(lines, PAGE_W / 2, y, { align: "center", lineHeightFactor: 1.15 });
+  const lineH = SMALL_SIZE * 0.35 * 1.15;
+  return y + lines.length * lineH + 4;
+}
+
+export async function generateDealPDF(inp, r, formatAddress, showSystemDisclaimer = false, showUserDisclaimer = false) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   let y = MARGIN;
 
@@ -189,7 +206,15 @@ export async function generateDealPDF(inp, r, formatAddress) {
     y,
     { align: "center", maxWidth: PAGE_W - 2 * MARGIN }
   );
-  y += 10;
+  y += 6;
+
+  if (showSystemDisclaimer) {
+    y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER_SYSTEM);
+  } else if (showUserDisclaimer) {
+    y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER_USER);
+  } else {
+    y += 4;
+  }
 
   doc.setFontSize(TITLE_SIZE);
   doc.setFont(FONT_SANS, "bold");
@@ -576,7 +601,7 @@ function formatWholeDollars(v) {
  * Page 2: Buy & Hold P&L with retail Cap Rate, Total Retail Investment, Retail Year-1 Cash-on-Cash; no ARV/Equity lines.
  * Page 3: 30-year projection with retail ROI; Initial Investment = Sell to Retail Investor amount.
  */
-export async function generateRetailInvestorPDF(inp, r, formatAddress) {
+export async function generateRetailInvestorPDF(inp, r, formatAddress, showSystemDisclaimer = false, showUserDisclaimer = false) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   let y = MARGIN;
 
@@ -593,7 +618,15 @@ export async function generateRetailInvestorPDF(inp, r, formatAddress) {
     y,
     { align: "center", maxWidth: PAGE_W - 2 * MARGIN }
   );
-  y += 10;
+  y += 6;
+
+  if (showSystemDisclaimer) {
+    y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER_SYSTEM);
+  } else if (showUserDisclaimer) {
+    y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER_USER);
+  } else {
+    y += 4;
+  }
 
   doc.setFontSize(TITLE_SIZE);
   doc.setFont(FONT_SANS, "bold");

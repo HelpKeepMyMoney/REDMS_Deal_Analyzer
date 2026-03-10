@@ -4,7 +4,7 @@ import styles from "../../REDMS.module.css";
 const $ = formatCurrency;
 const pct = formatPct;
 
-export function ProjectionsTab({ r }) {
+export function ProjectionsTab({ r, isFreeTier = false }) {
     return (
         <div className={`${styles.panel} ${styles.scr}`} style={{ marginTop: 12 }} role="tabpanel" id="panel-proj" aria-labelledby="tab-proj">
             <div className={styles.ph}>
@@ -31,6 +31,7 @@ export function ProjectionsTab({ r }) {
                         <tr
                             key={p.yr}
                             className={[1, 5, 10, 15, 20, 25, 30].includes(p.yr) ? styles.hl : ""}
+                            style={isFreeTier && p.yr > 5 ? { filter: "blur(6px)", pointerEvents: "none" } : undefined}
                         >
                             <td>{p.yr}</td>
                             <td style={{ color: "var(--green)" }}>{$(p.rentalIncome)}</td>
@@ -44,7 +45,7 @@ export function ProjectionsTab({ r }) {
                             <td>{$(p.propValue)}</td>
                         </tr>
                     ))}
-                    <tr className={styles.sum}>
+                    <tr className={styles.sum} style={isFreeTier ? { filter: "blur(6px)", pointerEvents: "none" } : undefined}>
                         <td>∑</td>
                         <td>{$(r.gt.rentalIncome)}</td>
                         <td>({$(r.gt.propCosts)})</td>
@@ -65,6 +66,7 @@ export function ProjectionsTab({ r }) {
             <div
                 style={{
                     padding: "10px 14px",
+                    ...(isFreeTier ? { filter: "blur(6px)", pointerEvents: "none" } : {}),
                     fontFamily: "var(--mono)",
                     fontSize: 10,
                     color: "var(--muted2)",

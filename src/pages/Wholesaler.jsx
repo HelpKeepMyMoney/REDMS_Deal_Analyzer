@@ -14,7 +14,9 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { loadWholesalerDeals, loadWholesalerDeal, saveWholesalerDeal, deleteWholesalerDeal } from "../logic/wholesalerDealStorage.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useTier } from "../contexts/TierContext.jsx";
 import { useConfig } from "../contexts/ConfigContext.jsx";
+import { saveUserConfig } from "../logic/userConfigStorage.js";
 import {
   PropertyBrief,
   DealMetrics,
@@ -42,7 +44,8 @@ function formatAddress(inp) {
 
 export default function Wholesaler() {
   const { user, isAdmin, isWholesaler, signOut } = useAuth();
-  const { config } = useConfig();
+  const { dealParamsLevel } = useTier();
+  const { config, refreshConfig } = useConfig();
   const navigate = useNavigate();
   const [inp, setInp] = useState(() => ({ ...DEFAULT_INPUT }));
   const [riskOverrides, setRiskOverrides] = useState({});
@@ -297,10 +300,19 @@ export default function Wholesaler() {
           savedDealsLoading={savedDealsLoading}
           riskOverrides={riskOverrides}
           onRiskOverridesChange={setRiskOverrides}
+          dealParamsLevel={dealParamsLevel}
+          config={config}
+          refreshConfig={refreshConfig}
+          onSaveUserConfig={user && (dealParamsLevel === "full" || dealParamsLevel === "limited") ? (overrides) => saveUserConfig(user.uid, overrides, dealParamsLevel) : null}
         />
 
         <main className={styles.output}>
           <>
+            {!isAdmin && currentDealId && (
+              <div className={styles["proforma-disclaimer"]} role="status">
+                <strong>Disclaimer:</strong> The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord&apos;s Insurance) that have not been verified by The BNIC Network LLC. Please verify all assumptions before making investment decisions.
+              </div>
+            )}
             <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
 
             <div>

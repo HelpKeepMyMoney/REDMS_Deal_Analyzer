@@ -107,6 +107,20 @@ function checkPageBreak(doc, y, minSpace = 40, pageCountRef = null) {
   return y;
 }
 
+const PROFORMA_DISCLAIMER =
+  "Disclaimer: The proforma shown is based on assumptions (such as Section 8 Rent, Rehab Level, New Property Taxes, and Landlord's Insurance) that have not been verified by The BNIC Network LLC. Please verify all assumptions before making investment decisions.";
+
+function addProformaDisclaimer(doc, y, text) {
+  const maxW = PAGE_W - 2 * MARGIN;
+  doc.setFontSize(SMALL_SIZE);
+  doc.setFont(FONT_SANS, "italic");
+  doc.setTextColor(120, 120, 120);
+  const lines = doc.splitTextToSize(text, maxW);
+  doc.text(lines, MARGIN, y, { lineHeightFactor: 1.15 });
+  const lineH = SMALL_SIZE * 0.35 * 1.15;
+  return y + lines.length * lineH + 8;
+}
+
 /**
  * Proforma PDF for potential buyers. Shows offer price (Contract + Wholesale Fee), full cost stack,
  * Profit Summary, Annual P&L — Buy & Hold, and 30-year projection on a separate page.
@@ -127,7 +141,9 @@ export async function generateWholesalerProformaPDF(inp, r, formatAddress) {
   doc.setFont(FONT_SANS, "normal");
   doc.setTextColor(100, 100, 100);
   doc.text("REDMS Wholesaler · For Buyer Review", PAGE_W / 2, y, { align: "center" });
-  y += 16;
+  y += 10;
+
+  y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER);
 
   y = addSectionHeading(doc, "Property Information", y);
   const address = formatAddress(inp);
@@ -370,7 +386,9 @@ export async function generateWholesalerReportPDF(inp, r, formatAddress) {
   doc.setFont(FONT_SANS, "italic");
   doc.setTextColor(120, 120, 120);
   doc.text("Internal use only — do not share with buyers", PAGE_W / 2, y, { align: "center" });
-  y += 14;
+  y += 10;
+
+  y = addProformaDisclaimer(doc, y, PROFORMA_DISCLAIMER);
 
   y = addSectionHeading(doc, "Property", y);
   const address = formatAddress(inp);

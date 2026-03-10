@@ -1,15 +1,17 @@
 import { DetailRow } from "../DetailRow.jsx";
+import { BlurIfFree } from "../BlurIfFree.jsx";
 import { formatCurrency, formatPct } from "../../logic/formatters.js";
 import styles from "../../REDMS.module.css";
 
 const $ = formatCurrency;
 const pct = formatPct;
 
-export function FlipTab({ r, inp }) {
+export function FlipTab({ r, inp, isFreeTier = false }) {
     return (
         <div className={styles.two} style={{ marginTop: 12 }} role="tabpanel" id="panel-flip" aria-labelledby="tab-flip">
             <div className={styles.panel}>
                 <div className={styles.ph}>Cost Stack — Purchase & Flip Sheet</div>
+                <BlurIfFree isFreeTier={isFreeTier}>
                 <DetailRow label="Contract Price (to seller)" val={$(r.offerPrice)} cls="g" />
                 <DetailRow label="Wholesale Fee" val={$(inp.wholesaleFee)} cls="g" />
                 <DetailRow label="Rehab Cost" val={$(r.rehabCost)} cls="g" />
@@ -27,6 +29,7 @@ export function FlipTab({ r, inp }) {
                 <DetailRow label="  · Rehab Insurance" val={$(r.rehabIns)} />
                 <DetailRow label="Holding Costs" val={$(r.holdingCosts)} cls="g" />
                 <DetailRow label="2nd Mtg Points" val={$(r.mortgage2Pts)} cls="g" />
+                </BlurIfFree>
                 <DetailRow label="Total Cost" val={$(r.totalCosts)} cls="g" tot className="dr-total" />
                 <DetailRow
                     label="Less: 2nd Mortgage"
@@ -53,6 +56,7 @@ export function FlipTab({ r, inp }) {
                 <DetailRow label="Net Proceeds" val={$(r.netProceedsAfterPayoffs)} cls="g" />
                 <DetailRow label="Less: Total Investment" val={`(${$(r.totalInvestment)})`} cls="r" />
                 <DetailRow label="Gross Profit" val={$(r.grossProfit)} tot className="dr-white" />
+                <BlurIfFree isFreeTier={isFreeTier}>
                 <DetailRow label="Less: Preferred ROI / 10%" val={`(${$(r.preferredROI)})`} cls="r" />
                 {r.initialReferralDeduct > 0 && (
                     <DetailRow
@@ -95,6 +99,7 @@ export function FlipTab({ r, inp }) {
                     val={$(r.minSalesPrice)}
                     cls={r.minSalesPrice <= r.arv ? "g" : "r"}
                 />
+                </BlurIfFree>
             </div>
         </div>
     );
