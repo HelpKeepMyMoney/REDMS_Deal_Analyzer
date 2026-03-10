@@ -14,7 +14,7 @@ import {
   estimateMonthlyRent,
   mergeStored,
 } from "./logic";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { loadDeals, loadDeal, saveDeal, deleteDeal } from "./logic/firestoreStorage.js";
 import { loadUserFavorites, removeFavorite } from "./logic/userFavoritesStorage.js";
 import { getLastLoginAt, setLastLoginAt } from "./logic/userMetadataStorage.js";
@@ -59,6 +59,7 @@ export default function REDMS() {
   const { user, isAdmin, isWholesaler, signOut } = useAuth();
   const { config } = useConfig();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [inp, setInp] = useState(() => getInitialInput());
   const [tab, setTab] = useState("flip");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -154,6 +155,27 @@ export default function REDMS() {
     refreshDeals();
   }, [user?.uid, isAdmin]);
 
+  const handleLoadDeal = useCallback(async (id) => {
+    try {
+      const loaded = await loadDeal(id);
+      if (!loaded) return;
+      const { _ownerId, ...dealData } = loaded;
+      const base = { ...DEFAULT_INPUT, ...dealData };
+      setInp(mergeStored(base, dealData));
+      setCurrentDealId(id);
+      setCurrentDealIsShared(_ownerId != null && _ownerId !== user?.uid);
+    } catch (e) {
+      console.error("Failed to load deal", e);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    const dealIdFromUrl = searchParams.get("dealId");
+    if (dealIdFromUrl && user?.uid) {
+      handleLoadDeal(dealIdFromUrl);
+    }
+  }, [searchParams, user?.uid, handleLoadDeal]);
+
   const refreshFavorites = useCallback(async () => {
     if (!user?.uid || isAdmin) return;
     setFavoritesLoading(true);
@@ -205,20 +227,6 @@ export default function REDMS() {
   };
 
   const [currentDealIsShared, setCurrentDealIsShared] = useState(false);
-
-  const handleLoadDeal = async (id) => {
-    try {
-      const loaded = await loadDeal(id);
-      if (!loaded) return;
-      const { _ownerId, ...dealData } = loaded;
-      const base = { ...DEFAULT_INPUT, ...dealData };
-      setInp(mergeStored(base, dealData));
-      setCurrentDealId(id);
-      setCurrentDealIsShared(_ownerId != null && _ownerId !== user?.uid);
-    } catch (e) {
-      console.error("Failed to load deal", e);
-    }
-  };
 
   const handleSaveDeal = async () => {
     if (!isAdmin || !user?.uid) return;

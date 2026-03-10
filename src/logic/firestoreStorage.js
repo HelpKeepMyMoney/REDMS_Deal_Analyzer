@@ -143,22 +143,52 @@ export async function deleteDeal(id) {
   await deleteDoc(ref);
 }
 
-/** Load all deals (admin only). Returns list with id, dealName, userId, sharedWith, sharedWithAll, updatedAt. */
+export const DEAL_STATUSES = ["Available", "Reserved", "Under Contract", "Sold"];
+
+/** Load all deals (admin only). Returns list with id, dealName, userId, sharedWith, sharedWithAll, updatedAt, status, assignedUserId, and full deal input fields for calc/display. */
 export async function loadAllDealsForAdmin() {
   if (!db) return [];
   const snap = await getDocs(collection(db, DEALS_COLLECTION));
   return snap.docs.map((d) => {
     const data = d.data();
     const addr = [data.street, data.city, data.state].filter(Boolean).join(", ");
+    const { updatedAt, createdAt, ...rest } = data;
     return {
       id: d.id,
       dealName: data.dealName || addr || "Untitled",
       userId: data.userId,
       sharedWith: Array.isArray(data.sharedWith) ? data.sharedWith : [],
       sharedWithAll: data.sharedWithAll === true,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() ?? null,
+      updatedAt: updatedAt?.toDate?.()?.toISOString?.() ?? null,
+      status: data.status || "Available",
+      assignedUserId: data.assignedUserId || null,
+      ...rest,
     };
   });
+}
+
+/** Update deal status (admin only). status: Available | Reserved | Under Contract | Sold. */
+export async function updateDealStatus(dealId, status) {
+  if (!db) throw new Error("Firebase is not configured");
+  if (!dealId) throw new Error("Deal id is required");
+  if (!DEAL_STATUSES.includes(status)) throw new Error("Invalid status");
+  const ref = doc(db, DEALS_COLLECTION, dealId);
+  const update = { status, updatedAt: serverTimestamp() };
+  if (status === "Available") {
+    update.assignedUserId = null;
+  }
+  await setDoc(ref, update, { merge: true });
+}
+
+/** Update deal assigned user (admin only). For Reserved, Under Contract, Sold. assignedUserId: string | null. */
+export async function updateDealAssignedUser(dealId, assignedUserId) {
+  if (!db) throw new Error("Firebase is not configured");
+  if (!dealId) throw new Error("Deal id is required");
+  const ref = doc(db, DEALS_COLLECTION, dealId);
+  await setDoc(ref, {
+    assignedUserId: assignedUserId || null,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 /** Update deal sharing (admin only). sharedWith = array of user IDs; sharedWithAll = true for all users. */

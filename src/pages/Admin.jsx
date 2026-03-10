@@ -4,13 +4,14 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useConfig } from "../contexts/ConfigContext.jsx";
 import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
-import { loadAllDealsForAdmin, updateDealSharedWith } from "../logic/firestoreStorage.js";
+import { loadAllDealsForAdmin, updateDealSharedWith, updateDealStatus, updateDealAssignedUser } from "../logic/firestoreStorage.js";
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removePropertyFromSavedSearch } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
 import { saveImportProperty } from "../logic/storage.js";
-import { AdminDropdown, PropertyResultCard } from "../components";
+import { AdminDropdown, PropertyResultCard, DealCard } from "../components";
 import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
+import { calc, sanitizeInput } from "../logic";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -73,6 +74,21 @@ export default function Admin() {
   const [propertyToggleUpdating, setPropertyToggleUpdating] = useState(null);
   const [propertyDeletingId, setPropertyDeletingId] = useState(null);
 
+  const [dealStatusUpdating, setDealStatusUpdating] = useState(null);
+  const [dealFilterSearch, setDealFilterSearch] = useState("");
+  const [dealFilterStatus, setDealFilterStatus] = useState("all");
+  const [dealFilterCity, setDealFilterCity] = useState("");
+  const [dealFilterState, setDealFilterState] = useState("");
+  const [dealFilterZipCode, setDealFilterZipCode] = useState("");
+  const [dealFilterMinPrice, setDealFilterMinPrice] = useState("");
+  const [dealFilterMaxPrice, setDealFilterMaxPrice] = useState("");
+  const [dealFilterMinBeds, setDealFilterMinBeds] = useState("");
+  const [dealFilterMinBaths, setDealFilterMinBaths] = useState("");
+  const [dealFilterMinSqft, setDealFilterMinSqft] = useState("");
+  const [dealFilterAssignedUser, setDealFilterAssignedUser] = useState("");
+  const [dealFilterViewableByUser, setDealFilterViewableByUser] = useState("");
+  const [dealSortBy, setDealSortBy] = useState("name-asc");
+
   const adminApi = useMemo(
     () => (user ? createAdminApi(() => user.getIdToken()) : null),
     [user]
@@ -100,7 +116,10 @@ export default function Admin() {
   const selectedUserDeals = useMemo(() => {
     if (!selectedUser?.uid) return [];
     return allDeals.filter(
-      (d) => (d.sharedWith || []).includes(selectedUser.uid) || d.sharedWithAll
+      (d) =>
+        d.userId === selectedUser.uid ||
+        (d.sharedWith || []).includes(selectedUser.uid) ||
+        d.sharedWithAll
     );
   }, [selectedUser?.uid, allDeals]);
 
@@ -125,6 +144,123 @@ export default function Admin() {
     }
     return filtered;
   }, [allDeals, shareDealSearch, users, selectedDealId]);
+
+  const filteredDealsForAdmin = useMemo(() => {
+    let list = [...allDeals];
+    if (dealFilterSearch.trim()) {
+      const term = dealFilterSearch.trim().toLowerCase();
+      list = list.filter((d) => {
+        const addr = [d.street, d.city, d.state, d.zipCode, d.dealName]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const ownerEmail = (users.find((u) => u.uid === d.userId)?.email ?? "").toLowerCase();
+        return addr.includes(term) || ownerEmail.includes(term);
+      });
+    }
+    if (dealFilterStatus !== "all") {
+      list = list.filter((d) => (d.status || "Available") === dealFilterStatus);
+    }
+    if (dealFilterCity.trim()) {
+      const city = dealFilterCity.trim().toLowerCase();
+      list = list.filter((d) => (d.city || "").toLowerCase().includes(city));
+    }
+    if (dealFilterState.trim()) {
+      const state = dealFilterState.trim().toUpperCase();
+      list = list.filter((d) => (d.state || "").toUpperCase() === state);
+    }
+    if (dealFilterZipCode.trim()) {
+      const zip = dealFilterZipCode.trim();
+      list = list.filter((d) => (d.zipCode || "").includes(zip));
+    }
+    const minP = dealFilterMinPrice ? Number(dealFilterMinPrice) : null;
+    const maxP = dealFilterMaxPrice ? Number(dealFilterMaxPrice) : null;
+    if (minP != null && !isNaN(minP)) list = list.filter((d) => (d.offerPrice ?? 0) >= minP);
+    if (maxP != null && !isNaN(maxP)) list = list.filter((d) => (d.offerPrice ?? 0) <= maxP);
+    if (dealFilterMinBeds) {
+      const minBeds = Number(dealFilterMinBeds);
+      if (!isNaN(minBeds)) list = list.filter((d) => (d.bedrooms ?? 0) >= minBeds);
+    }
+    if (dealFilterMinBaths) {
+      const minBaths = Number(dealFilterMinBaths);
+      if (!isNaN(minBaths)) list = list.filter((d) => (d.bathrooms ?? 0) >= minBaths);
+    }
+    if (dealFilterMinSqft) {
+      const minSqft = Number(dealFilterMinSqft);
+      if (!isNaN(minSqft) && minSqft > 0) {
+        list = list.filter((d) => (d.sqft ?? 0) >= minSqft);
+      }
+    }
+    if (dealFilterAssignedUser) {
+      list = list.filter((d) => d.assignedUserId === dealFilterAssignedUser);
+    }
+    if (dealFilterViewableByUser) {
+      list = list.filter(
+        (d) =>
+          d.userId === dealFilterViewableByUser ||
+          (d.sharedWith || []).includes(dealFilterViewableByUser) ||
+          d.sharedWithAll
+      );
+    }
+    const [field, dir] = dealSortBy.split("-");
+    if (field === "investmentRequired" || field === "bhCashOnCash") {
+      list = list.map((d) => {
+        let inv = 0, coc = 0;
+        try {
+          const r = calc(sanitizeInput(d), config);
+          inv = r?.bhTotalInvestment ?? 0;
+          coc = r?.bhCashOnCash ?? 0;
+        } catch {}
+        return { ...d, _sortInv: inv, _sortCoc: coc };
+      });
+    }
+    list.sort((a, b) => {
+      if (field === "name") {
+        const na = (a.dealName || "").toLowerCase();
+        const nb = (b.dealName || "").toLowerCase();
+        return dir === "asc" ? na.localeCompare(nb) : nb.localeCompare(na);
+      }
+      if (field === "price") {
+        const va = a.offerPrice ?? 0;
+        const vb = b.offerPrice ?? 0;
+        return dir === "asc" ? va - vb : vb - va;
+      }
+      if (field === "date") {
+        const da = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dir === "asc" ? da - db : db - da;
+      }
+      if (field === "investmentRequired") {
+        const va = a._sortInv ?? 0;
+        const vb = b._sortInv ?? 0;
+        return dir === "asc" ? va - vb : vb - va;
+      }
+      if (field === "bhCashOnCash") {
+        const va = a._sortCoc ?? 0;
+        const vb = b._sortCoc ?? 0;
+        return dir === "asc" ? va - vb : vb - va;
+      }
+      return 0;
+    });
+    return list;
+  }, [
+    allDeals,
+    users,
+    dealFilterSearch,
+    dealFilterStatus,
+    dealFilterCity,
+    dealFilterState,
+    dealFilterZipCode,
+    dealFilterMinPrice,
+    dealFilterMaxPrice,
+    dealFilterMinBeds,
+    dealFilterMinBaths,
+    dealFilterMinSqft,
+    dealFilterAssignedUser,
+    dealFilterViewableByUser,
+    dealSortBy,
+    config,
+  ]);
 
   const filteredPropertiesForAdmin = useMemo(() => {
     let list = [...allPropertiesForAdmin];
@@ -268,7 +404,7 @@ export default function Admin() {
   }, [isAdmin, activeTab]);
 
   useEffect(() => {
-    if (isAdmin && (activeTab === "sharing" || activeTab === "users")) {
+    if (isAdmin && (activeTab === "sharing" || activeTab === "users" || activeTab === "dealMgmt")) {
       setDealsLoading(true);
       loadAllDealsForAdmin()
         .then((deals) => {
@@ -490,6 +626,42 @@ export default function Admin() {
     }
   };
 
+  const handleDealStatusChange = async (dealId, status) => {
+    setDealStatusUpdating(dealId);
+    setMessage({ type: "", text: "" });
+    try {
+      await updateDealStatus(dealId, status);
+      setAllDeals((prev) =>
+        prev.map((d) =>
+          d.id === dealId
+            ? { ...d, status, assignedUserId: status === "Available" ? null : d.assignedUserId }
+            : d
+        )
+      );
+      setMessage({ type: "success", text: "Deal status updated." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update status: " + e.message });
+    } finally {
+      setDealStatusUpdating(null);
+    }
+  };
+
+  const handleDealAssignedUserChange = async (dealId, assignedUserId) => {
+    setDealStatusUpdating(dealId);
+    setMessage({ type: "", text: "" });
+    try {
+      await updateDealAssignedUser(dealId, assignedUserId);
+      setAllDeals((prev) =>
+        prev.map((d) => (d.id === dealId ? { ...d, assignedUserId } : d))
+      );
+      setMessage({ type: "success", text: "Assigned user updated." });
+    } catch (e) {
+      setMessage({ type: "error", text: "Failed to update: " + e.message });
+    } finally {
+      setDealStatusUpdating(null);
+    }
+  };
+
   const handleIncludeAllFromSearch = async (searchId) => {
     const toInclude = allPropertiesForAdmin.filter(
       (item) => (item.sourceSearchIds || []).includes(searchId) && !item.isIncluded
@@ -697,6 +869,13 @@ export default function Admin() {
           >
             Property Management
           </button>
+          <button
+            type="button"
+            className={`${styles["admin-tab"]} ${activeTab === "dealMgmt" ? styles.active : ""}`}
+            onClick={() => setActiveTab("dealMgmt")}
+          >
+            Deal Management
+          </button>
         </div>
 
         {message.text && (
@@ -880,7 +1059,7 @@ export default function Admin() {
             {selectedUser && (
               <div className={styles["user-detail-panel"]}>
                 <div className={styles["user-detail-header"]}>
-                  <h3>Assigned to {selectedUser.email}</h3>
+                  <h3>Deals & searches for {selectedUser.email}</h3>
                   <button
                     type="button"
                     className={styles["btn-action"]}
@@ -894,16 +1073,27 @@ export default function Admin() {
                 ) : (
                   <div className={styles["user-detail-grid"]}>
                     <div className={styles["user-detail-section"]}>
-                      <h4>Deals ({selectedUserDeals.length})</h4>
+                      <h4>Deals ({selectedUserDeals.length}) — deals this user can view</h4>
                       {selectedUserDeals.length === 0 ? (
-                        <p className={styles["admin-muted"]}>No deals assigned to this user.</p>
+                        <p className={styles["admin-muted"]}>No deals this user can view.</p>
                       ) : (
                         <ul className={styles["user-detail-list"]}>
                           {selectedUserDeals.map((d) => (
-                            <li key={d.id}>
-                              {d.dealName}
-                              {d.sharedWithAll && (
-                                <span className={styles["badge-user"]} style={{ marginLeft: 8 }}>Shared with all</span>
+                            <li key={d.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                              <Link
+                                to={`/investor?dealId=${d.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "var(--amber)", textDecoration: "none" }}
+                              >
+                                {d.dealName}
+                              </Link>
+                              {d.userId === selectedUser.uid ? (
+                                <span className={styles["badge-admin"]} style={{ marginLeft: 4 }}>Owner</span>
+                              ) : d.sharedWithAll ? (
+                                <span className={styles["badge-user"]} style={{ marginLeft: 4 }}>Shared with all</span>
+                              ) : (
+                                <span className={styles["badge-user"]} style={{ marginLeft: 4 }}>Shared</span>
                               )}
                             </li>
                           ))}
@@ -1623,6 +1813,234 @@ export default function Admin() {
                     />
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "dealMgmt" && (
+          <div className={styles["admin-card"]} style={{ maxWidth: "100%" }}>
+            <div className={styles["users-header"]}>
+              <h2 className={styles["admin-section-title"]}>Deal Management</h2>
+              <button
+                onClick={() => {
+                  setDealsLoading(true);
+                  loadAllDealsForAdmin()
+                    .then((deals) => {
+                      const sorted = [...deals].sort((a, b) =>
+                        (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" })
+                      );
+                      setAllDeals(sorted);
+                    })
+                    .catch((e) => setMessage({ type: "error", text: "Failed to load: " + e.message }))
+                    .finally(() => setDealsLoading(false));
+                }}
+                className={styles["btn-refresh"]}
+                disabled={dealsLoading}
+              >
+                Refresh
+              </button>
+            </div>
+            <p className={styles["admin-muted"]} style={{ marginBottom: 16 }}>
+              View all deals, change status, and assign users when Reserved, Under Contract, or Sold. Click a card to open the deal.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", marginBottom: "1rem" }}>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-search">Address / Name</label>
+                <input
+                  id="deal-filter-search"
+                  type="text"
+                  placeholder="Search address or name..."
+                  value={dealFilterSearch}
+                  onChange={(e) => setDealFilterSearch(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-status">Status</label>
+                <select
+                  id="deal-filter-status"
+                  value={dealFilterStatus}
+                  onChange={(e) => setDealFilterStatus(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="all">All</option>
+                  <option value="Available">Available</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Under Contract">Under Contract</option>
+                  <option value="Sold">Sold</option>
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-city">City</label>
+                <input
+                  id="deal-filter-city"
+                  type="text"
+                  placeholder="e.g., Detroit"
+                  value={dealFilterCity}
+                  onChange={(e) => setDealFilterCity(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-state">State</label>
+                <input
+                  id="deal-filter-state"
+                  type="text"
+                  placeholder="e.g., MI"
+                  maxLength={2}
+                  value={dealFilterState}
+                  onChange={(e) => setDealFilterState(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-zip">Zip Code</label>
+                <input
+                  id="deal-filter-zip"
+                  type="text"
+                  placeholder="e.g., 48201"
+                  value={dealFilterZipCode}
+                  onChange={(e) => setDealFilterZipCode(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-min-price">Min Price ($)</label>
+                <input
+                  id="deal-filter-min-price"
+                  type="number"
+                  placeholder="e.g., 50000"
+                  value={dealFilterMinPrice}
+                  onChange={(e) => setDealFilterMinPrice(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-max-price">Max Price ($)</label>
+                <input
+                  id="deal-filter-max-price"
+                  type="number"
+                  placeholder="e.g., 500000"
+                  value={dealFilterMaxPrice}
+                  onChange={(e) => setDealFilterMaxPrice(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-min-beds">Min Beds</label>
+                <input
+                  id="deal-filter-min-beds"
+                  type="number"
+                  min={0}
+                  placeholder="Any"
+                  value={dealFilterMinBeds}
+                  onChange={(e) => setDealFilterMinBeds(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-min-baths">Min Baths</label>
+                <input
+                  id="deal-filter-min-baths"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  placeholder="Any"
+                  value={dealFilterMinBaths}
+                  onChange={(e) => setDealFilterMinBaths(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-min-sqft">Min Sq Ft</label>
+                <input
+                  id="deal-filter-min-sqft"
+                  type="number"
+                  min={0}
+                  placeholder="Any"
+                  value={dealFilterMinSqft}
+                  onChange={(e) => setDealFilterMinSqft(e.target.value)}
+                  className={styles["search-input"]}
+                />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-assigned">Assigned to</label>
+                <select
+                  id="deal-filter-assigned"
+                  value={dealFilterAssignedUser}
+                  onChange={(e) => setDealFilterAssignedUser(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="">All users</option>
+                  {users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-filter-viewable">Viewable by user</label>
+                <select
+                  id="deal-filter-viewable"
+                  value={dealFilterViewableByUser}
+                  onChange={(e) => setDealFilterViewableByUser(e.target.value)}
+                  className={styles["search-input"]}
+                  title="Show only deals this user can view (owns, shared with, or shared with all)"
+                >
+                  <option value="">All deals</option>
+                  {users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="deal-sort">Sort by</label>
+                <select
+                  id="deal-sort"
+                  value={dealSortBy}
+                  onChange={(e) => setDealSortBy(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="name-asc">Name: A–Z</option>
+                  <option value="name-desc">Name: Z–A</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="investmentRequired-asc">Investment Required: Low to High</option>
+                  <option value="investmentRequired-desc">Investment Required: High to Low</option>
+                  <option value="bhCashOnCash-asc">B&H Cash-on-Cash ROI: Low to High</option>
+                  <option value="bhCashOnCash-desc">B&H Cash-on-Cash ROI: High to Low</option>
+                  <option value="date-desc">Updated: Newest First</option>
+                  <option value="date-asc">Updated: Oldest First</option>
+                </select>
+              </div>
+            </div>
+            {!dealsLoading && filteredDealsForAdmin.length > 0 && (
+              <p className={styles["admin-muted"]} style={{ marginBottom: "1rem" }}>
+                {filteredDealsForAdmin.length} of {allDeals.length} deals
+              </p>
+            )}
+            {dealsLoading ? (
+              <p className={styles["admin-muted"]}>Loading deals…</p>
+            ) : allDeals.length === 0 ? (
+              <p className={styles["admin-muted"]}>No deals yet. Create deals in the Investor module first.</p>
+            ) : filteredDealsForAdmin.length === 0 ? (
+              <p className={styles["admin-muted"]}>No deals match the current filters.</p>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1rem" }}>
+                {filteredDealsForAdmin.map((deal) => (
+                  <DealCard
+                    key={deal.id}
+                    deal={deal}
+                    users={users}
+                    onStatusChange={handleDealStatusChange}
+                    onAssignedUserChange={handleDealAssignedUserChange}
+                    statusUpdating={dealStatusUpdating === deal.id}
+                  />
+                ))}
               </div>
             )}
           </div>

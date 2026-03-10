@@ -14,8 +14,20 @@
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying); new-deals notification (deals shared since last login, dismissible).
-- **Admin** — User management (search by email, role, date created; view deals and searches assigned to each user), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), email notifications. Header sign-out and module switcher.
+- **Admin** — User management (search by email, role, date created; view deals and searches each user can access with links and access badges), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules.
+
+## Deal Management (Admin)
+
+**Admin → Deal Management** provides a card-based view of all deals with:
+
+- **Deal cards** — Mimic property search cards; show offer price, beds/baths/sqft, address, status badge, Deal/No Deal badge, metrics (Rehab Level, Est. Rent, Annual NOI, B&H Cash-on-Cash ROI, Investment Required, Loan Amount), Notes, and Updated date. Each card links to the deal screen (`/investor?dealId=...`).
+- **Status & assignment** — Change deal status (Available, Reserved, Under Contract, Sold). When Reserved, Under Contract, or Sold, assign a user from the dropdown.
+- **Filters** — Address/name, status, city, state, zip, min/max price, min beds/baths/sqft, assigned to, viewable by user.
+- **Sort** — Name (A–Z, Z–A), Price (low/high), Investment Required (low/high), B&H Cash-on-Cash ROI (low/high), Updated (newest/oldest).
+- **Viewable by user** — Filter to show only deals a specific user can view (owns, shared with, or shared with all).
+
+In **Admin → Users**, when you click View on a user, the panel shows all deals that user can access (owned, shared, or shared with all), with links to open each deal and badges for Owner / Shared / Shared with all.
 
 ## App Parameters (Admin)
 
@@ -69,7 +81,7 @@ npm run test:run
   - `userFavoritesStorage.js` — user favorites.
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
-- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, AdminDropdown, WholesalerModuleDropdown.
+- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
 - `api/` — Vercel serverless functions.
 
 ## Property Data Sources
