@@ -16,6 +16,7 @@
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — deal status and address shown next to Start Buying button; status colors: Available=green, Reserved=yellow, Under Contract=red, Sold=white); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer.
 - **Admin** — User management (search by email, role, date created; view deals and searches each user can access with links and access badges), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
+- **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; email and password update forms.
 
 ## Deal Management (Admin)
 
@@ -70,6 +71,8 @@ npm run test:run
 - `src/pages/Wholesaler.jsx` — Wholesaler deal analyzer.
 - `src/REDMS.jsx` — Investor deal analyzer (sidebar inputs, deal logic strip, metric cards, tabbed views).
 - `src/REDMS.module.css` — Styles.
+- `src/pages/Profile.jsx` — Profile page (contact info, subscription, email, password).
+- `src/logic/userProfileStorage.js` — User profile (firstName, lastName, phoneNumber) in Firestore `users/{userId}`.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
   - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT.
@@ -119,6 +122,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
   - `PAYPAL_PLAN_INVESTOR_MONTHLY`, `PAYPAL_PLAN_INVESTOR_ANNUAL`, `PAYPAL_PLAN_PRO_MONTHLY`, `PAYPAL_PLAN_PRO_ANNUAL`, `PAYPAL_PLAN_WHOLESALER_MONTHLY`, `PAYPAL_PLAN_WHOLESALER_ANNUAL` — Plan IDs from PayPal
 
 **Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
+
+**Firestore rules:** Deploy with `firebase deploy --only firestore:rules`. The `users` collection stores profile contact info (firstName, lastName, phoneNumber); users can read/write only their own document.
 
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 

@@ -3,15 +3,43 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import { createInterestApi } from "../logic/interestApi.js";
+import { loadUserProfile, saveUserProfile } from "../logic/userProfileStorage.js";
 import { AdminDropdown } from "../components";
-import { TIERS } from "../logic/tierConstants.js";
+import { TIERS, TIER_LIMITS } from "../logic/tierConstants.js";
 
 function getAnalyzerPath(isWholesaler) {
   return isWholesaler ? "/wholesaler" : "/investor";
 }
 
-function UpgradeButton({ plan, cycle, label, user }) {
+const UPGRADE_OPTIONS = [
+  { plan: "investor", cycle: "monthly", label: "Investor $39/mo" },
+  { plan: "pro", cycle: "monthly", label: "Pro $99/mo" },
+  { plan: "wholesaler", cycle: "monthly", label: "Wholesaler $149/mo" },
+  { plan: "investor", cycle: "annual", label: "Investor $390/yr" },
+  { plan: "pro", cycle: "annual", label: "Pro $990/yr" },
+  { plan: "wholesaler", cycle: "annual", label: "Wholesaler $1,490/yr" },
+];
+
+function getUpgradeOptionsForTier(tier) {
+  if (tier === TIERS.FREE) return UPGRADE_OPTIONS;
+  if (tier === TIERS.INVESTOR) return UPGRADE_OPTIONS.filter((o) => o.plan === "pro" || o.plan === "wholesaler");
+  if (tier === TIERS.PRO) return UPGRADE_OPTIONS.filter((o) => o.plan === "wholesaler");
+  return [];
+}
+
+function getTierTooltip(plan) {
+  const limits = TIER_LIMITS[plan];
+  if (!limits?.maxAnalysesPerMonth) return null;
+  const deals = limits.maxAnalysesPerMonth === Infinity ? "Unlimited" : `${limits.maxAnalysesPerMonth} deals`;
+  const overage = limits.overagePerDeal != null ? `$${limits.overagePerDeal} per deal` : null;
+  const parts = [`${deals} per month included`];
+  if (overage) parts.push(`Additional analyses: ${overage}`);
+  return parts.join(". ");
+}
+
+function UpgradeButton({ plan, cycle, label, user, className }) {
   const [loading, setLoading] = useState(false);
+  const tooltip = getTierTooltip(plan);
   const handleClick = async () => {
     if (!user) return;
     setLoading(true);
@@ -38,8 +66,8 @@ function UpgradeButton({ plan, cycle, label, user }) {
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={styles.submit}
-      style={{ textDecoration: "none", textAlign: "center" }}
+      className={className || styles.submit}
+      title={tooltip || undefined}
     >
       {loading ? "Loading…" : label}
     </button>
@@ -59,10 +87,33 @@ export default function Profile() {
   const [wholesalerRequesting, setWholesalerRequesting] = useState(false);
   const [wholesalerError, setWholesalerError] = useState("");
 
+  const [contactForm, setContactForm] = useState({
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
+  });
+  const [contactError, setContactError] = useState("");
+  const [contactSuccess, setContactSuccess] = useState("");
+  const [contactBusy, setContactBusy] = useState(false);
+
   const [emailForm, setEmailForm] = useState({
     newEmail: "",
     currentPassword: "",
   });
+
+  useEffect(() => {
+    if (user?.uid) {
+      loadUserProfile(user.uid).then((profile) => {
+        if (profile) {
+          setContactForm({
+            firstName: profile.firstName ?? "",
+            lastName: profile.lastName ?? "",
+            phoneNumber: profile.phoneNumber ?? "",
+          });
+        }
+      });
+    }
+  }, [user?.uid]);
 
   useEffect(() => {
     if (user?.email) {
@@ -80,6 +131,21 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
+
+  const handleUpdateContact = async (e) => {
+    e.preventDefault();
+    setContactError("");
+    setContactSuccess("");
+    setContactBusy(true);
+    try {
+      await saveUserProfile(user.uid, contactForm);
+      setContactSuccess("Contact information updated.");
+    } catch (err) {
+      setContactError(err.message || "Failed to update contact information");
+    } finally {
+      setContactBusy(false);
+    }
+  };
 
   const handleUpdateEmail = async (e) => {
     e.preventDefault();
@@ -145,51 +211,120 @@ export default function Profile() {
       <main className={styles.main}>
         <div className={styles.card}>
           <h1 className={styles.title}>Profile</h1>
-          <p className={styles.sub}>Update your account settings</p>
+          <p className={styles.sub}>Manage your account and subscription</p>
+
+          <section className={styles.section} aria-labelledby="contact-heading">
+            <h2 id="contact-heading" className={styles.sectionTitle}>Contact Information</h2>
+            <form onSubmit={handleUpdateContact} className={styles.form}>
+              <div className={styles.formRow}>
+                <div className={styles.formField}>
+                  <label htmlFor="profile-first-name">First name</label>
+                  <input
+                    id="profile-first-name"
+                    type="text"
+                    value={contactForm.firstName}
+                    onChange={(e) => setContactForm((p) => ({ ...p, firstName: e.target.value }))}
+                    placeholder="First name"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label htmlFor="profile-last-name">Last name</label>
+                  <input
+                    id="profile-last-name"
+                    type="text"
+                    value={contactForm.lastName}
+                    onChange={(e) => setContactForm((p) => ({ ...p, lastName: e.target.value }))}
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                  />
+                </div>
+              </div>
+              <label htmlFor="profile-phone">Phone number</label>
+              <input
+                id="profile-phone"
+                type="tel"
+                value={contactForm.phoneNumber}
+                onChange={(e) => setContactForm((p) => ({ ...p, phoneNumber: e.target.value }))}
+                placeholder="(555) 123-4567"
+                autoComplete="tel"
+              />
+              {contactError && <div className={styles.error} role="alert">{contactError}</div>}
+              {contactSuccess && <div className={styles.success} role="status">{contactSuccess}</div>}
+              <button type="submit" className={styles.submit} disabled={contactBusy}>
+                {contactBusy ? "Saving…" : "Save contact info"}
+              </button>
+            </form>
+          </section>
 
           <section className={styles.section} aria-labelledby="subscription-heading">
             <h2 id="subscription-heading" className={styles.sectionTitle}>Subscription</h2>
             {isClient ? (
-              <p className={styles.sub}>
+              <p className={styles.sectionText}>
                 Client — view shared deals and export. Deal parameters are set by your admin. You cannot create or save your own deals.
               </p>
             ) : isFreeTier ? (
               <>
-                <p className={styles.sub} style={{ marginBottom: 12 }}>
-                  Free tier: {usageCount} of {usageLimit} deals used (lifetime). Upgrade for unlimited analyses, export, and more.
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                  <UpgradeButton plan="investor" cycle="monthly" label="Investor $39/mo" user={user} />
-                  <UpgradeButton plan="pro" cycle="monthly" label="Pro $99/mo" user={user} />
-                  <UpgradeButton plan="wholesaler" cycle="monthly" label="Wholesaler $149/mo" user={user} />
-                  <UpgradeButton plan="investor" cycle="annual" label="Investor $390/yr" user={user} />
-                  <UpgradeButton plan="pro" cycle="annual" label="Pro $990/yr" user={user} />
-                  <UpgradeButton plan="wholesaler" cycle="annual" label="Wholesaler $1,490/yr" user={user} />
+                <div className={styles.usageBlock}>
+                  <div className={styles.usageRow}>
+                    <span className={styles.usageLabel}>Deals used</span>
+                    <span className={styles.usageCount}>{usageCount} / {usageLimit}</span>
+                  </div>
+                  <div className={styles.usageBar}>
+                    <div className={styles.usageBarFill} style={{ width: `${Math.min(100, (usageCount / usageLimit) * 100)}%` }} />
+                  </div>
+                  <p className={styles.usageNote}>Lifetime limit. Upgrade for unlimited analyses, export, and more.</p>
                 </div>
-                <p className={styles.sub} style={{ marginTop: 12, fontSize: 11 }}>
+                <div className={styles.tierGrid}>
+                  {UPGRADE_OPTIONS.map((opt) => (
+                    <UpgradeButton key={`${opt.plan}-${opt.cycle}`} plan={opt.plan} cycle={opt.cycle} label={opt.label} user={user} className={styles.tierBtn} />
+                  ))}
+                </div>
+                <p className={styles.savingsNote}>
                   Annual billing saves 2 months vs monthly.
                 </p>
               </>
             ) : (
-              <p className={styles.sub}>
-                {tier === TIERS.ADMIN && "Admin — full access, subscription bypassed."}
-                {tier === TIERS.INVESTOR && `Investor — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
-                {tier === TIERS.PRO && `Pro — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
-                {tier === TIERS.WHOLESALER && `Wholesaler — ${usageCount}/${usageLimit} deals this month. Additional analyses $10 each.`}
-                {tier !== TIERS.ADMIN && (
+              <>
+                <p className={styles.sectionText}>
+                  {tier === TIERS.ADMIN && "Admin — full access, subscription bypassed."}
+                  {tier === TIERS.INVESTOR && (
+                    <>Investor — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                  )}
+                  {tier === TIERS.PRO && (
+                    <>Pro — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                  )}
+                  {tier === TIERS.WHOLESALER && (
+                    <>Wholesaler — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                  )}
+                  {tier !== TIERS.ADMIN && (
+                    <>
+                      {" "}
+                      <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer" className={styles.hdrNavLink}>
+                        Manage subscription
+                      </a>
+                    </>
+                  )}
+                </p>
+                {getUpgradeOptionsForTier(tier).length > 0 && (
                   <>
-                    {" "}
-                    <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer" className={styles["hdr-nav-link"]}>
-                      Manage subscription
-                    </a>
+                    <p className={styles.upgradeLabel}>Upgrade to a higher tier</p>
+                    <div className={styles.tierGrid}>
+                      {getUpgradeOptionsForTier(tier).map((opt) => (
+                        <UpgradeButton key={`${opt.plan}-${opt.cycle}`} plan={opt.plan} cycle={opt.cycle} label={opt.label} user={user} className={styles.tierBtn} />
+                      ))}
+                    </div>
+                    <p className={styles.savingsNote}>
+                      Annual billing saves 2 months vs monthly.
+                    </p>
                   </>
                 )}
-              </p>
+              </>
             )}
           </section>
 
           <section className={styles.section} aria-labelledby="email-heading">
-            <h2 id="email-heading" className={styles.sectionTitle}>Email address</h2>
+            <h2 id="email-heading" className={styles.sectionTitle}>Email</h2>
             <form onSubmit={handleUpdateEmail} className={styles.form}>
               <label htmlFor="profile-new-email">New email</label>
               <input
@@ -222,7 +357,7 @@ export default function Profile() {
           {!hasWholesalerModule && !isWholesaler && (
             <section className={styles.section} aria-labelledby="wholesaler-heading">
               <h2 id="wholesaler-heading" className={styles.sectionTitle}>Wholesaler Access</h2>
-              <p className={styles.sub} style={{ marginBottom: 12 }}>
+              <p className={styles.sectionText}>
                 Request access to the Wholesaler module to analyze properties from a wholesaler perspective.
               </p>
               {wholesalerRequested ? (
