@@ -127,7 +127,7 @@ export default function REDMS() {
     let cancelled = false;
     (async () => {
       try {
-        const lastLogin = await getLastLoginAt(() => user.getIdToken());
+        const lastLogin = await getLastLoginAt(() => user.getIdToken(), user.uid);
         if (cancelled) return;
         if (lastLogin === null) {
           const sorted = [...savedDeals].sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
