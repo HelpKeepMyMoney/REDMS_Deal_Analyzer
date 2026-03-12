@@ -337,7 +337,7 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
     const refreshDemoProperties = useCallback(async () => {
         setInvestorPropertiesLoading(true);
         try {
-            const res = await fetch('/api/demo/properties');
+            const res = await fetch('/api/demo?type=properties');
             const data = await res.json();
             const list = data.properties || [];
             setInvestorProperties(list);

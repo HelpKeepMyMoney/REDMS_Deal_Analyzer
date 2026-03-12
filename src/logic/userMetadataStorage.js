@@ -27,7 +27,7 @@ export async function getLastLoginAt(getIdToken, userId) {
   if (!getIdToken) return userId ? getLocalLastLoginAt(userId) : null;
   try {
     const token = await getIdToken();
-    const res = await fetch("/api/user-metadata/last-login", {
+    const res = await fetch("/api/user-metadata", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json().catch(() => ({}));
@@ -52,7 +52,7 @@ export async function setLastLoginAt(userId, getIdToken) {
   if (!getIdToken) throw new Error("getIdToken required");
   try {
     const token = await getIdToken();
-    const res = await fetch("/api/user-metadata/update-last-login", {
+    const res = await fetch("/api/user-metadata", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

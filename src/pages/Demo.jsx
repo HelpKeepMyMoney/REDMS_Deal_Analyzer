@@ -51,7 +51,7 @@ export default function Demo() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/demo/deal")
+    fetch("/api/demo?type=deal")
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
