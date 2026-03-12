@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { TierProvider, useTier } from "./contexts/TierContext.jsx";
 import { ConfigProvider } from "./contexts/ConfigContext.jsx";
 import REDMS from "./REDMS.jsx";
+import Home from "./pages/Home.jsx";
+import Demo from "./pages/Demo.jsx";
 import Landing from "./pages/Landing.jsx";
 import Wholesaler from "./pages/Wholesaler.jsx";
 import Admin from "./pages/Admin.jsx";
@@ -64,7 +66,9 @@ export default function App() {
       <ConfigProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/demo" element={<Demo />} />
+          <Route path="/login" element={<Landing />} />
           <Route
             path="/investor"
             element={

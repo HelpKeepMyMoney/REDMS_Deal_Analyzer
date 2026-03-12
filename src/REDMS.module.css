@@ -73,6 +73,26 @@
   color: var(--amber);
 }
 
+.hdr-demo-cta {
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--amber);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.hdr-demo-cta:hover {
+  filter: brightness(1.1);
+}
+
 .hdr-pdf-btn {
   padding: 6px 14px;
   font-family: var(--mono);

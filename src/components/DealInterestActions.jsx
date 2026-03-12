@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { loadUserFavorites } from "../logic/userFavoritesStorage.js";
 import styles from "./DealInterestActions.module.css";
@@ -106,13 +107,24 @@ function DealInterestModal({ type, dealName, onClose, onSubmit, isSubmitting }) 
   );
 }
 
-export function DealInterestActions({ dealId, dealName, dealStatus, interestApi, onFavoriteSuccess }) {
+export function DealInterestActions({ dealId, dealName, dealStatus, interestApi, onFavoriteSuccess, isDemo = false }) {
   const { user } = useAuth();
   const [modalType, setModalType] = useState(null);
   const [showZoomConfirmation, setShowZoomConfirmation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [favoriteSubmitting, setFavoriteSubmitting] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+
+  if (isDemo) {
+    return (
+      <div className={styles.actionsWrap}>
+        <h3 className={styles.sectionTitle}>Express Interest</h3>
+        <Link to="/login?mode=signup" className={styles.ctaLink}>
+          Create account to analyze your own deals
+        </Link>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!user?.uid || !dealId) return;

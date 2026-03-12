@@ -8,7 +8,7 @@ import styles from './PropertySearch.module.css';
 
 const DEFAULT_IMAGE_PLACEHOLDER = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800';
 
-export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, matchingDealId, onViewDeal, isAnalyzing, isRequesting, analysis, includeInInvestorSearch, onIncludeChange, sourceSearchNames, checkboxDisabled, onDelete, deleteDisabled }) {
+export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, matchingDealId, onViewDeal, isAnalyzing, isRequesting, analysis, includeInInvestorSearch, onIncludeChange, sourceSearchNames, checkboxDisabled, onDelete, deleteDisabled, blurAddress = false }) {
     const [imageError, setImageError] = useState(false);
     const imageSrc = imageError
         ? (property.imageFallback || DEFAULT_IMAGE_PLACEHOLDER)
@@ -92,7 +92,7 @@ export function PropertyResultCard({ property, onAnalyze, onRequestAnalysis, mat
                         )}
                     </div>
                 )}
-                <div className={styles.cardAddress}>
+                <div className={`${styles.cardAddress} ${blurAddress ? styles.cardAddressBlurred : ''}`}>
                     {property.addressLine1}
                     <br />
                     {property.city}, {property.state} {property.zipCode}
@@ -182,7 +182,7 @@ function normalizeAddressForMatch(street, city, state, zipCode) {
   return `${s}|${c}|${st}|${z}`;
 }
 
-export default function PropertySearch({ userId, isAdmin = false, isClient = false, savedDeals = [], onImportProperty, onViewDeal, onCancel }) {
+export default function PropertySearch({ userId, isAdmin = false, isClient = false, isDemo = false, demoDealAddress = null, savedDeals = [], onImportProperty, onViewDeal, onCancel }) {
     const { config } = useConfig();
     const { user } = useAuth();
     const interestApi = useMemo(
@@ -334,11 +334,27 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
         }
     }, []);
 
+    const refreshDemoProperties = useCallback(async () => {
+        setInvestorPropertiesLoading(true);
+        try {
+            const res = await fetch('/api/demo/properties');
+            const data = await res.json();
+            const list = data.properties || [];
+            setInvestorProperties(list);
+        } catch (e) {
+            console.error('Failed to load demo properties', e);
+        } finally {
+            setInvestorPropertiesLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        if (!isAdmin && userId) {
+        if (isDemo) {
+            refreshDemoProperties();
+        } else if (!isAdmin && userId) {
             refreshInvestorProperties();
         }
-    }, [isAdmin, userId, refreshInvestorProperties]);
+    }, [isAdmin, isDemo, userId, refreshInvestorProperties, refreshDemoProperties]);
 
     useEffect(() => {
         if (isAdmin && results.length > 0) {
@@ -538,9 +554,11 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
                     <div>
                         <h1 className={styles.title}>Find Properties</h1>
                         <p className={styles.subtitle}>
-                            {isAdmin
-                                ? 'Search for active listings that match your investment criteria.'
-                                : 'Browse properties marked for investor view by your admin.'}
+                            {isDemo
+                                ? 'Browse demo properties. Create an account to view full addresses and analyze your own deals.'
+                                : isAdmin
+                                    ? 'Search for active listings that match your investment criteria.'
+                                    : 'Browse properties marked for investor view by your admin.'}
                         </p>
                     </div>
                     <button type="button" onClick={onCancel} className={styles.backButton}>
@@ -873,7 +891,7 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
                 ) : !isAdmin && investorProperties.length === 0 ? (
                     <div className={styles.emptyState}>
                         <div className={styles.emptyStateIcon}>🔍</div>
-                        <p>No properties available yet. Contact an admin.</p>
+                        <p>{isDemo ? 'No demo properties available yet.' : 'No properties available yet. Contact an admin.'}</p>
                     </div>
                 ) : hasSearched && results.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -891,24 +909,36 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
                     <div className={styles.resultsGrid}>
                         {filteredAndSortedResults.map(property => {
                             const propStreet = property.addressLine1 ?? property.street;
-                            const matchingDealId = onViewDeal
-                                ? addressToDealId.get(normalizeAddressForMatch(propStreet, property.city, property.state, property.zipCode))
+                            const propKey = normalizeAddressForMatch(propStreet, property.city, property.state, property.zipCode);
+                            const demoKey = demoDealAddress
+                                ? normalizeAddressForMatch(demoDealAddress.street, demoDealAddress.city, demoDealAddress.state, demoDealAddress.zipCode)
                                 : null;
+                            const isDemoMackay = isDemo && demoKey && propKey === demoKey;
+                            const matchingDealId = onViewDeal && !isDemo
+                                ? addressToDealId.get(propKey)
+                                : isDemoMackay && savedDeals?.[0]?.id
+                                    ? savedDeals[0].id
+                                    : null;
+                            const blurAddress = isDemo && !isDemoMackay;
+                            const showViewDeal = isDemo ? isDemoMackay && onViewDeal : matchingDealId && onViewDeal;
+                            const showAnalyze = !isDemo && onImportProperty ? handleAnalyzeClick : undefined;
+                            const showRequestAnalysis = !isDemo && !onImportProperty && !matchingDealId && interestApi ? (p) => setRequestModalProperty(p) : undefined;
                             return (
                             <PropertyResultCard
                                 key={property.id}
                                 property={property}
-                                onAnalyze={onImportProperty ? handleAnalyzeClick : undefined}
-                                onRequestAnalysis={!onImportProperty && !matchingDealId && interestApi ? (p) => setRequestModalProperty(p) : undefined}
+                                onAnalyze={showAnalyze}
+                                onRequestAnalysis={showRequestAnalysis}
                                 matchingDealId={matchingDealId}
-                                onViewDeal={matchingDealId && onViewDeal ? () => onViewDeal(matchingDealId) : undefined}
+                                onViewDeal={showViewDeal ? () => onViewDeal(matchingDealId) : undefined}
                                 isAnalyzing={analyzingPropertyId === property.id}
                                 isRequesting={false}
                                 analysis={dealAnalysisByPropertyId[property.id]}
-                                includeInInvestorSearch={isAdmin ? includedPropertyIds.has(property.id) : undefined}
-                                onIncludeChange={isAdmin ? handleIncludeChange : undefined}
-                                onDelete={isAdmin ? handleDeleteProperty : undefined}
+                                includeInInvestorSearch={isAdmin && !isDemo ? includedPropertyIds.has(property.id) : undefined}
+                                onIncludeChange={isAdmin && !isDemo ? handleIncludeChange : undefined}
+                                onDelete={isAdmin && !isDemo ? handleDeleteProperty : undefined}
                                 deleteDisabled={deletingPropertyId === property.id}
+                                blurAddress={blurAddress}
                             />
                             );
                         })}

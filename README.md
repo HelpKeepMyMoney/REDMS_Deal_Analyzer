@@ -17,6 +17,7 @@
 - **Admin** — User management (search by email, role, date created; view deals and searches each user can access with links and access badges), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
 - **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; email and password update forms.
+- **Demo access** — Unauthenticated users can try the platform at `/demo`. Features: read-only access to the demo deal (17917 Mackay St, Detroit, MI 48212); Find Properties with investor properties (addresses blurred except for Mackay); View Deal and report downloads only for Mackay; Express Interest replaced with "Create account to analyze your own deals" CTA; full analyzer tabs (Purchase & Flip, Buy & Hold, 30-Yr Projection, Retail Investor, CPIN) with no tier blur; client-style disclaimer. "Try Demo" and "Free Demo" buttons on Home page (header, footer, hero, pricing, final CTA).
 
 ## Deal Management (Admin)
 
@@ -65,13 +66,14 @@ npm run test:run
 
 ## Project Structure
 
-- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor).
+- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo` route.
 - `src/pages/Landing.jsx` — Login/signup and module selection for logged-in users.
 - `src/pages/Admin.jsx` — Admin dashboard (users, params, sharing, interest).
 - `src/pages/Wholesaler.jsx` — Wholesaler deal analyzer.
 - `src/REDMS.jsx` — Investor deal analyzer (sidebar inputs, deal logic strip, metric cards, tabbed views).
 - `src/REDMS.module.css` — Styles.
 - `src/pages/Profile.jsx` — Profile page (contact info, subscription, email, password).
+- `src/pages/Demo.jsx` — Demo page (unauthenticated; loads Mackay deal via API, full analyzer UI).
 - `src/logic/userProfileStorage.js` — User profile (firstName, lastName, phoneNumber) in Firestore `users/{userId}`.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
@@ -85,7 +87,7 @@ npm run test:run
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
-- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata). Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
+- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata, demo). Demo APIs (`api/demo/deal.js`, `api/demo/properties.js`, `api/demo/config.js`) serve unauthenticated requests for the demo deal, investor properties, and app config. Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal). Lives outside `api/` so it does not count as serverless functions.
 
 ## Property Data Sources
@@ -124,6 +126,10 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 **Firebase Auth:** Add your Vercel domain (e.g. `redms-deal-analyzer.vercel.app`) to [Authorized domains](https://console.firebase.google.com/project/_/authentication/settings).
 
 **Firestore rules:** Deploy with `firebase deploy --only firestore:rules`. The `users` collection stores profile contact info (firstName, lastName, phoneNumber); users can read/write only their own document.
+
+**Demo setup (optional):** Create a deal for 17917 Mackay St, Detroit, MI 48212 in Firestore, set `sharedWithAll: true`, and optionally set `DEMO_DEAL_ID` in Vercel env. If no deal exists, the demo API returns fallback sample data.
+
+**Static assets:** Images live in `public/assets/` so Vercel rewrites (which exclude `assets/`) serve them correctly. Logo remains at `public/logo.png`.
 
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 

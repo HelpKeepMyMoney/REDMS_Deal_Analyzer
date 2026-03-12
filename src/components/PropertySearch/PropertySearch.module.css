@@ -459,6 +459,12 @@
   flex-grow: 1;
 }
 
+.cardAddressBlurred {
+  filter: blur(4px);
+  user-select: none;
+  pointer-events: none;
+}
+
 .cardAction {
   width: 100%;
 }

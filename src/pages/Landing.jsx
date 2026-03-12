@@ -1,11 +1,72 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import styles from "./Login.module.css";
 
+const FEATURES = [
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
+    ),
+    text: "Search listings to find the best real estate deals",
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" />
+        <path d="m19 9-5 5-4-4-3 3" />
+      </svg>
+    ),
+    text: "Analyze potential investment properties in seconds",
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="16" height="20" x="4" y="2" rx="2" />
+        <path d="M9 6h6" />
+        <path d="M9 10h6" />
+        <path d="M9 14h4" />
+      </svg>
+    ),
+    text: "Calculate cash flow, ROI, and dozens of other metrics",
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" x2="12" y1="1" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    text: "30-year buy & hold projections and pro formas",
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" x2="8" y1="13" y2="13" />
+        <line x1="16" x2="8" y1="17" y2="17" />
+      </svg>
+    ),
+    text: "Create professional investment reports",
+  },
+];
+
 export default function Landing() {
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState("signin"); // "signin" | "signup"
+
+  useEffect(() => {
+    if (searchParams.get("mode") === "signup") {
+      setMode("signup");
+    } else if (searchParams.get("mode") === "signin") {
+      setMode("signin");
+    }
+  }, [searchParams]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,7 +103,6 @@ export default function Landing() {
       } else {
         await signIn(email, password);
       }
-      // Module selection shown when user state updates
     } catch (err) {
       setError(err.message || "Authentication failed");
     } finally {
@@ -94,71 +154,126 @@ export default function Landing() {
   }
 
   return (
-    <div className={styles["login-page"]}>
-      <div className={styles["login-card"]}>
-        <h1 className={styles["login-title"]}>REDMS</h1>
-        <p className={styles["login-sub"]}>Real Estate Deal Management System</p>
-
-        <div className={styles["login-tabs"]}>
-          <button
-            type="button"
-            className={`${styles["login-tab"]} ${mode === "signin" ? styles.active : ""}`}
-            onClick={() => { setMode("signin"); setError(""); }}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className={`${styles["login-tab"]} ${mode === "signup" ? styles.active : ""}`}
-            onClick={() => { setMode("signup"); setError(""); }}
-          >
-            Sign up
-          </button>
+    <div className={styles["landing-page"]}>
+      <div className={styles["landing-container"]}>
+        <div className={styles["landing-left"]}>
+          <div className={styles["landing-brand"]}>
+            <div className={styles["landing-brand-row"]}>
+              <img src="/logo.png" alt="" className={styles["landing-logo-img"]} aria-hidden />
+              <span className={styles["landing-logo"]}>REDMS</span>
+            </div>
+            <p className={styles["landing-tagline"]}>
+              Real Estate Deal Management System
+            </p>
+          </div>
+          <ul className={styles["landing-features"]}>
+            {FEATURES.map((f, i) => (
+              <li key={i} className={styles["landing-feature"]}>
+                <span className={styles["landing-feature-icon"]} aria-hidden>{f.icon}</span>
+                <span>{f.text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles["login-form"]}>
-          <label htmlFor="landing-email">Email</label>
-          <input
-            id="landing-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            autoComplete="email"
-          />
-          <label htmlFor="landing-password">Password</label>
-          <input
-            id="landing-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === "signup" ? "Min. 6 characters" : "Password"}
-            required
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          />
-          {mode === "signup" && (
-            <>
-              <label htmlFor="landing-confirm">Confirm password</label>
+        <div className={styles["landing-right"]}>
+          <h2 className={styles["landing-form-title"]}>
+            {mode === "signup" ? "Sign Up for Free" : "Sign In"}
+          </h2>
+
+          <form onSubmit={handleSubmit} className={styles["landing-form"]}>
+            <div className={styles["landing-field"]}>
               <input
-                id="landing-confirm"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
+                id="landing-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your email"
                 required
-                autoComplete="new-password"
+                autoComplete="email"
               />
-              <p className={styles["login-sub"]} style={{ fontSize: "10px", margin: "-4px 0 0" }}>
-                Sign up as Investor. Request Wholesaler access from your Profile after signing in.
-              </p>
-            </>
+            </div>
+            <div className={styles["landing-field"]}>
+              <input
+                id="landing-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={mode === "signup" ? "New password" : "Password"}
+                required
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              />
+            </div>
+            {mode === "signup" && (
+              <div className={styles["landing-field"]}>
+                <input
+                  id="landing-confirm"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+            )}
+            {error && (
+              <div className={styles["landing-error"]} role="alert">
+                {error}
+              </div>
+            )}
+            <button
+              type="submit"
+              className={styles["landing-submit"]}
+              disabled={busy}
+            >
+              {busy
+                ? "Please wait…"
+                : mode === "signup"
+                  ? "Sign Up"
+                  : "Sign In"}
+            </button>
+          </form>
+
+          {mode === "signup" && (
+            <p className={styles["landing-note"]}>
+              Sign up as Investor. Request Wholesaler access from your Profile
+              after signing in.
+            </p>
           )}
-          {error && <div className="login-error" role="alert">{error}</div>}
-          <button type="submit" className="login-submit" disabled={busy}>
-            {busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
-          </button>
-        </form>
+
+          <p className={styles["landing-switch"]}>
+            {mode === "signup" ? (
+              <>
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  className={styles["landing-link"]}
+                  onClick={() => {
+                    setMode("signin");
+                    setError("");
+                  }}
+                >
+                  Sign in here.
+                </button>
+              </>
+            ) : (
+              <>
+                Don&apos;t have an account?{" "}
+                <button
+                  type="button"
+                  className={styles["landing-link"]}
+                  onClick={() => {
+                    setMode("signup");
+                    setError("");
+                  }}
+                >
+                  Sign up here.
+                </button>
+              </>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );
