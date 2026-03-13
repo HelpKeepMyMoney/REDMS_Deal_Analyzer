@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import styles from "./Login.module.css";
@@ -74,6 +74,7 @@ export default function Landing() {
   const [busy, setBusy] = useState(false);
   const { user, loading, isAdmin, signIn, signUp, signOut } = useAuth();
   const { hasWholesalerModule, isFreeTier, isClient, loading: tierLoading } = useTier();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,6 +101,8 @@ export default function Landing() {
             "Content-Type": "application/json",
           },
         }).catch(() => {});
+        navigate("/profile", { replace: true });
+        return;
       } else {
         await signIn(email, password);
       }

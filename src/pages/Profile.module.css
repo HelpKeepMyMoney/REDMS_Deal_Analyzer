@@ -100,6 +100,28 @@
   line-height: 1.5;
 }
 
+/* Complete profile banner */
+.banner {
+  font-family: var(--body);
+  font-size: 14px;
+  color: var(--amber);
+  background: linear-gradient(180deg, rgba(245, 166, 35, 0.12) 0%, rgba(245, 166, 35, 0.06) 100%);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.banner::before {
+  content: "→";
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--amber);
+}
+
 /* Sections */
 .section {
   margin-bottom: 32px;
@@ -381,4 +403,52 @@
 
 .hdrNavLink:hover {
   text-decoration: underline;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--amber);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.linkButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelNote {
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.deleteAccountBtn {
+  padding: 12px 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteAccountBtn:hover:not(:disabled) {
+  background: var(--red-soft);
+}
+
+.deleteAccountBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

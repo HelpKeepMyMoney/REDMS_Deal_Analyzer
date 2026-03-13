@@ -70,6 +70,20 @@ export default async function handler(req, res) {
     res.redirect(302, approveLink.href);
   } catch (err) {
     console.error("subscription create error:", err);
-    return res.status(500).json({ error: err.message || "Failed to create subscription" });
+    // Extract useful details from PayPal API errors (body may be JSON string)
+    let body = err.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = null;
+      }
+    }
+    body = body || err.result || err.response?.result;
+    const details = body?.details?.[0];
+    const issue = details?.description || details?.issue || body?.message || err.message;
+    const fallback = "Failed to create subscription. Check that PayPal plan IDs are configured and active.";
+    const msg = issue && issue !== "The error response" ? issue : fallback;
+    return res.status(500).json({ error: msg });
   }
 }

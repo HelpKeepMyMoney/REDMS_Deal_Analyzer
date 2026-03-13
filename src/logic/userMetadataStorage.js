@@ -25,6 +25,8 @@ function setLocalLastLoginAt(userId) {
  */
 export async function getLastLoginAt(getIdToken, userId) {
   if (!getIdToken) return userId ? getLocalLastLoginAt(userId) : null;
+  // In dev (Vite only), /api/* routes aren't served; use localStorage to avoid 404.
+  if (import.meta.env.DEV) return userId ? getLocalLastLoginAt(userId) : null;
   try {
     const token = await getIdToken();
     const res = await fetch("/api/user-metadata", {
@@ -44,12 +46,18 @@ export async function getLastLoginAt(getIdToken, userId) {
 /**
  * Set user's last login timestamp to now (call when user dismisses new-deals notification).
  * Uses API route first; falls back to localStorage when API is unavailable so dismissal persists.
+ * In dev (Vite only), skips the API call to avoid 404 since serverless routes aren't served.
  * @param {string} userId - User's Firebase UID
  * @param {() => Promise<string>} getIdToken - Function that returns the current user's ID token
  */
 export async function setLastLoginAt(userId, getIdToken) {
   if (!userId) throw new Error("userId required");
   if (!getIdToken) throw new Error("getIdToken required");
+  // In dev (Vite only), /api/* routes aren't served; skip API to avoid 404.
+  if (import.meta.env.DEV) {
+    setLocalLastLoginAt(userId);
+    return;
+  }
   try {
     const token = await getIdToken();
     const res = await fetch("/api/user-metadata", {

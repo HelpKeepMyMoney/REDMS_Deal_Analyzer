@@ -35,7 +35,7 @@ export default async function handler(req, res) {
             ? "wholesaler"
             : clientDoc.exists
               ? "client"
-              : tier && ["investor", "pro"].includes(tier)
+              : tier && ["investor", "pro", "wholesaler"].includes(tier)
                 ? tier
                 : "free";
         users.push({

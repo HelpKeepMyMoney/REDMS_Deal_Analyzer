@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import { createInterestApi } from "../logic/interestApi.js";
@@ -20,11 +20,24 @@ const UPGRADE_OPTIONS = [
   { plan: "wholesaler", cycle: "annual", label: "Wholesaler $1,490/yr" },
 ];
 
-function getUpgradeOptionsForTier(tier) {
+function getUpgradeOptionsForTier(tier, subscriptionCycle) {
   if (tier === TIERS.FREE) return UPGRADE_OPTIONS;
-  if (tier === TIERS.INVESTOR) return UPGRADE_OPTIONS.filter((o) => o.plan === "pro" || o.plan === "wholesaler");
-  if (tier === TIERS.PRO) return UPGRADE_OPTIONS.filter((o) => o.plan === "wholesaler");
-  return [];
+  const higherTier = {
+    [TIERS.INVESTOR]: UPGRADE_OPTIONS.filter((o) => o.plan === "pro" || o.plan === "wholesaler"),
+    [TIERS.PRO]: UPGRADE_OPTIONS.filter((o) => o.plan === "wholesaler"),
+    [TIERS.WHOLESALER]: [],
+  };
+  const sameTierAnnual = {
+    [TIERS.INVESTOR]: UPGRADE_OPTIONS.find((o) => o.plan === "investor" && o.cycle === "annual"),
+    [TIERS.PRO]: UPGRADE_OPTIONS.find((o) => o.plan === "pro" && o.cycle === "annual"),
+    [TIERS.WHOLESALER]: UPGRADE_OPTIONS.find((o) => o.plan === "wholesaler" && o.cycle === "annual"),
+  };
+  const options = higherTier[tier] || [];
+  const annual = sameTierAnnual[tier];
+  if (annual && subscriptionCycle !== "annual" && !options.some((o) => o.plan === annual.plan && o.cycle === annual.cycle)) {
+    options.push(annual);
+  }
+  return options;
 }
 
 function getTierTooltip(plan) {
@@ -77,8 +90,62 @@ function UpgradeButton({ plan, cycle, label, user, className }) {
 import styles from "./Profile.module.css";
 
 export default function Profile() {
-  const { user, isAdmin, isWholesaler, updateEmail, updatePassword } = useAuth();
-  const { tier, isClient, isFreeTier, usageCount, usageLimit, hasWholesalerModule } = useTier();
+  const { user, isAdmin, isWholesaler, signOut, updateEmail, updatePassword } = useAuth();
+  const { tier, subscriptionCycle, cancelAtPeriodEnd, accessUntil, isClient, isFreeTier, usageCount, usageLimit, hasWholesalerModule, refreshTier } = useTier();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const completedSubscriptionRef = useRef(false);
+  const [cycleFromApi, setCycleFromApi] = useState(null);
+
+  const effectiveCycle = subscriptionCycle ?? cycleFromApi;
+
+  // Fetch cycle from API when TierContext has none (backfill for existing subscriptions)
+  useEffect(() => {
+    if (subscriptionCycle != null || !user || !["investor", "pro", "wholesaler"].includes(tier)) return;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/subscription/status", { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.cycle) {
+          setCycleFromApi(data.cycle);
+          refreshTier();
+        }
+      } catch {}
+    })();
+  }, [user, tier, subscriptionCycle, refreshTier]);
+
+  // Complete subscription when returning from PayPal (webhook can't reach localhost)
+  useEffect(() => {
+    const subSuccess = searchParams.get("subscription");
+    const subscriptionId = searchParams.get("subscription_id");
+    if (subSuccess !== "success" || !subscriptionId || !user || completedSubscriptionRef.current) return;
+
+    completedSubscriptionRef.current = true;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/subscription/complete", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ subscription_id: subscriptionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          refreshTier();
+          setSearchParams({});
+        } else {
+          completedSubscriptionRef.current = false;
+          console.error("Subscription complete failed:", data.error);
+        }
+      } catch (e) {
+        completedSubscriptionRef.current = false;
+        console.error("Subscription complete error:", e);
+      }
+    })();
+  }, [user, searchParams, setSearchParams, refreshTier]);
   const interestApi = useMemo(
     () => (user ? createInterestApi(() => user.getIdToken()) : null),
     [user]
@@ -131,6 +198,8 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [cancelSubBusy, setCancelSubBusy] = useState(false);
+  const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
 
   const handleUpdateContact = async (e) => {
     e.preventDefault();
@@ -177,6 +246,53 @@ export default function Profile() {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!user || !window.confirm("Cancel your subscription? You'll keep access until the end of your current billing period, then be downgraded to the free tier. Your subscription will not renew.")) return;
+    setCancelSubBusy(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/subscription/cancel", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        refreshTier();
+      } else {
+        alert(data.error || "Failed to cancel subscription");
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Failed to cancel subscription");
+    } finally {
+      setCancelSubBusy(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user || !window.confirm("Permanently delete your account? You will immediately lose access to the app. This cannot be undone.")) return;
+    setDeleteAccountBusy(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await signOut();
+        window.location.href = "/";
+      } else {
+        alert(data.error || "Failed to delete account");
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Failed to delete account");
+    } finally {
+      setDeleteAccountBusy(false);
+    }
+  };
+
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     setPasswordError("");
@@ -212,6 +328,12 @@ export default function Profile() {
         <div className={styles.card}>
           <h1 className={styles.title}>Profile</h1>
           <p className={styles.sub}>Manage your account and subscription</p>
+
+          {(!contactForm.firstName?.trim() || !contactForm.lastName?.trim() || !contactForm.phoneNumber?.trim()) && (
+            <div className={styles.banner} role="status">
+              Please complete your profile by adding your contact information below.
+            </div>
+          )}
 
           <section className={styles.section} aria-labelledby="contact-heading">
             <h2 id="contact-heading" className={styles.sectionTitle}>Contact Information</h2>
@@ -289,13 +411,13 @@ export default function Profile() {
                 <p className={styles.sectionText}>
                   {tier === TIERS.ADMIN && "Admin — full access, subscription bypassed."}
                   {tier === TIERS.INVESTOR && (
-                    <>Investor — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                    <>Investor{effectiveCycle ? ` (${effectiveCycle === "annual" ? "Annual" : "Monthly"})` : ""} — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
                   )}
                   {tier === TIERS.PRO && (
-                    <>Pro — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                    <>Pro{effectiveCycle ? ` (${effectiveCycle === "annual" ? "Annual" : "Monthly"})` : ""} — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
                   )}
                   {tier === TIERS.WHOLESALER && (
-                    <>Wholesaler — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
+                    <>Wholesaler{effectiveCycle ? ` (${effectiveCycle === "annual" ? "Annual" : "Monthly"})` : ""} — you&apos;ve used {usageCount} of {usageLimit} deals this month. Additional analyses $10 each.</>
                   )}
                   {tier !== TIERS.ADMIN && (
                     <>
@@ -303,14 +425,33 @@ export default function Profile() {
                       <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer" className={styles.hdrNavLink}>
                         Manage subscription
                       </a>
+                      {!cancelAtPeriodEnd && (
+                        <>
+                          {" · "}
+                          <button
+                            type="button"
+                            onClick={handleCancelSubscription}
+                            disabled={cancelSubBusy}
+                            className={styles.linkButton}
+                          >
+                            {cancelSubBusy ? "Cancelling…" : "Cancel subscription"}
+                          </button>
+                        </>
+                      )}
+                      {cancelAtPeriodEnd && accessUntil && (
+                        <span className={styles.cancelNote}>
+                          {" "}
+                          Cancels at end of period ({new Date(accessUntil).toLocaleDateString()}).
+                        </span>
+                      )}
                     </>
                   )}
                 </p>
-                {getUpgradeOptionsForTier(tier).length > 0 && (
+                {getUpgradeOptionsForTier(tier, effectiveCycle).length > 0 && (
                   <>
-                    <p className={styles.upgradeLabel}>Upgrade to a higher tier</p>
+                    <p className={styles.upgradeLabel}>Upgrade or switch to annual billing</p>
                     <div className={styles.tierGrid}>
-                      {getUpgradeOptionsForTier(tier).map((opt) => (
+                      {getUpgradeOptionsForTier(tier, effectiveCycle).map((opt) => (
                         <UpgradeButton key={`${opt.plan}-${opt.cycle}`} plan={opt.plan} cycle={opt.cycle} label={opt.label} user={user} className={styles.tierBtn} />
                       ))}
                     </div>
@@ -419,6 +560,21 @@ export default function Profile() {
                 {passwordBusy ? "Updating…" : "Update password"}
               </button>
             </form>
+          </section>
+
+          <section className={styles.section} aria-labelledby="account-heading">
+            <h2 id="account-heading" className={styles.sectionTitle}>Delete Account</h2>
+            <p className={styles.sectionText}>
+              Permanently delete your account. You will immediately lose access to the app. This cannot be undone.
+            </p>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleteAccountBusy}
+              className={styles.deleteAccountBtn}
+            >
+              {deleteAccountBusy ? "Deleting…" : "Delete account"}
+            </button>
           </section>
         </div>
       </main>

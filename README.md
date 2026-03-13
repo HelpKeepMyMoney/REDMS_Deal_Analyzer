@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Auth & module selection** — Sign in/sign up; after login, users see a module picker with only the options they can access (Admin, Investor, Wholesaler).
+- **Auth & module selection** — Sign in/sign up; after signup, users are redirected to the Profile page with a banner to complete their profile. After login, users see a module picker with only the options they can access (Admin, Investor, Wholesaler).
 - **Deal analysis** — Enter property details, offer price, rehab level/cost, and financing to get a DEAL / NO DEAL badge and pass-fail checks (e.g. Flip Cash-on-Cash ≥ 25%, Investment Required within limit).
 - **Metric cards** — NOI, Investor Flip Profit, Sell to Retail Investor (ARV), Investor Cap Rate, Rent-to-Price Ratio, Flip Cash-on-Cash, B&H Cash-on-Cash, Investment Required, Cap Rate. Cards turn red when thresholds are missed.
 - **Purchase & Flip** — Flip sheet breakdown (ARV, fees, preferred ROI, profit split, investor/BNIC share, min sales price). Initial Referral and Investor Referral are configurable as percentages of Preferred ROI; rows are hidden when set to 0.
@@ -14,9 +14,9 @@
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — deal status and address shown next to Start Buying button; status colors: Available=green, Reserved=yellow, Under Contract=red, Sold=white); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer.
-- **Admin** — User management (search by email, role, date created; view deals and searches each user can access with links and access badges), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
+- **Admin** — User management (search by email, role, date created; create users; delete users; view deals, searches, and profile info when viewing a user), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
-- **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; email and password update forms.
+- **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; cancel subscription (keeps access until end of billing period, then downgrades to free); delete account (immediate access revocation); email and password update forms. Banner prompts users to complete profile when any contact field is empty.
 - **Demo access** — Unauthenticated users can try the platform at `/demo`. Features: read-only access to the demo deal (17917 Mackay St, Detroit, MI 48212); Find Properties with investor properties (addresses blurred except for Mackay); View Deal and report downloads only for Mackay; Express Interest replaced with "Create account to analyze your own deals" CTA; full analyzer tabs (Purchase & Flip, Buy & Hold, 30-Yr Projection, Retail Investor, CPIN) with no tier blur; client-style disclaimer. "Try Demo" and "Free Demo" buttons on Home page (header, footer, hero, pricing, final CTA).
 
 ## Deal Management (Admin)
@@ -29,7 +29,7 @@
 - **Sort** — Name (A–Z, Z–A), Price (low/high), Investment Required (low/high), B&H Cash-on-Cash ROI (low/high), Updated (newest/oldest).
 - **Viewable by user** — Filter to show only deals a specific user can view (owns, shared with, or shared with all).
 
-In **Admin → Users**, when you click View on a user, the panel shows all deals that user can access (owned, shared, or shared with all), with links to open each deal and badges for Owner / Shared / Shared with all.
+In **Admin → Users**, when you click View on a user, the panel shows the user's profile (first name, last name, phone), all deals that user can access (owned, shared, or shared with all), with links to open each deal and badges for Owner / Shared / Shared with all.
 
 ## App Parameters (Admin)
 
@@ -87,7 +87,7 @@ npm run test:run
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
-- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata, demo). Demo APIs (`api/demo/deal.js`, `api/demo/properties.js`, `api/demo/config.js`) serve unauthenticated requests for the demo deal, investor properties, and app config. Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
+- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata, demo, account, cron). Demo APIs (`api/demo/deal.js`, `api/demo/properties.js`, `api/demo/config.js`) serve unauthenticated requests for the demo deal, investor properties, and app config. `api/account/delete.js` lets users delete their own account. `api/cron/subscription-cancel-period-end.js` runs daily to cancel PayPal subscriptions whose billing period has ended. Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal). Lives outside `api/` so it does not count as serverless functions.
 
 ## Property Data Sources
@@ -117,6 +117,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
   - `RESEND_API_KEY` — Sign up at [resend.com](https://resend.com) (3,000 emails/month free)
   - `RESEND_FROM_EMAIL` — Verified sender domain
 - **Admin notifications** — `ADMIN_NOTIFICATION_EMAIL` — Email address for interest notifications (favorites, Zoom requests, etc.) and new user signups
+- **Cron** (for subscription period-end cancellations):
+  - `CRON_SECRET` — Random secret; Vercel sends it as Bearer token when invoking cron. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - **PayPal** (for `/api/subscription/*` — create, webhook, charge-overage, status):
   - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` — from [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox)
   - `PAYPAL_MODE` — `sandbox` or `live`

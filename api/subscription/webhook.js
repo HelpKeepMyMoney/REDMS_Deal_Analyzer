@@ -3,7 +3,7 @@
  * POST only; no auth (PayPal calls this).
  */
 import { getAdminFirestore } from "../../lib/firebase-admin.js";
-import { getPayPalClient } from "../../lib/paypal.js";
+import { getPayPalClient, getCycleFromPlanId } from "../../lib/paypal.js";
 
 function getBaseUrl() {
   const mode = process.env.PAYPAL_MODE || "sandbox";
@@ -145,10 +145,12 @@ export default async function handler(req, res) {
     }
 
     const tier = getTierFromPlanId(planId) || "investor";
+    const cycle = getCycleFromPlanId(planId);
     await db.doc(`userTiers/${customId}`).set({
       tier,
       subscriptionId,
       planId,
+      cycle: cycle || null,
       status: "ACTIVE",
       updatedAt: new Date(),
     });

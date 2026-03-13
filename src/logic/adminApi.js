@@ -42,6 +42,12 @@ export function createAdminApi(getIdToken) {
         body: JSON.stringify({ uid, role }),
       });
     },
+    async deleteUser({ uid }) {
+      return fetchWithAuth("/api/admin/delete-user", {
+        method: "POST",
+        body: JSON.stringify({ uid }),
+      });
+    },
     async getUserConfig(uid) {
       return fetchWithAuth(`/api/admin/set-user-config?uid=${encodeURIComponent(uid)}`);
     },

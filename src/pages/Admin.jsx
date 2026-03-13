@@ -9,6 +9,7 @@ import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removeProper
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
 import { saveImportProperty } from "../logic/storage.js";
+import { loadUserProfile } from "../logic/userProfileStorage.js";
 import { AdminDropdown, PropertyResultCard, DealCard } from "../components";
 import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
 import { calc, sanitizeInput } from "../logic";
@@ -53,9 +54,12 @@ export default function Admin() {
   const [searchRole, setSearchRole] = useState("");
   const [searchDateCreatedAfter, setSearchDateCreatedAfter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [userDeletingUid, setUserDeletingUid] = useState(null);
   const [clientParams, setClientParams] = useState(null);
   const [clientParamsLoading, setClientParamsLoading] = useState(false);
   const [clientParamsSaving, setClientParamsSaving] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [selectedUserProfileLoading, setSelectedUserProfileLoading] = useState(false);
 
   const [allPropertiesForAdmin, setAllPropertiesForAdmin] = useState([]);
   const [propertiesLoading, setPropertiesLoading] = useState(false);
@@ -506,6 +510,21 @@ export default function Admin() {
     }
   }, [selectedUser?.uid, selectedUser?.role, adminApi]);
 
+  useEffect(() => {
+    if (!selectedUser?.uid) {
+      setSelectedUserProfile(null);
+      return;
+    }
+    setSelectedUserProfileLoading(true);
+    loadUserProfile(selectedUser.uid)
+      .then((profile) => setSelectedUserProfile(profile))
+      .catch((e) => {
+        console.error(e);
+        setSelectedUserProfile(null);
+      })
+      .finally(() => setSelectedUserProfileLoading(false));
+  }, [selectedUser?.uid]);
+
   const handleSaveClientParams = async () => {
     if (!selectedUser || !clientParams || !adminApi) return;
     setClientParamsSaving(true);
@@ -773,6 +792,35 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteUser = async (u) => {
+    if (!adminApi) {
+      setMessage({ type: "error", text: "Admin API not available." });
+      return;
+    }
+    if (user.uid === u.uid) {
+      setMessage({ type: "error", text: "Cannot delete your own account." });
+      return;
+    }
+    if (!window.confirm(`Permanently delete ${u.email}? This cannot be undone.`)) {
+      return;
+    }
+    setUserDeletingUid(u.uid);
+    setMessage({ type: "", text: "" });
+    try {
+      await adminApi.deleteUser({ uid: u.uid });
+      setMessage({ type: "success", text: "User deleted." });
+      if (selectedUser?.uid === u.uid) {
+        setSelectedUser(null);
+      }
+      await loadUsers();
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: "error", text: "Failed to delete user: " + e.message });
+    } finally {
+      setUserDeletingUid(null);
+    }
+  };
+
   const handleApproveWholesalerRequest = async (request) => {
     if (!adminApi) {
       setMessage({ type: "error", text: "Admin API not available." });
@@ -897,8 +945,8 @@ export default function Admin() {
         )}
 
         {activeTab === "users" && (
-        <div className={styles["admin-grid"]}>
-          <div className={styles["admin-card"]}>
+        <div className={styles["users-layout"]}>
+          <div className={styles["users-create-card"]}>
             <h2>Create New User</h2>
             <form onSubmit={handleCreateUser} className={styles["admin-form"]}>
               <div className={styles["form-group"]}>
@@ -946,7 +994,7 @@ export default function Admin() {
             </form>
           </div>
 
-          <div className={styles["admin-card"]}>
+          <div className={styles["users-table-card"]}>
             <div className={styles["users-header"]}>
               <h2>System Users</h2>
               <button
@@ -1061,6 +1109,16 @@ export default function Admin() {
                             <option value="wholesaler">Wholesaler</option>
                             <option value="admin">Admin</option>
                           </select>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u)}
+                            disabled={loading || user.uid === u.uid || userDeletingUid === u.uid}
+                            title={user.uid === u.uid ? "Cannot delete yourself" : "Delete user"}
+                            className={styles["btn-delete"]}
+                            style={{ marginLeft: 8 }}
+                          >
+                            {userDeletingUid === u.uid ? "…" : "Delete"}
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -1080,6 +1138,23 @@ export default function Admin() {
                   >
                     Close
                   </button>
+                </div>
+                <div className={styles["user-detail-section"]} style={{ marginBottom: 12 }}>
+                  <h4>Profile</h4>
+                  {selectedUserProfileLoading ? (
+                    <p className={styles["admin-muted"]}>Loading…</p>
+                  ) : selectedUserProfile ? (
+                    <dl className={styles["profile-dl"]}>
+                      <dt>First name</dt>
+                      <dd>{selectedUserProfile.firstName || "—"}</dd>
+                      <dt>Last name</dt>
+                      <dd>{selectedUserProfile.lastName || "—"}</dd>
+                      <dt>Phone</dt>
+                      <dd>{selectedUserProfile.phoneNumber || "—"}</dd>
+                    </dl>
+                  ) : (
+                    <p className={styles["admin-muted"]}>No profile information.</p>
+                  )}
                 </div>
                 {dealsLoading || searchesLoading ? (
                   <p className={styles["admin-muted"]}>Loading deals and searches…</p>

@@ -13,9 +13,14 @@ export function useTier() {
   return ctx;
 }
 
-/** Resolve user tier: Admin > Client > userTiers > wholesalers > Free */
+/** Returns tier context or null when outside TierProvider. Use when component may render before provider is ready. */
+export function useTierOptional() {
+  return useContext(TierContext);
+}
+
+/** Resolve user tier and subscription cycle: Admin > Client > userTiers > wholesalers > Free */
 async function resolveTier(uid) {
-  if (!db || !uid) return TIERS.FREE;
+  if (!db || !uid) return { tier: TIERS.FREE, subscriptionCycle: null };
   try {
     const [adminsSnap, clientsSnap, userTiersSnap, wholesalersSnap] = await Promise.all([
       getDoc(doc(db, "admins", uid)),
@@ -23,27 +28,45 @@ async function resolveTier(uid) {
       getDoc(doc(db, "userTiers", uid)),
       getDoc(doc(db, "wholesalers", uid)),
     ]);
-    if (adminsSnap.exists()) return TIERS.ADMIN;
-    if (clientsSnap.exists()) return TIERS.CLIENT;
-    const tier = userTiersSnap.data()?.tier;
-    if (tier && [TIERS.INVESTOR, TIERS.PRO, TIERS.WHOLESALER].includes(tier)) return tier;
-    if (wholesalersSnap.exists()) return TIERS.WHOLESALER;
-    return TIERS.FREE;
+    if (adminsSnap.exists()) return { tier: TIERS.ADMIN, subscriptionCycle: null };
+    if (clientsSnap.exists()) return { tier: TIERS.CLIENT, subscriptionCycle: null };
+    const tierData = userTiersSnap.data();
+    const tier = tierData?.tier;
+    const cancelAtPeriodEnd = !!tierData?.cancelAtPeriodEnd;
+    const accessUntil = tierData?.accessUntil?.toDate?.() ?? (tierData?.accessUntil ? new Date(tierData.accessUntil) : null);
+    const periodEnded = cancelAtPeriodEnd && accessUntil && accessUntil <= new Date();
+    if (tier && [TIERS.INVESTOR, TIERS.PRO, TIERS.WHOLESALER].includes(tier) && !periodEnded) {
+      return {
+        tier,
+        subscriptionCycle: tierData?.cycle || null,
+        cancelAtPeriodEnd: cancelAtPeriodEnd && !periodEnded,
+        accessUntil: periodEnded ? null : accessUntil,
+      };
+    }
+    if (wholesalersSnap.exists()) return { tier: TIERS.WHOLESALER, subscriptionCycle: null };
+    return { tier: TIERS.FREE, subscriptionCycle: null };
   } catch (e) {
     console.warn("resolveTier error:", e);
-    return TIERS.FREE;
+    return { tier: TIERS.FREE, subscriptionCycle: null };
   }
 }
 
 export function TierProvider({ children }) {
   const { user, isAdmin, isWholesaler } = useAuth();
   const [tier, setTier] = useState(TIERS.FREE);
+  const [subscriptionCycle, setSubscriptionCycle] = useState(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [accessUntil, setAccessUntil] = useState(null);
   const [tierLoading, setTierLoading] = useState(true);
   const [usage, setUsage] = useState({ count: 0, limit: 0, overage: false, allowed: true });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!user?.uid) {
       setTier(TIERS.FREE);
+      setSubscriptionCycle(null);
+      setCancelAtPeriodEnd(false);
+      setAccessUntil(null);
       setTierLoading(false);
       setUsage({ count: 0, limit: 0, overage: false, allowed: true });
       return;
@@ -52,11 +75,16 @@ export function TierProvider({ children }) {
     setTierLoading(true);
     resolveTier(user.uid).then((resolved) => {
       if (cancelled) return;
-      setTier(resolved);
+      setTier(resolved.tier);
+      setSubscriptionCycle(resolved.subscriptionCycle);
+      setCancelAtPeriodEnd(resolved.cancelAtPeriodEnd ?? false);
+      setAccessUntil(resolved.accessUntil ?? null);
       setTierLoading(false);
     });
     return () => { cancelled = true; };
-  }, [user?.uid]);
+  }, [user?.uid, refreshTrigger]);
+
+  const refreshTier = () => setRefreshTrigger((n) => n + 1);
 
   const refreshUsage = async () => {
     if (!user?.uid) return;
@@ -93,6 +121,9 @@ export function TierProvider({ children }) {
   const value = useMemo(
     () => ({
       tier,
+      subscriptionCycle,
+      cancelAtPeriodEnd,
+      accessUntil,
       tierLimits,
       loading: tierLoading,
       canExport,
@@ -110,9 +141,13 @@ export function TierProvider({ children }) {
       canAnalyzeWhenOverage: usage.allowed,
       atOverageWarningThreshold,
       refreshUsage,
+      refreshTier,
     }),
     [
       tier,
+      subscriptionCycle,
+      cancelAtPeriodEnd,
+      accessUntil,
       tierLimits,
       tierLoading,
       canExport,
@@ -128,6 +163,7 @@ export function TierProvider({ children }) {
       usage.allowed,
       atOverageWarningThreshold,
       refreshUsage,
+      refreshTier,
     ]
   );
 

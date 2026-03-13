@@ -3,7 +3,7 @@ import { loadAppConfig } from "../logic/configStorage.js";
 import { mergeConfig } from "../logic/configParams.js";
 import { loadUserConfig } from "../logic/userConfigStorage.js";
 import { useAuth } from "./AuthContext.jsx";
-import { useTier } from "./TierContext.jsx";
+import { useTierOptional } from "./TierContext.jsx";
 
 const ConfigContext = createContext(null);
 
@@ -26,7 +26,8 @@ function applyUserOverrides(appConfig, userOverrides) {
 
 export function ConfigProvider({ children }) {
   const { user } = useAuth();
-  const { dealParamsLevel } = useTier();
+  const tierCtx = useTierOptional();
+  const dealParamsLevel = tierCtx?.dealParamsLevel ?? null;
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
 
