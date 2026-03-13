@@ -10,6 +10,42 @@
   ],
   "rewrites": [
     {
+      "source": "/api/admin/list-users",
+      "destination": "/api/admin-handler?action=list-users"
+    },
+    {
+      "source": "/api/admin/create-user",
+      "destination": "/api/admin-handler?action=create-user"
+    },
+    {
+      "source": "/api/admin/delete-user",
+      "destination": "/api/admin-handler?action=delete-user"
+    },
+    {
+      "source": "/api/admin/set-role",
+      "destination": "/api/admin-handler?action=set-role"
+    },
+    {
+      "source": "/api/admin/set-user-config",
+      "destination": "/api/admin-handler?action=user-config"
+    },
+    {
+      "source": "/api/account/delete",
+      "destination": "/api/admin-handler?action=delete-user&self=1"
+    },
+    {
+      "source": "/api/subscription/status",
+      "destination": "/api/subscription-handler?action=status"
+    },
+    {
+      "source": "/api/subscription/cancel",
+      "destination": "/api/subscription-handler?action=cancel"
+    },
+    {
+      "source": "/api/subscription/complete",
+      "destination": "/api/subscription-handler?action=complete"
+    },
+    {
       "source": "/((?!api/|src/|@|assets/|node_modules/|logo\\.png|favicon\\.ico).*)",
       "destination": "/index.html"
     }

@@ -87,7 +87,7 @@ npm run test:run
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
-- `api/` — Vercel serverless functions (admin, auth, interest, subscription, user-metadata, demo, account, cron). Demo APIs (`api/demo/deal.js`, `api/demo/properties.js`, `api/demo/config.js`) serve unauthenticated requests for the demo deal, investor properties, and app config. `api/account/delete.js` lets users delete their own account. `api/cron/subscription-cancel-period-end.js` runs daily to cancel PayPal subscriptions whose billing period has ended. Stays under the 12-function Hobby limit by keeping shared code in `lib/`.
+- `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal). Lives outside `api/` so it does not count as serverless functions.
 
 ## Property Data Sources
