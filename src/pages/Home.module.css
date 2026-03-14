@@ -83,7 +83,10 @@
   border-radius: 8px;
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   transition: background 0.2s, box-shadow 0.2s;
 }
 

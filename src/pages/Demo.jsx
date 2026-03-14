@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   calc,
   DEFAULT_INPUT,
@@ -38,6 +38,7 @@ function formatAddress(inp) {
 }
 
 export default function Demo() {
+  const navigate = useNavigate();
   const { config } = useConfig();
   const [inp, setInp] = useState(() => ({ ...DEFAULT_INPUT }));
   const [tab, setTab] = useState("flip");
@@ -130,6 +131,7 @@ export default function Demo() {
             <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
           </div>
           <div className={styles["hdr-right"]}>
+            <button type="button" className={styles["hdr-pdf-btn"]} onClick={() => navigate("/")}>Home</button>
             <Link to="/login?mode=signup" className={styles["hdr-demo-cta"]}>
               Create a Free Account
             </Link>
@@ -155,6 +157,7 @@ export default function Demo() {
             <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
           </div>
           <div className={styles["hdr-right"]}>
+            <button type="button" className={styles["hdr-pdf-btn"]} onClick={() => navigate("/")}>Home</button>
             <Link to="/login?mode=signup" className={styles["hdr-demo-cta"]}>
               Create a Free Account
             </Link>
@@ -181,6 +184,7 @@ export default function Demo() {
           <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
         </div>
         <div className={styles["hdr-right"]}>
+          <button type="button" className={styles["hdr-pdf-btn"]} onClick={() => navigate("/")}>Home</button>
           {!showPropertySearch && (
             <>
               <button

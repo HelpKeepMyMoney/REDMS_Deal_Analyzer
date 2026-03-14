@@ -135,6 +135,13 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 
+## Recent Changes
+
+- **Home page header** — Sign In and Try Demo links updated to button style matching Create Free Account (white background, blue text, rounded corners). Button text centered using flexbox.
+- **Pricing section** — Client tier: price changed from "Custom" to "Included"; CTA link updated to `#client-fee-structure`.
+- **Demo page** — Added Home button to header (desktop, mobile header, and mobile drawer) for quick navigation back to the landing page.
+- **Landing page** — Feature copy updated: "Search analyzed prospective Detroit deals to find the best that suit you."
+
 ## License
 
 Private — The BNIC Network LLC.

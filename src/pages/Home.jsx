@@ -134,7 +134,7 @@ const PRICING_TIERS = [
   },
   {
     name: "Client",
-    price: "Custom",
+    price: "Included",
     period: null,
     description: null,
     features: [
@@ -146,7 +146,7 @@ const PRICING_TIERS = [
       "Direct investor opportunities",
     ],
     cta: "Contact Us",
-    href: "https://bnic-realestate.vercel.app/#contact",
+    href: "https://bnic-realestate.vercel.app/#client-fee-structure",
     external: true,
     highlighted: false,
   },
@@ -272,10 +272,10 @@ export default function Home() {
             </div>
           ) : (
             <nav className={styles.hdrNav} aria-label="Account">
-              <Link to="/login" className={styles.hdrNavLink}>
+              <Link to="/login" className={styles.hdrBtn}>
                 Sign In
               </Link>
-              <Link to="/demo" className={styles.hdrNavLink}>
+              <Link to="/demo" className={styles.hdrBtn}>
                 Try Demo
               </Link>
               <Link to="/login?mode=signup" className={styles.hdrBtn}>
