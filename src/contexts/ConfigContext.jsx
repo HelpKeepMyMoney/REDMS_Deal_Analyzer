@@ -34,7 +34,8 @@ export function ConfigProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const appC = await loadAppConfig();
+      // Only load from Firestore when user is authenticated (rules require request.auth != null)
+      const appC = user?.uid ? await loadAppConfig() : mergeConfig(null);
       if (cancelled) return;
       let merged = appC;
       if (user?.uid && (dealParamsLevel === "full" || dealParamsLevel === "limited")) {
