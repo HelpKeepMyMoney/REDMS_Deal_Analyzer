@@ -4,7 +4,7 @@
  * Secured by CRON_SECRET env var.
  */
 import { getAdminFirestore } from "../../lib/firebase-admin.js";
-import { cancelPayPalSubscription } from "../../lib/paypal.js";
+import { cancelPayPalSubscription } from "../../lib/paypal-cancel.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {

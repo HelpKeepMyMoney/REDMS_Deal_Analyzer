@@ -88,7 +88,7 @@ npm run test:run
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
 - `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
-- `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal). Lives outside `api/` so it does not count as serverless functions.
+- `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal, paypal-cancel). `paypal-cancel.js` provides subscription cancel and getCycleFromPlanId via REST API (no SDK) for admin-handler, webhook, and cron; avoids `@paypal/paypal-server-sdk` ESM issues in Vercel serverless.
 
 ## Property Data Sources
 
@@ -137,6 +137,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Firebase app config** — Load app config from Firestore only when user is authenticated; avoids "Missing or insufficient permissions" when auth state is not yet ready.
+- **PayPal SDK / admin 500 fix** — Added `lib/paypal-cancel.js` (REST API only, no SDK) for subscription cancel and getCycleFromPlanId. Admin-handler, subscription webhook, and cron now use it instead of `paypal.js`, avoiding `@paypal/paypal-server-sdk` ESM export errors in Vercel serverless. Fixes 500 on `/api/admin/list-users`.
 - **Home page header** — Sign In and Try Demo links updated to button style matching Create Free Account (white background, blue text, rounded corners). Button text centered using flexbox.
 - **Pricing section** — Client tier: price changed from "Custom" to "Included"; CTA link updated to `#client-fee-structure`.
 - **Demo page** — Added Home button to header (desktop, mobile header, and mobile drawer) for quick navigation back to the landing page.

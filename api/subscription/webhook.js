@@ -3,7 +3,7 @@
  * POST only; no auth (PayPal calls this).
  */
 import { getAdminFirestore } from "../../lib/firebase-admin.js";
-import { getPayPalClient, getCycleFromPlanId } from "../../lib/paypal.js";
+import { getCycleFromPlanId } from "../../lib/paypal-cancel.js";
 
 function getBaseUrl() {
   const mode = process.env.PAYPAL_MODE || "sandbox";

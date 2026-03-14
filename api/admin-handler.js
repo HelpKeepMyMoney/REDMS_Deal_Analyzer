@@ -7,7 +7,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminFirestore } from "../lib/firebase-admin.js";
 import { requireAdmin } from "../lib/requireAdmin.js";
 import { requireAuth } from "../lib/requireAuth.js";
-import { cancelPayPalSubscription } from "../lib/paypal.js";
+import { cancelPayPalSubscription } from "../lib/paypal-cancel.js";
 
 const VALID_ROLES = ["free", "investor", "pro", "client", "wholesaler", "admin"];
 
