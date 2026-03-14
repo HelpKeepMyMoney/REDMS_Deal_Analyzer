@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Field } from "./Field.jsx";
 import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
 
@@ -95,11 +96,16 @@ export function DealSidebar({
             aria-hidden={sidebarCollapsed}
         >
             {showUsageRemaining && (
-            <div className={styles["usage-remaining"]}>
-                <span className={styles["usage-remaining-count"]}>{remainingDeals}</span>
-                <span className={styles["usage-remaining-label"]}>
-                    {remainingDeals === 1 ? "deal" : "deals"} remaining{usagePeriodLabel}
-                </span>
+            <div className={styles["usage-remaining-wrap"]}>
+                <div className={styles["usage-remaining"]}>
+                    <span className={styles["usage-remaining-count"]}>{remainingDeals}</span>
+                    <span className={styles["usage-remaining-label"]}>
+                        {remainingDeals === 1 ? "deal" : "deals"} remaining{usagePeriodLabel}
+                    </span>
+                </div>
+                <Link to="/profile#subscription-heading" className={styles["sidebar-upgrade-btn"]}>
+                    Upgrade
+                </Link>
             </div>
             )}
 

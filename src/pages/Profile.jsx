@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import { createInterestApi } from "../logic/interestApi.js";
@@ -93,6 +93,7 @@ export default function Profile() {
   const { user, isAdmin, isWholesaler, signOut, updateEmail, updatePassword } = useAuth();
   const { tier, subscriptionCycle, cancelAtPeriodEnd, accessUntil, isClient, isFreeTier, usageCount, usageLimit, hasWholesalerModule, refreshTier } = useTier();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const completedSubscriptionRef = useRef(false);
   const [cycleFromApi, setCycleFromApi] = useState(null);
 
@@ -187,6 +188,23 @@ export default function Profile() {
       setEmailForm((prev) => ({ ...prev, newEmail: user.email }));
     }
   }, [user?.email]);
+
+  // Scroll to Subscription section when navigating with #subscription-heading
+  useEffect(() => {
+    if (location.hash !== "#subscription-heading") return;
+    const el = document.getElementById("subscription-heading");
+    if (!el) return;
+    const scrollToSection = () => {
+      const rect = el.getBoundingClientRect();
+      const offset = 140; // Leave space so "Subscription" heading stays visible
+      const targetY = window.scrollY + rect.top - offset;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+    };
+    const t = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToSection);
+    });
+    return () => cancelAnimationFrame(t);
+  }, [location.hash]);
   const [passwordForm, setPasswordForm] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -379,8 +397,8 @@ export default function Profile() {
             </form>
           </section>
 
-          <section className={styles.section} aria-labelledby="subscription-heading">
-            <h2 id="subscription-heading" className={styles.sectionTitle}>Subscription</h2>
+          <section id="subscription-heading" className={styles.section} aria-labelledby="subscription-heading-label">
+            <h2 id="subscription-heading-label" className={styles.sectionTitle}>Subscription</h2>
             {isClient ? (
               <p className={styles.sectionText}>
                 Client — view shared deals and export. Deal parameters are set by your admin. You cannot create or save your own deals.

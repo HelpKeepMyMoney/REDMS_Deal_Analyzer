@@ -129,6 +129,11 @@
   border-bottom: 1px solid rgba(39, 42, 49, 0.6);
 }
 
+/* Scroll anchor: leave space above so "Subscription" heading stays visible */
+:global(#subscription-heading) {
+  scroll-margin-top: 140px;
+}
+
 .section:last-of-type {
   margin-bottom: 0;
   padding-bottom: 0;

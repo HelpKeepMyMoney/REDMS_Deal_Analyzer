@@ -488,11 +488,17 @@
   text-align: right;
 }
 
+.usage-remaining-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+}
+
 .usage-remaining {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: 0.75rem;
   padding: 0.5rem 0.6rem;
   background: var(--bg-soft);
   border-radius: var(--radius);
@@ -508,6 +514,29 @@
 
 .usage-remaining-label {
   letter-spacing: 0.3px;
+}
+
+.sidebar-upgrade-btn {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+  text-decoration: none;
+  background: var(--amber);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sidebar-upgrade-btn:hover {
+  filter: brightness(1.1);
 }
 
 .new-deals-notification {

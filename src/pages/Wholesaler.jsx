@@ -44,7 +44,7 @@ function formatAddress(inp) {
 
 export default function Wholesaler() {
   const { user, isAdmin, isWholesaler, signOut } = useAuth();
-  const { dealParamsLevel } = useTier();
+  const { tier, dealParamsLevel, usageCount, usageLimit, isFreeTier, canSaveDeal, atOverageWarningThreshold } = useTier();
   const { config, refreshConfig } = useConfig();
   const navigate = useNavigate();
   const [inp, setInp] = useState(() => ({ ...DEFAULT_INPUT }));
@@ -277,7 +277,13 @@ export default function Wholesaler() {
 
       <div className={styles.main}>
         <DealSidebar
-          isAdmin={true}
+          isAdmin={isAdmin}
+          canSaveDeal={canSaveDeal}
+          isClient={false}
+          isFreeTier={isFreeTier}
+          usageCount={usageCount}
+          usageLimit={usageLimit}
+          atOverageWarningThreshold={atOverageWarningThreshold}
           wholesaler={true}
           sidebarCollapsed={sidebarCollapsed}
           currentDealId={currentDealId}
