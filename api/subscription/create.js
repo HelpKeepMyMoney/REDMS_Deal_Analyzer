@@ -3,7 +3,7 @@
  * Requires Authorization: Bearer <token>. Returns JSON { approvalUrl } for fetch; redirects when no auth (legacy).
  */
 import { requireAuth } from "../../lib/requireAuth.js";
-import { getSubscriptionsController, getPlanId } from "../../lib/paypal.js";
+import { getPlanId, createPayPalSubscription } from "../../lib/paypal-cancel.js";
 
 function getBaseUrl(req) {
   const host = req.headers["x-forwarded-host"] || req.headers.host;
@@ -41,49 +41,16 @@ export default async function handler(req, res) {
   const cancelUrl = `${baseUrl}/profile?subscription=cancelled`;
 
   try {
-    const subsController = getSubscriptionsController();
-
-    const body = {
-      planId,
-      customId: decoded.uid,
-      applicationContext: {
-        returnUrl,
-        cancelUrl,
-      },
-    };
-
-    const result = await subsController.createSubscription({
-      body,
-      prefer: "return=representation",
-    });
-
-    const links = result.result?.links || [];
-    const approveLink = links.find((l) => l.rel === "approve" && l.href);
-    if (!approveLink?.href) {
-      return res.status(500).json({ error: "No approval URL from PayPal" });
-    }
+    const { approvalUrl } = await createPayPalSubscription(planId, decoded.uid, returnUrl, cancelUrl);
 
     const hasAuth = req.headers?.authorization?.startsWith("Bearer ");
     if (hasAuth) {
-      return res.status(200).json({ approvalUrl: approveLink.href });
+      return res.status(200).json({ approvalUrl });
     }
-    res.redirect(302, approveLink.href);
+    res.redirect(302, approvalUrl);
   } catch (err) {
     console.error("subscription create error:", err);
-    // Extract useful details from PayPal API errors (body may be JSON string)
-    let body = err.body;
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch {
-        body = null;
-      }
-    }
-    body = body || err.result || err.response?.result;
-    const details = body?.details?.[0];
-    const issue = details?.description || details?.issue || body?.message || err.message;
-    const fallback = "Failed to create subscription. Check that PayPal plan IDs are configured and active.";
-    const msg = issue && issue !== "The error response" ? issue : fallback;
+    const msg = err.message || "Failed to create subscription. Check that PayPal plan IDs are configured and active.";
     return res.status(500).json({ error: msg });
   }
 }
