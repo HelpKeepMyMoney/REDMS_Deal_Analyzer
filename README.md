@@ -143,7 +143,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 - **Home page header** — Sign In and Try Demo links updated to button style matching Create Free Account (white background, blue text, rounded corners). Button text centered using flexbox.
 - **Pricing section** — Client tier: price changed from "Custom" to "Included"; CTA link updated to `#client-fee-structure`.
 - **Demo page** — Added Home button to header (desktop, mobile header, and mobile drawer) for quick navigation back to the landing page.
-- **Landing page** — Feature copy updated: "Search analyzed prospective Detroit deals to find the best that suit you."
+- **Landing page** — Feature copy updated: "Search analyzed prospective Detroit deals to find the best one that suits you."
 
 ## License
 

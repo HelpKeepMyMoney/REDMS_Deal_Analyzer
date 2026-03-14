@@ -12,7 +12,7 @@ const FEATURES = [
         <path d="m21 21-4.35-4.35" />
       </svg>
     ),
-    text: "Search analyzed prospective Detroit deals to find the best that suit you.",
+    text: "Search analyzed prospective Detroit deals to find the best one that suits you.",
   },
   {
     icon: (
