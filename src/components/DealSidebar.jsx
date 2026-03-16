@@ -905,6 +905,15 @@ export function DealSidebar({
                 </ul>
             </div>
             )}
+
+            <div className={styles["sidebar-footer"]}>
+                <Link to="/terms#top" className={styles["sidebar-terms-link"]}>
+                    Terms of Service
+                </Link>
+                <Link to="/privacy#top" className={styles["sidebar-terms-link"]}>
+                    Privacy Policy
+                </Link>
+            </div>
         </aside>
     );
 }

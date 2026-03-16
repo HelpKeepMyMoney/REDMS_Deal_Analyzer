@@ -1,0 +1,102 @@
+/**
+ * Privacy Policy page - matches Terms page styling
+ */
+
+.page {
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  padding: 48px 0 64px;
+}
+
+.container {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.title {
+  font-family: var(--body);
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-family: var(--body);
+  font-size: 18px;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.effectiveDate {
+  font-family: var(--body);
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 32px;
+}
+
+.content {
+  font-family: var(--body);
+  font-size: 16px;
+  color: #4b5563;
+  line-height: 1.7;
+}
+
+.content p {
+  margin-bottom: 16px;
+}
+
+.content p:last-child {
+  margin-bottom: 0;
+}
+
+.content h2 {
+  font-family: var(--body);
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+
+.content h2:first-of-type {
+  margin-top: 0;
+}
+
+.content h3 {
+  font-family: var(--body);
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.content ul {
+  margin: 0 0 16px;
+  padding-left: 24px;
+}
+
+.content li {
+  margin-bottom: 8px;
+}
+
+.content .link {
+  color: #2884f4;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.content .link:hover {
+  text-decoration: underline;
+}

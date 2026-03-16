@@ -13,11 +13,11 @@
 - **CPIN / LP Offering** — LP offering summary (targeted ROI, minimum investment, distribution frequency, structure, exemption, KYC/AML, property details).
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
 - **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
-- **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — deal status and address shown next to Start Buying button; status colors: Available=green, Reserved=yellow, Under Contract=red, Sold=white); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer. **Sidebar usage & upgrade** — Deals remaining this month (or lifetime for free tier) shown at top of sidebar; Upgrade button links to Profile Subscription section.
+- **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — deal status and address shown next to Start Buying button; status colors: Available=green, Reserved=yellow, Under Contract=red, Sold=white); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer. **Sidebar usage & upgrade** — Deals remaining this month (or lifetime for free tier) shown at top of sidebar; Upgrade button links to Profile Subscription section; Terms of Service and Privacy Policy links at bottom of sidebar.
 - **Admin** — User management (search by email, role, date created; create users; delete users; view deals, searches, and profile info when viewing a user), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Sidebar shows deals remaining this month and Upgrade button (same as Investor module). Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
 - **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; cancel subscription (keeps access until end of billing period, then downgrades to free); delete account (immediate access revocation); email and password update forms. Banner prompts users to complete profile when any contact field is empty. Anchor link `#subscription-heading` scrolls to Subscription section (used by sidebar Upgrade button).
-- **Demo access** — Unauthenticated users can try the platform at `/demo`. Features: read-only access to the demo deal (17917 Mackay St, Detroit, MI 48212); Find Properties with investor properties (addresses blurred except for Mackay); View Deal and report downloads only for Mackay; Express Interest replaced with "Create account to analyze your own deals" CTA; full analyzer tabs (Purchase & Flip, Buy & Hold, 30-Yr Projection, Retail Investor, CPIN) with no tier blur; client-style disclaimer. "Try Demo" and "Free Demo" buttons on Home page (header, footer, hero, pricing, final CTA).
+- **Demo access** — Unauthenticated users can try the platform at `/demo`. Features: read-only access to the demo deal (17917 Mackay St, Detroit, MI 48212); Find Properties with investor properties (addresses blurred except for Mackay); View Deal and report downloads only for Mackay; Express Interest replaced with "Create account to analyze your own deals" CTA; full analyzer tabs (Purchase & Flip, Buy & Hold, 30-Yr Projection, Retail Investor, CPIN) with no tier blur; client-style disclaimer. "Try Demo" and "Free Demo" buttons on Home page (header, footer, hero, pricing, final CTA). Demo uses fallback data when API is unavailable (e.g. `npm run dev` without `vercel dev`).
 
 ## Deal Management (Admin)
 
@@ -66,14 +66,16 @@ npm run test:run
 
 ## Project Structure
 
-- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo` route.
+- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo`, `/terms`, `/privacy` routes.
 - `src/pages/Landing.jsx` — Login/signup and module selection for logged-in users.
 - `src/pages/Admin.jsx` — Admin dashboard (users, params, sharing, interest).
 - `src/pages/Wholesaler.jsx` — Wholesaler deal analyzer.
 - `src/REDMS.jsx` — Investor deal analyzer (sidebar inputs, deal logic strip, metric cards, tabbed views).
 - `src/REDMS.module.css` — Styles.
 - `src/pages/Profile.jsx` — Profile page (contact info, subscription, email, password).
-- `src/pages/Demo.jsx` — Demo page (unauthenticated; loads Mackay deal via API, full analyzer UI).
+- `src/pages/Demo.jsx` — Demo page (unauthenticated; loads Mackay deal via API or fallback when API unavailable, full analyzer UI).
+- `src/pages/Terms.jsx` — Terms of Service page (public).
+- `src/pages/Privacy.jsx` — Privacy Policy page (public).
 - `src/logic/userProfileStorage.js` — User profile (firstName, lastName, phoneNumber) in Firestore `users/{userId}`.
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
@@ -137,6 +139,9 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Terms of Service & Privacy Policy** — Added `/terms` and `/privacy` pages with full legal content. Links in Home footer, Terms/Privacy footers, and sidebar (Investor, Wholesaler, Demo). Section nav and account dropdown on legal pages match Home.
+- **Demo fallback** — Demo page uses built-in fallback data when API returns non-JSON (e.g. `npm run dev` without `vercel dev`), avoiding parse errors.
+- **Section scroll** — Home page section links (Professional Tools, Pricing, Who Uses REDMS, etc.) scroll to section headings correctly, accounting for sticky header and section padding. Works from Home header/footer and when navigating from Terms/Privacy.
 - **Sidebar Upgrade button & usage** — Added Upgrade button below deals remaining in Investor sidebar; links to Profile Subscription section. Profile page scrolls to Subscription section when navigating with `#subscription-heading` (manual scroll with offset so heading stays visible). Wholesaler module sidebar now shows deals remaining and Upgrade button for non-admin users.
 - **Firebase app config** — Load app config from Firestore only when user is authenticated; avoids "Missing or insufficient permissions" when auth state is not yet ready.
 - **PayPal SDK / admin 500 fix** — Added `lib/paypal-cancel.js` (REST API only, no SDK) for subscription create, cancel, getPlanId, and getCycleFromPlanId. Admin-handler, subscription/create, webhook, and cron now use it instead of `paypal.js`, avoiding `@paypal/paypal-server-sdk` ESM export errors in Vercel serverless. Fixes 500 on `/api/admin/list-users` and `/api/subscription/create`.

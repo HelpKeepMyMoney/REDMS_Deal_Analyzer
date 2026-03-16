@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
 import styles from "./Home.module.css";
@@ -176,21 +176,43 @@ const TOOLS = [
 ];
 
 const SECTION_NAV_LINKS = [
-  { label: "Home", href: "#top" },
-  { label: "The Problem", href: "#problem" },
-  { label: "REDMS Platform", href: "#platform" },
-  { label: "How REDMS is Used", href: "#three-ways" },
-  { label: "Professional Tools", href: "#professional-tools" },
-  { label: "Decision-Making", href: "#decision-making" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Who Uses REDMS", href: "#who-uses" },
+  { label: "Home", id: "top" },
+  { label: "The Problem", id: "problem" },
+  { label: "REDMS Platform", id: "platform" },
+  { label: "How REDMS is Used", id: "three-ways" },
+  { label: "Professional Tools", id: "professional-tools" },
+  { label: "Decision-Making", id: "decision-making" },
+  { label: "Pricing", id: "pricing" },
+  { label: "Who Uses REDMS", id: "who-uses" },
 ];
+
+const HEADER_HEIGHT = 80;
+const SECTION_TOP_PADDING = 64;
+
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    const rect = el.getBoundingClientRect();
+    const scrollTop = window.scrollY ?? document.documentElement.scrollTop;
+    const targetY = rect.top + scrollTop - (HEADER_HEIGHT - SECTION_TOP_PADDING);
+    window.scrollTo({ top: targetY, behavior: "smooth" });
+  }
+}
 
 function SectionNav({ className }) {
   return (
     <nav className={className} aria-label="Page sections">
-      {SECTION_NAV_LINKS.map(({ label, href }) => (
-        <a key={href} href={href} className={styles.hdrNavLink}>
+      {SECTION_NAV_LINKS.map(({ label, id }) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          className={styles.hdrNavLink}
+          onClick={(e) => {
+            e.preventDefault();
+            scrollToSection(id);
+            window.history.pushState(null, "", `#${id}`);
+          }}
+        >
           {label}
         </a>
       ))}
@@ -201,10 +223,21 @@ function SectionNav({ className }) {
 export default function Home() {
   const { user, loading, isAdmin, signOut } = useAuth();
   const { hasWholesalerModule, loading: tierLoading } = useTier();
+  const location = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef(null);
 
   const showWholesalerLink = hasWholesalerModule || isAdmin;
+
+  useEffect(() => {
+    const hash = location.hash.slice(1);
+    if (hash) {
+      const timer = setTimeout(() => scrollToSection(hash), 100);
+      return () => clearTimeout(timer);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [location.pathname, location.hash]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -737,13 +770,28 @@ export default function Home() {
 
       <footer className={styles.footer}>
         <nav className={styles.footerNav} aria-label="Page sections">
-          {SECTION_NAV_LINKS.map(({ label, href }) => (
-            <a key={href} href={href} className={styles.footerNavLink}>
+          {SECTION_NAV_LINKS.map(({ label, id }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={styles.footerNavLink}
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToSection(id);
+                window.history.pushState(null, "", `#${id}`);
+              }}
+            >
               {label}
             </a>
           ))}
           <Link to="/demo" className={styles.footerNavLink}>
             Try Demo
+          </Link>
+          <Link to="/terms#top" className={styles.footerNavLink}>
+            Terms of Service
+          </Link>
+          <Link to="/privacy#top" className={styles.footerNavLink}>
+            Privacy Policy
           </Link>
         </nav>
         <p className={styles.footerCopyright}>

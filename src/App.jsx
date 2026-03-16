@@ -9,6 +9,8 @@ import Landing from "./pages/Landing.jsx";
 import Wholesaler from "./pages/Wholesaler.jsx";
 import Admin from "./pages/Admin.jsx";
 import Profile from "./pages/Profile.jsx";
+import Terms from "./pages/Terms.jsx";
+import Privacy from "./pages/Privacy.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -68,6 +70,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/login" element={<Landing />} />
           <Route
             path="/investor"

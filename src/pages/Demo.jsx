@@ -29,6 +29,25 @@ const DEMO_DEAL_ADDRESS = {
   zipCode: "48212",
 };
 
+const FALLBACK_DEMO_DEAL = {
+  street: DEMO_DEAL_ADDRESS.street,
+  city: DEMO_DEAL_ADDRESS.city,
+  state: DEMO_DEAL_ADDRESS.state,
+  zipCode: DEMO_DEAL_ADDRESS.zipCode,
+  offerPrice: 35000,
+  rehabLevel: "Full",
+  rehabCost: 30000,
+  totalRent: 1200,
+  bedrooms: 3,
+  bathrooms: 1,
+  sqft: 1200,
+  yearBuilt: 1925,
+  lotSize: 5000,
+  currentYearTax: 1200,
+  newPropertyTax: 1100,
+  dealName: "17917 Mackay St, Detroit, MI 48212",
+};
+
 function formatAddress(inp) {
   if (inp.street != null || inp.city != null || inp.state != null || inp.zipCode != null) {
     const line2 = [inp.city, inp.state, inp.zipCode].filter(Boolean).join(", ");
@@ -53,7 +72,17 @@ export default function Demo() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/demo?type=deal")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const text = await r.text();
+        if (!r.ok) {
+          throw new Error(text || "API error");
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error("Invalid API response");
+        }
+      })
       .then((data) => {
         if (cancelled) return;
         if (data.error && !data.deal) {
@@ -67,7 +96,9 @@ export default function Demo() {
       })
       .catch((e) => {
         if (!cancelled) {
-          setError(e.message || "Failed to load demo deal");
+          const base = { ...DEFAULT_INPUT, ...FALLBACK_DEMO_DEAL };
+          setInp(mergeStored(base, FALLBACK_DEMO_DEAL));
+          setDemoDealId("demo-fallback");
         }
       })
       .finally(() => {

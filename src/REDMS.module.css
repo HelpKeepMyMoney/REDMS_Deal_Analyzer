@@ -539,6 +539,26 @@
   filter: brightness(1.1);
 }
 
+.sidebar-footer {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem 0.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.sidebar-terms-link {
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.sidebar-terms-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .new-deals-notification {
   margin-bottom: 1rem;
   padding: 0.75rem;
