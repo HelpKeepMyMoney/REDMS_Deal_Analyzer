@@ -49,6 +49,7 @@ export const DEFAULT_CONFIG = {
   depreciationLandFraction: DEFAULT_DEPRECIATION_LAND_FRACTION,
   depreciationMinBasis: DEFAULT_DEPRECIATION_MIN_BASIS,
   titleInsuranceRates: { ...DEFAULT_TITLE_INSURANCE_RATES },
+  propertySearchUsedThisMonth: undefined, // Manual sync from RentCast dashboard when API doesn't provide usage
 };
 
 /**
@@ -66,6 +67,7 @@ export function mergeConfig(firestoreData) {
     "detroitTaxSevRatio", "detroitTaxRate", "detroitTaxFlat",
     "referralFraction", "initialReferralPct", "investorReferralPct", "mortgagePointsRate", "minAcqMgmtFee", "minRealtorFee",
     "depreciationYears", "depreciationLandFraction", "depreciationMinBasis",
+  "propertySearchUsedThisMonth",
   ];
   for (const k of scalarKeys) {
     if (firestoreData[k] != null && typeof firestoreData[k] === "number" && !isNaN(firestoreData[k])) {

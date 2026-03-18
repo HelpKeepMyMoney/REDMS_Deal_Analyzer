@@ -2,7 +2,7 @@
  * Firestore read/write for app config parameters. Admins can write.
  */
 
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteField } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { mergeConfig, DEFAULT_CONFIG } from "./configParams.js";
 
@@ -43,6 +43,9 @@ export async function saveAppConfig(config) {
     depreciationLandFraction: config.depreciationLandFraction,
     depreciationMinBasis: config.depreciationMinBasis,
     titleInsuranceRates: config.titleInsuranceRates,
+    ...(config.propertySearchUsedThisMonth != null
+      ? { propertySearchUsedThisMonth: config.propertySearchUsedThisMonth }
+      : { propertySearchUsedThisMonth: deleteField() }),
   };
   const ref = doc(db, "appConfig", CONFIG_DOC_ID);
   await setDoc(ref, payload, { merge: true });

@@ -12,7 +12,7 @@
 - **30-Year Buy & Hold Projection** — Year-by-year table: Rental Income, Prop Costs, Net Cash, Depreciation, Reserves, Net Cash/Tax, ROI, ROE, Prop Value; plus totals and summary stats.
 - **CPIN / LP Offering** — LP offering summary (targeted ROI, minimum investment, distribution frequency, structure, exemption, KYC/AML, property details).
 - **Firestore persistence** — Deals saved to Firestore; admins can create, edit, and share deals with users.
-- **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users.
+- **Find Properties** — Property search (RentCast API) with saved searches; admins can share searches with users. Admin view shows remaining free searches this month at top. RentCast API is called only when admin clicks Search (no pre-fetch or extra calls on Analyze Deal).
 - **Non-admin features** — My Favorites (browse, select, remove favorited deals); Express Interest (Save to Favorite, Request Zoom meeting, Start Buying — deal status and address shown next to Start Buying button; status colors: Available=green, Reserved=yellow, Under Contract=red, Sold=white); new-deals notification (deals shared since last login, dismissible). Selecting a deal from the sidebar (dropdown, My Favorites, or new shared deals) while on Find Properties switches the main view to the deal analyzer. **Sidebar usage & upgrade** — Deals remaining this month (or lifetime for free tier) shown at top of sidebar; Upgrade button links to Profile Subscription section; Terms of Service and Privacy Policy links at bottom of sidebar.
 - **Admin** — User management (search by email, role, date created; create users; delete users; view deals, searches, and profile info when viewing a user), deal sharing (search by address or owner email; filter updates as you type), search sharing, interest requests, app parameters, Property Management (include/exclude properties for investors; Analyze Deal opens deal analyzer in new tab), **Deal Management** (deal cards with status, filters, sort, user assignment; view which deals a user can access), email notifications. Sticky Deal section in sidebar (dropdown + Find Properties button) stays visible when scrolling. Header sign-out and module switcher.
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Sidebar shows deals remaining this month and Upgrade button (same as Investor module). Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
@@ -52,6 +52,7 @@ Admins can override equation parameters in **Admin → App Parameters**:
 - **Max Total Project Cost**, **Min 1st Mortgage Loan Amount**, **Min Acquisition Mgmt Fee**, **Min Realtor/Sale Fee**, **Mortgage Points Rate**
 - **Initial Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
 - **Investor Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
+- **Property searches used this month (RentCast sync)** — Manual sync from [RentCast API Dashboard](https://app.rentcast.io/app/api) when the app shows incorrect remaining count. Leave blank to use app tracking.
 
 Values are stored in Firestore (`appConfig/params`) and apply to all deal calculations.
 
@@ -91,6 +92,7 @@ npm run test:run
 - `src/pages/Terms.jsx` — Terms of Service page (public).
 - `src/pages/Privacy.jsx` — Privacy Policy page (public).
 - `src/logic/userProfileStorage.js` — User profile (firstName, lastName, phoneNumber) in Firestore `users/{userId}`.
+- `src/logic/propertySearchUsageStorage.js` — Property search usage tracking for RentCast API quota (monthly count in Firestore `appConfig/propertySearchUsage`).
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
   - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT.
@@ -103,7 +105,7 @@ npm run test:run
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
 - `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown, UserDetailModal.
-- `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
+- `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook, rentcast-usage. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal, paypal-cancel). `paypal-cancel.js` provides subscription create, cancel, getPlanId, and getCycleFromPlanId via REST API (no SDK) for admin-handler, subscription/create, webhook, and cron; avoids `@paypal/paypal-server-sdk` ESM issues in Vercel serverless.
 
 ## Property Data Sources
@@ -165,6 +167,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 - **Pricing section** — Client tier: price changed from "Custom" to "Included"; CTA link updated to `#client-fee-structure`.
 - **Demo page** — Added Home button to header (desktop, mobile header, and mobile drawer) for quick navigation back to the landing page.
 - **Landing page** — Feature copy updated: "Search analyzed prospective Detroit deals to find the best one that suits you."
+- **Find Properties — RentCast usage** — Admin view shows remaining free searches this month at top. Usage tracked in Firestore; manual sync from RentCast dashboard available in Admin Parameters. `/api/rentcast-usage` attempts to fetch usage from RentCast API when available.
+- **Find Properties — API call reduction** — RentCast API is called only when admin clicks Search. Removed pre-fetch of property details when results load and removed fetch on Analyze Deal; Analyze Deal uses search result data only (estimated tax when details unavailable).
 
 ## License
 

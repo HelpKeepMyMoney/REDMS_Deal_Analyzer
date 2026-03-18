@@ -9,6 +9,11 @@
  */
 
 const API_KEY = import.meta.env.VITE_RENTCAST_API_KEY;
+
+/** Whether the RentCast API is configured (real searches count toward quota). */
+export function isRentCastApiAvailable() {
+  return !!API_KEY;
+}
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 const BASE_URL = "https://api.rentcast.io/v1/listings/sale";
@@ -86,6 +91,25 @@ const MOCK_PROPERTIES = [
   },
 ];
 
+/** Parse usage from RentCast response headers. Returns { remaining, used, limit } or null. */
+function parseUsageFromHeaders(response) {
+  if (!response?.headers) return null;
+  const h = response.headers;
+  const get = (names) => {
+    for (const n of names) {
+      const v = h.get?.(n) ?? h.get?.(n.toLowerCase());
+      if (v != null && v !== "") return parseInt(v, 10);
+    }
+    return null;
+  };
+  const remaining = get(["X-RateLimit-Remaining", "X-Api-Remaining", "X-Quota-Remaining"]);
+  const used = get(["X-RateLimit-Used", "X-Api-Used", "X-Quota-Used"]);
+  const limit = get(["X-RateLimit-Limit", "X-Api-Limit", "X-Quota-Limit"]);
+  if (remaining != null && !isNaN(remaining)) return { remaining, used, limit };
+  if (used != null && limit != null && !isNaN(used) && !isNaN(limit)) return { remaining: limit - used, used, limit };
+  return null;
+}
+
 /**
  * Searches for sale listings (investment properties) based on the given criteria.
  * @param {Object} criteria - The search criteria.
@@ -96,12 +120,13 @@ const MOCK_PROPERTIES = [
  * @param {number} criteria.minBeds - Minimum number of bedrooms.
  * @param {number} criteria.minBaths - Minimum number of bathrooms.
  * @param {string} criteria.propertyType - Type of property (e.g., "Single Family").
- * @returns {Promise<Array>} Array of property objects.
+ * @returns {Promise<{results: Array, usage?: {remaining: number}}>} Results array and optional usage from API headers.
  */
 export async function searchProperties(criteria) {
   if (!API_KEY) {
     console.warn("VITE_RENTCAST_API_KEY is not set. Using mock property data for development.");
-    return simulateSearchWithMockData(criteria);
+    const mockResults = await simulateSearchWithMockData(criteria);
+    return { results: mockResults };
   }
 
   try {
@@ -167,7 +192,9 @@ export async function searchProperties(criteria) {
 
     // RentCast returns an array of listings directly
     const listings = Array.isArray(data) ? data : data?.listings ?? data?.data ?? [];
-    return listings.map(normalizeApiData).filter((prop) => matchFilters(prop, criteria));
+    const results = listings.map(normalizeApiData).filter((prop) => matchFilters(prop, criteria));
+    const usage = parseUsageFromHeaders(response);
+    return usage ? { results, usage: { remaining: usage.remaining } } : { results };
   } catch (error) {
     console.error("Error fetching properties from RentCast API:", error);
     throw error;

@@ -1306,6 +1306,24 @@ export default function Admin() {
                     max={100}
                   />
                 </div>
+                <div className={styles["form-group"]}>
+                  <label htmlFor="propertySearchUsedThisMonth">Property searches used this month (RentCast sync)</label>
+                  <input
+                    id="propertySearchUsedThisMonth"
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 27 — from RentCast dashboard"
+                    value={params.propertySearchUsedThisMonth ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const v = raw === "" ? null : (Number(raw) || 0);
+                      setParams((p) => ({ ...p, propertySearchUsedThisMonth: v }));
+                    }}
+                  />
+                  <span className={styles["admin-muted"]} style={{ fontSize: "0.85rem", display: "block", marginTop: 4 }}>
+                    Set from RentCast API Dashboard (app.rentcast.io) when the app shows incorrect remaining count. Leave blank to use app tracking.
+                  </span>
+                </div>
                 <button type="submit" className={styles["admin-button"]} disabled={paramsSaving}>
                   {paramsSaving ? "Saving…" : "Save Parameters"}
                 </button>

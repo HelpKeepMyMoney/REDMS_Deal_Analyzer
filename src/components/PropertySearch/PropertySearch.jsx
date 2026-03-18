@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { searchProperties, loadSavedSearches, loadSavedSearch, saveSearchResults, deleteSavedSearch, fetchPropertyDetails, analyzePropertyForDeal, formatCurrency, formatPct, loadInvestorProperties, addInvestorProperty, removeInvestorProperty, loadInvestorPropertyIds, removePropertyFromSavedSearch } from '../../logic';
+import { searchProperties, loadSavedSearches, loadSavedSearch, saveSearchResults, deleteSavedSearch, analyzePropertyForDeal, formatCurrency, formatPct, loadInvestorProperties, addInvestorProperty, removeInvestorProperty, loadInvestorPropertyIds, removePropertyFromSavedSearch, getPropertySearchRemaining, incrementPropertySearchUsage, isRentCastApiAvailable } from '../../logic';
 import { useConfig } from '../../contexts/ConfigContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { createInterestApi } from '../../logic/interestApi.js';
@@ -183,7 +183,7 @@ function normalizeAddressForMatch(street, city, state, zipCode) {
 }
 
 export default function PropertySearch({ userId, isAdmin = false, isClient = false, isDemo = false, demoDealAddress = null, savedDeals = [], initialSearchId = null, onImportProperty, onViewDeal, onCancel }) {
-    const { config } = useConfig();
+    const { config, refreshConfig } = useConfig();
     const { user } = useAuth();
     const interestApi = useMemo(
         () => (user ? createInterestApi(() => user.getIdToken()) : null),
@@ -222,7 +222,6 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
     const [saveInProgress, setSaveInProgress] = useState(false);
     const [saveName, setSaveName] = useState('');
     const [analyzingPropertyId, setAnalyzingPropertyId] = useState(null);
-    const [fetchedDetailsByPropertyId, setFetchedDetailsByPropertyId] = useState({});
     const [requestModalProperty, setRequestModalProperty] = useState(null);
     const [requestSubmitting, setRequestSubmitting] = useState(false);
     const [investorProperties, setInvestorProperties] = useState([]);
@@ -230,48 +229,13 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
     const [includedPropertyIds, setIncludedPropertyIds] = useState(() => new Set());
     const [currentSearchId, setCurrentSearchId] = useState(null);
     const [deletingPropertyId, setDeletingPropertyId] = useState(null);
-
-    useEffect(() => {
-        const source = isAdmin ? results : investorProperties;
-        if (source.length === 0) {
-            setFetchedDetailsByPropertyId({});
-            return;
-        }
-        const isDetroit = (p) =>
-            (p.state || '').toString().trim().toUpperCase() === 'MI' &&
-            (p.city || '').toString().toLowerCase().includes('detroit');
-        const detroitProps = source.filter(isDetroit);
-        if (detroitProps.length === 0) {
-            setFetchedDetailsByPropertyId({});
-            return;
-        }
-        let cancelled = false;
-        Promise.all(
-            detroitProps.map(async (p) => {
-                const address = [p.addressLine1, p.city, p.state, p.zipCode]
-                    .filter(Boolean).join(', ');
-                const details = address ? await fetchPropertyDetails(address, { city: p.city, state: p.state }) : null;
-                return { id: p.id, details };
-            })
-        ).then((pairs) => {
-            if (cancelled) return;
-            const next = {};
-            pairs.forEach(({ id, details }) => {
-                if (details) next[id] = details;
-            });
-            setFetchedDetailsByPropertyId(next);
-        });
-        return () => { cancelled = true; };
-    }, [isAdmin, results, investorProperties]);
+    const [searchUsageRemaining, setSearchUsageRemaining] = useState(null);
 
     const handleAnalyzeClick = async (property) => {
         setAnalyzingPropertyId(property.id);
         try {
-            const address = [property.addressLine1, property.city, property.state, property.zipCode]
-                .filter(Boolean).join(', ');
-            const details = address
-                ? await fetchPropertyDetails(address, { city: property.city, state: property.state })
-                : null;
+            // No API call: use search result data only. Deal analysis uses estimated tax when details unavailable.
+            const details = {};
             const analysis = dealAnalysisByPropertyId[property.id];
             const rehabLevel = analysis?.dealRehabLevel ?? 'Full';
             const data = {
@@ -321,6 +285,30 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
     useEffect(() => {
         refreshSavedSearches();
     }, [userId]);
+
+    const refreshSearchUsage = useCallback(async () => {
+        if (!isAdmin || !isRentCastApiAvailable()) return;
+        try {
+            // Try RentCast API usage endpoint first (server proxy)
+            const r = await fetch('/api/rentcast-usage');
+            const data = await r.json();
+            if (data?.usage?.remaining != null) {
+                setSearchUsageRemaining(data.usage.remaining);
+                return;
+            }
+            // Fall back to config override (manual sync from RentCast dashboard) or our Firestore tracking
+            const { remaining } = await getPropertySearchRemaining({
+                usedOverride: config?.propertySearchUsedThisMonth,
+            });
+            setSearchUsageRemaining(remaining);
+        } catch (e) {
+            console.warn('Failed to load property search usage:', e);
+        }
+    }, [isAdmin, config?.propertySearchUsedThisMonth]);
+
+    useEffect(() => {
+        refreshSearchUsage();
+    }, [refreshSearchUsage]);
 
     useEffect(() => {
         if (!initialSearchId || !userId) return;
@@ -394,8 +382,25 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
         setCurrentSearchId(null);
 
         try {
-            const data = await searchProperties(criteria);
-            setResults(data);
+            const response = await searchProperties(criteria);
+            const results = response.results ?? response;
+            setResults(results);
+            if (isRentCastApiAvailable()) {
+                // Use usage from RentCast response headers if provided
+                if (response.usage?.remaining != null) {
+                    setSearchUsageRemaining(response.usage.remaining);
+                } else if (config?.propertySearchUsedThisMonth != null) {
+                    // Manual override: increment it so count stays in sync
+                    const nextUsed = config.propertySearchUsedThisMonth + 1;
+                    const { saveAppConfig } = await import('../../logic/configStorage.js');
+                    await saveAppConfig({ ...config, propertySearchUsedThisMonth: nextUsed });
+                    refreshConfig?.();
+                    setSearchUsageRemaining(Math.max(0, 50 - nextUsed));
+                } else {
+                    await incrementPropertySearchUsage();
+                    await refreshSearchUsage();
+                }
+            }
         } catch (err) {
             setError(err.message || 'Failed to fetch properties. Please try again.');
         } finally {
@@ -518,13 +523,11 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
             : null;
         const map = {};
         displayResults.forEach((p) => {
-            const details = fetchedDetailsByPropertyId[p.id];
-            const merged = details ? { ...p, ...details } : p;
-            const analysis = analyzePropertyForDeal(merged, financingOptions, config);
+            const analysis = analyzePropertyForDeal(p, financingOptions, config);
             if (analysis) map[p.id] = analysis;
         });
         return map;
-    }, [displayResults, fetchedDetailsByPropertyId, addFinancing, financingDownPayment, financingRate, config]);
+    }, [displayResults, addFinancing, financingDownPayment, financingRate, config]);
 
     const filteredAndSortedResults = useMemo(() => {
         let list = [...displayResults];
@@ -579,6 +582,14 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
                     </button>
                 </div>
             </header>
+
+            {isAdmin && isRentCastApiAvailable() && searchUsageRemaining !== null && (
+                <div className={styles.searchUsageBanner}>
+                    <span className={styles.searchUsageText}>
+                        {searchUsageRemaining} free search{searchUsageRemaining !== 1 ? 'es' : ''} remaining this month
+                    </span>
+                </div>
+            )}
 
             {userId && isAdmin && (
                 <div className={styles.savedSearchesSec}>

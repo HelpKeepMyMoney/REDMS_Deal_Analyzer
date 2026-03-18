@@ -5,6 +5,11 @@ export { clampNumber, sanitizeInput } from "./validation.js";
 export { loadStoredInput, saveStoredInput, loadImportProperty, saveImportProperty } from "./storage.js";
 export { mergeStored } from "./mergeStored.js";
 export * from "./propertySearchApi.js";
+export {
+  getPropertySearchRemaining,
+  incrementPropertySearchUsage,
+  DEFAULT_PROPERTY_SEARCH_LIMIT,
+} from "./propertySearchUsageStorage.js";
 export * from "./savedSearchStorage.js";
 export * from "./investorPropertiesStorage.js";
 export {
