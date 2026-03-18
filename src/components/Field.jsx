@@ -16,6 +16,8 @@ export function Field({
   rows = 4,
   placeholder,
   disabled = false,
+  onFocus,
+  onBlur,
 }) {
   const fallbackId = useId();
   const id = idProp ?? `redms-field-${name}-${fallbackId.replace(/:/g, "")}`;
@@ -56,6 +58,8 @@ export function Field({
           value={value ?? ""}
           placeholder={placeholder}
           onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
           disabled={disabled}
           aria-invalid={error ? "true" : undefined}
           aria-describedby={error ? `${id}-error` : undefined}

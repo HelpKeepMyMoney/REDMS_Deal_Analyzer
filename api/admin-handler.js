@@ -235,6 +235,30 @@ export default async function handler(req, res) {
     }
   }
 
+  if (action === "get-user-metadata") {
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+    try {
+      await requireAdmin(req);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+    const uid = req.query?.uid;
+    if (!uid) return res.status(400).json({ error: "uid required" });
+    try {
+      const db = getAdminFirestore();
+      const snap = await db.doc(`userMetadata/${uid}`).get();
+      const data = snap.data();
+      const lastLoginAt = data?.lastLoginAt?.toDate?.()?.toISOString?.() ?? null;
+      return res.status(200).json({ lastLoginAt });
+    } catch (err) {
+      console.error("get-user-metadata error:", err);
+      return res.status(500).json({ error: err.message || "Internal error" });
+    }
+  }
+
   if (action === "user-config") {
     if (req.method !== "GET" && req.method !== "POST") {
       res.setHeader("Allow", "GET, POST");

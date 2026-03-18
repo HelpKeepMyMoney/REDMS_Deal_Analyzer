@@ -56,6 +56,7 @@ export function DealSidebar({
     refreshConfig = null,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
+    const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
     const [dealParamsExpanded, setDealParamsExpanded] = useState(false);
     const [dealParamsOverrides, setDealParamsOverrides] = useState({});
     const [dealParamsSaving, setDealParamsSaving] = useState(false);
@@ -731,8 +732,14 @@ export function DealSidebar({
                     <Field
                         label="Retail Investor Cap Rate (%)"
                         name="retailCapRate"
-                        value={inp.retailCapRate != null ? (inp.retailCapRate * 100).toFixed(2) : ""}
-                        onChange={(k, v) => upd(k, v == null ? undefined : v / 100)}
+                        value={retailCapRateEditing !== null ? retailCapRateEditing : (inp.retailCapRate != null ? (inp.retailCapRate * 100).toFixed(2) : "")}
+                        onChange={(k, v) => {
+                            const display = v == null ? "" : String(v);
+                            setRetailCapRateEditing(display);
+                            upd(k, v == null ? undefined : v / 100);
+                        }}
+                        onFocus={() => setRetailCapRateEditing(inp.retailCapRate != null ? (inp.retailCapRate * 100).toFixed(2) : "")}
+                        onBlur={() => setRetailCapRateEditing(null)}
                         step="0.01"
                     />
                     {!wholesaler && (

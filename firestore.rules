@@ -85,14 +85,15 @@ service cloud.firestore {
     match /userMetadata/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    // User profile: users can only read/write their own (firstName, lastName, phoneNumber)
+    // User profile: users can read/write their own; admin can read/write any (for admin user modal)
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
-    // User favorites: users can only read/write their own favorites
+    // User favorites: users can read/write their own; admin can read any (for admin user modal)
     match /userFavorites/{favId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     // Investor properties: all authenticated users can read; only admins can write
     match /investorProperties/{propertyId} {

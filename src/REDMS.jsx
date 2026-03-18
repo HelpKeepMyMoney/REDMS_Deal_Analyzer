@@ -219,6 +219,13 @@ export default function REDMS() {
     }
   }, [searchParams, user?.uid, handleLoadDeal]);
 
+  useEffect(() => {
+    const searchIdFromUrl = searchParams.get("searchId");
+    if (searchIdFromUrl && user?.uid) {
+      setShowPropertySearch(true);
+    }
+  }, [searchParams, user?.uid]);
+
   const refreshFavorites = useCallback(async () => {
     if (!user?.uid || isAdmin) return;
     setFavoritesLoading(true);
@@ -632,6 +639,7 @@ export default function REDMS() {
               isAdmin={isAdmin}
               isClient={isClient}
               savedDeals={savedDeals}
+              initialSearchId={searchParams.get("searchId")}
               onImportProperty={(isAdmin || canSaveDeal) ? handleImportProperty : undefined}
               onViewDeal={(dealId) => { setShowPropertySearch(false); handleLoadDeal(dealId); }}
               onCancel={() => setShowPropertySearch(false)}

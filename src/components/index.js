@@ -14,5 +14,6 @@ export { CpinTab } from "./tabs/CpinTab.jsx";
 export { default as PropertySearch, PropertyResultCard } from "./PropertySearch/index.js";
 export { DealInterestActions } from "./DealInterestActions.jsx";
 export { AdminDropdown } from "./AdminDropdown.jsx";
+export { UserDetailModal } from "./UserDetailModal.jsx";
 export { DealCard } from "./DealCard/index.js";
 export { WholesalerModuleDropdown } from "./WholesalerModuleDropdown.jsx";

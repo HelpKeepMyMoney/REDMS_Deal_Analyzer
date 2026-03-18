@@ -51,6 +51,9 @@ export function createAdminApi(getIdToken) {
     async getUserConfig(uid) {
       return fetchWithAuth(`/api/admin/set-user-config?uid=${encodeURIComponent(uid)}`);
     },
+    async getUserMetadata(uid) {
+      return fetchWithAuth(`/api/admin/get-user-metadata?uid=${encodeURIComponent(uid)}`);
+    },
     async setUserConfig({ uid, paramsOverrides }) {
       return fetchWithAuth("/api/admin/set-user-config", {
         method: "POST",

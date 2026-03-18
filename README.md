@@ -29,7 +29,21 @@
 - **Sort** — Name (A–Z, Z–A), Price (low/high), Investment Required (low/high), B&H Cash-on-Cash ROI (low/high), Updated (newest/oldest).
 - **Viewable by user** — Filter to show only deals a specific user can view (owns, shared with, or shared with all).
 
-In **Admin → Users**, when you click View on a user, the panel shows the user's profile (first name, last name, phone), all deals that user can access (owned, shared, or shared with all), with links to open each deal and badges for Owner / Shared / Shared with all.
+In **Admin → Users**, when you click View on a user, a **User Detail Modal** opens showing the user's profile (first name, last name, phone), last login, all deals that user can access (owned, shared, or shared with all) with links and badges (Owner / Shared / Shared with all), saved searches, favorites, and per-user client parameters (Max TPC, Min Loan Amount, Min Flip/B&H CoC, etc.). Admins can edit profile, change role, save client params, and unshare/unassign deals and searches from the modal.
+
+## New Property Tax Calculation
+
+When estimating **New Property Tax** (sidebar "Calculate" button or fallback when no value is provided), the app uses the Detroit non-homestead formula:
+
+```
+newPropertyTax = (offerPrice × 0.5 × 0.0852737) + 240
+```
+
+- **SEV** = 50% of purchase price (Michigan taxable value)
+- **Tax rate** = 85.2737 mills (2024 non-homestead)
+- **Flat fee** = $240 (trash service)
+
+Constants: `DETROIT_TAX_SEV_RATIO`, `DETROIT_TAX_RATE`, `DETROIT_TAX_FLAT` in `src/logic/constants.js`. Overridable via App Parameters.
 
 ## App Parameters (Admin)
 
@@ -88,7 +102,7 @@ npm run test:run
   - `userFavoritesStorage.js` — user favorites.
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
-- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown.
+- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, AdminDropdown, WholesalerModuleDropdown, UserDetailModal.
 - `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal, paypal-cancel). `paypal-cancel.js` provides subscription create, cancel, getPlanId, and getCycleFromPlanId via REST API (no SDK) for admin-handler, subscription/create, webhook, and cron; avoids `@paypal/paypal-server-sdk` ESM issues in Vercel serverless.
 
@@ -139,6 +153,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Admin User Detail Modal** — Replaced inline user view with `UserDetailModal`: full-screen modal with profile edit, last login, deals (owned/shared), saved searches, favorites, and per-user client parameters. Admins can unshare/unassign deals and searches, change role, and save client params from the modal.
+- **New Property Tax** — Sidebar "Calculate" button estimates Detroit non-homestead tax: `(offerPrice × 50% × 85.2737 mills) + $240` trash fee. Formula documented in README.
 - **Terms of Service & Privacy Policy** — Added `/terms` and `/privacy` pages with full legal content. Links in Home footer, Terms/Privacy footers, and sidebar (Investor, Wholesaler, Demo). Section nav and account dropdown on legal pages match Home.
 - **Demo fallback** — Demo page uses built-in fallback data when API returns non-JSON (e.g. `npm run dev` without `vercel dev`), avoiding parse errors.
 - **Section scroll** — Home page section links (Professional Tools, Pricing, Who Uses REDMS, etc.) scroll to section headings correctly, accounting for sticky header and section padding. Works from Home header/footer and when navigating from Terms/Privacy.

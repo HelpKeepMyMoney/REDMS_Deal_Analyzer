@@ -182,7 +182,7 @@ function normalizeAddressForMatch(street, city, state, zipCode) {
   return `${s}|${c}|${st}|${z}`;
 }
 
-export default function PropertySearch({ userId, isAdmin = false, isClient = false, isDemo = false, demoDealAddress = null, savedDeals = [], onImportProperty, onViewDeal, onCancel }) {
+export default function PropertySearch({ userId, isAdmin = false, isClient = false, isDemo = false, demoDealAddress = null, savedDeals = [], initialSearchId = null, onImportProperty, onViewDeal, onCancel }) {
     const { config } = useConfig();
     const { user } = useAuth();
     const interestApi = useMemo(
@@ -321,6 +321,19 @@ export default function PropertySearch({ userId, isAdmin = false, isClient = fal
     useEffect(() => {
         refreshSavedSearches();
     }, [userId]);
+
+    useEffect(() => {
+        if (!initialSearchId || !userId) return;
+        let cancelled = false;
+        loadSavedSearch(initialSearchId).then((saved) => {
+            if (cancelled || !saved) return;
+            setCriteria(saved.criteria);
+            setResults(saved.results);
+            setHasSearched(true);
+            setCurrentSearchId(initialSearchId);
+        }).catch((e) => console.error('Failed to load saved search', e));
+        return () => { cancelled = true; };
+    }, [initialSearchId, userId]);
 
     const refreshInvestorProperties = useCallback(async () => {
         setInvestorPropertiesLoading(true);

@@ -9,8 +9,9 @@ import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removeProper
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
 import { saveImportProperty } from "../logic/storage.js";
-import { loadUserProfile } from "../logic/userProfileStorage.js";
-import { AdminDropdown, PropertyResultCard, DealCard } from "../components";
+import { loadUserProfile, saveUserProfile } from "../logic/userProfileStorage.js";
+import { loadUserFavorites } from "../logic/userFavoritesStorage.js";
+import { AdminDropdown, PropertyResultCard, DealCard, UserDetailModal } from "../components";
 import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
 import { calc, sanitizeInput } from "../logic";
 import styles from "./Admin.module.css";
@@ -60,6 +61,8 @@ export default function Admin() {
   const [clientParamsSaving, setClientParamsSaving] = useState(false);
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
   const [selectedUserProfileLoading, setSelectedUserProfileLoading] = useState(false);
+  const [selectedUserFavorites, setSelectedUserFavorites] = useState([]);
+  const [selectedUserMetadata, setSelectedUserMetadata] = useState(null);
 
   const [allPropertiesForAdmin, setAllPropertiesForAdmin] = useState([]);
   const [propertiesLoading, setPropertiesLoading] = useState(false);
@@ -525,6 +528,33 @@ export default function Admin() {
       .finally(() => setSelectedUserProfileLoading(false));
   }, [selectedUser?.uid]);
 
+  useEffect(() => {
+    if (!selectedUser?.uid) {
+      setSelectedUserFavorites([]);
+      return;
+    }
+    loadUserFavorites(selectedUser.uid)
+      .then(setSelectedUserFavorites)
+      .catch((e) => {
+        console.error(e);
+        setSelectedUserFavorites([]);
+      });
+  }, [selectedUser?.uid]);
+
+  useEffect(() => {
+    if (!selectedUser?.uid || !adminApi) {
+      setSelectedUserMetadata(null);
+      return;
+    }
+    adminApi
+      .getUserMetadata(selectedUser.uid)
+      .then(setSelectedUserMetadata)
+      .catch((e) => {
+        console.error(e);
+        setSelectedUserMetadata(null);
+      });
+  }, [selectedUser?.uid, adminApi]);
+
   const handleSaveClientParams = async () => {
     if (!selectedUser || !clientParams || !adminApi) return;
     setClientParamsSaving(true);
@@ -538,6 +568,51 @@ export default function Admin() {
     } finally {
       setClientParamsSaving(false);
     }
+  };
+
+  const handleSaveProfile = async (uid, data) => {
+    setMessage({ type: "", text: "" });
+    try {
+      await saveUserProfile(uid, data);
+      setSelectedUserProfile(data);
+      setMessage({ type: "success", text: "Profile saved." });
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: "error", text: "Failed to save profile: " + e.message });
+      throw e;
+    }
+  };
+
+  const handleUnshareDeal = async (deal) => {
+    const nextShared = (deal.sharedWith || []).filter((id) => id !== selectedUser.uid);
+    await updateDealSharedWith(deal.id, nextShared, deal.sharedWithAll);
+    setAllDeals((prev) =>
+      prev.map((d) =>
+        d.id === deal.id ? { ...d, sharedWith: nextShared } : d
+      )
+    );
+    setMessage({ type: "success", text: "Deal unshared from user." });
+  };
+
+  const handleUnassignDeal = async (deal) => {
+    await updateDealStatus(deal.id, "Available");
+    setAllDeals((prev) =>
+      prev.map((d) =>
+        d.id === deal.id ? { ...d, status: "Available", assignedUserId: null } : d
+      )
+    );
+    setMessage({ type: "success", text: "Deal unassigned." });
+  };
+
+  const handleUnshareSearch = async (search) => {
+    const nextShared = (search.sharedWith || []).filter((id) => id !== selectedUser.uid);
+    await updateSavedSearchSharedWith(search.id, nextShared, search.sharedWithAll);
+    setAllSearches((prev) =>
+      prev.map((s) =>
+        s.id === search.id ? { ...s, sharedWith: nextShared } : s
+      )
+    );
+    setMessage({ type: "success", text: "Search unshared from user." });
   };
 
   const handleSaveParams = async () => {
@@ -783,6 +858,7 @@ export default function Admin() {
     try {
       await adminApi.setUserRole({ uid, role: newRole });
       setMessage({ type: "success", text: `User role updated to ${newRole}` });
+      setSelectedUser((prev) => (prev?.uid === uid ? { ...prev, role: newRole } : prev));
       await loadUsers();
     } catch (e) {
       console.error(e);
@@ -1090,25 +1166,10 @@ export default function Admin() {
                           <button
                             onClick={() => setSelectedUser(selectedUser?.uid === u.uid ? null : u)}
                             className={styles["btn-action"]}
-                            title={selectedUser?.uid === u.uid ? "Deselect" : "View deals & searches"}
+                            title={selectedUser?.uid === u.uid ? "Deselect" : "View details"}
                           >
                             {selectedUser?.uid === u.uid ? "Deselect" : "View"}
                           </button>
-                          <select
-                            value={u.role}
-                            onChange={(e) => handleSetRole(u.uid, e.target.value)}
-                            disabled={loading || user.uid === u.uid}
-                            title="Upgrade or change role (admin bypasses subscription)"
-                            className={styles["role-select"]}
-                            style={{ marginLeft: 8 }}
-                          >
-                            <option value="free">Free</option>
-                            <option value="investor">Investor</option>
-                            <option value="pro">Pro</option>
-                            <option value="client">Client</option>
-                            <option value="wholesaler">Wholesaler</option>
-                            <option value="admin">Admin</option>
-                          </select>
                           <button
                             type="button"
                             onClick={() => handleDeleteUser(u)}
@@ -1128,203 +1189,29 @@ export default function Admin() {
             </div>
 
             {selectedUser && (
-              <div className={styles["user-detail-panel"]}>
-                <div className={styles["user-detail-header"]}>
-                  <h3>Deals & searches for {selectedUser.email}</h3>
-                  <button
-                    type="button"
-                    className={styles["btn-action"]}
-                    onClick={() => setSelectedUser(null)}
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className={styles["user-detail-section"]} style={{ marginBottom: 12 }}>
-                  <h4>Profile</h4>
-                  {selectedUserProfileLoading ? (
-                    <p className={styles["admin-muted"]}>Loading…</p>
-                  ) : selectedUserProfile ? (
-                    <dl className={styles["profile-dl"]}>
-                      <dt>First name</dt>
-                      <dd>{selectedUserProfile.firstName || "—"}</dd>
-                      <dt>Last name</dt>
-                      <dd>{selectedUserProfile.lastName || "—"}</dd>
-                      <dt>Phone</dt>
-                      <dd>{selectedUserProfile.phoneNumber || "—"}</dd>
-                    </dl>
-                  ) : (
-                    <p className={styles["admin-muted"]}>No profile information.</p>
-                  )}
-                </div>
-                {dealsLoading || searchesLoading ? (
-                  <p className={styles["admin-muted"]}>Loading deals and searches…</p>
-                ) : (
-                  <div className={styles["user-detail-grid"]}>
-                    <div className={styles["user-detail-section"]}>
-                      <h4>Deals ({selectedUserDeals.length}) — deals this user can view</h4>
-                      {selectedUserDeals.length === 0 ? (
-                        <p className={styles["admin-muted"]}>No deals this user can view.</p>
-                      ) : (
-                        <ul className={styles["user-detail-list"]}>
-                          {selectedUserDeals.map((d) => (
-                            <li key={d.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                              <Link
-                                to={`/investor?dealId=${d.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: "var(--amber)", textDecoration: "none" }}
-                              >
-                                {d.dealName}
-                              </Link>
-                              {d.userId === selectedUser.uid ? (
-                                <span className={styles["badge-admin"]} style={{ marginLeft: 4 }}>Owner</span>
-                              ) : d.sharedWithAll ? (
-                                <span className={styles["badge-user"]} style={{ marginLeft: 4 }}>Shared with all</span>
-                              ) : (
-                                <span className={styles["badge-user"]} style={{ marginLeft: 4 }}>Shared</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    <div className={styles["user-detail-section"]}>
-                      <h4>Searches ({selectedUserSearches.length})</h4>
-                      {selectedUserSearches.length === 0 ? (
-                        <p className={styles["admin-muted"]}>No searches assigned to this user.</p>
-                      ) : (
-                        <ul className={styles["user-detail-list"]}>
-                          {selectedUserSearches.map((s) => (
-                            <li key={s.id}>
-                              {s.name} ({s.resultCount ?? 0} properties)
-                              {s.sharedWithAll && (
-                                <span className={styles["badge-user"]} style={{ marginLeft: 8 }}>Shared with all</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    {selectedUser.role === "client" && (
-                      <div className={styles["user-detail-section"]} style={{ gridColumn: "1 / -1" }}>
-                        <h4>Edit Deal Parameters (Client)</h4>
-                        <p className={styles["admin-muted"]} style={{ marginBottom: 12 }}>
-                          Override deal calculation parameters for this client. Leave blank to use app defaults.
-                        </p>
-                        {clientParamsLoading ? (
-                          <p className={styles["admin-muted"]}>Loading…</p>
-                        ) : clientParams ? (
-                          <form
-                            onSubmit={(e) => { e.preventDefault(); handleSaveClientParams(); }}
-                            className={styles["admin-form"]}
-                          >
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-maxTpc">Max Total Project Cost ($)</label>
-                              <input
-                                id="client-maxTpc"
-                                type="number"
-                                value={clientParams.maxTpc ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, maxTpc: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={1000}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-minLoanAmount">Min 1st Mortgage Loan Amount ($)</label>
-                              <input
-                                id="client-minLoanAmount"
-                                type="number"
-                                value={clientParams.minLoanAmount ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, minLoanAmount: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={1000}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-minFlipCoCPct">Min Flip Cash-on-Cash (%)</label>
-                              <input
-                                id="client-minFlipCoCPct"
-                                type="number"
-                                value={clientParams.minFlipCoCPct ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, minFlipCoCPct: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={0.1}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-minBhCoCPct">Min B&amp;H Cash-on-Cash (%)</label>
-                              <input
-                                id="client-minBhCoCPct"
-                                type="number"
-                                value={clientParams.minBhCoCPct ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, minBhCoCPct: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={0.1}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-minAcqMgmtFee">Min Acquisition Mgmt Fee ($)</label>
-                              <input
-                                id="client-minAcqMgmtFee"
-                                type="number"
-                                value={clientParams.minAcqMgmtFee ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, minAcqMgmtFee: Number(e.target.value) || 0 }))}
-                                min={0}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-minRealtorFee">Min Realtor/Sale Fee ($)</label>
-                              <input
-                                id="client-minRealtorFee"
-                                type="number"
-                                value={clientParams.minRealtorFee ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, minRealtorFee: Number(e.target.value) || 0 }))}
-                                min={0}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-mortgagePointsRate">Mortgage Points Rate (e.g. 0.04)</label>
-                              <input
-                                id="client-mortgagePointsRate"
-                                type="number"
-                                value={clientParams.mortgagePointsRate ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, mortgagePointsRate: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={0.01}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-initialReferralPct">Initial Referral (%)</label>
-                              <input
-                                id="client-initialReferralPct"
-                                type="number"
-                                value={clientParams.initialReferralPct ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, initialReferralPct: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={0.1}
-                              />
-                            </div>
-                            <div className={styles["form-group"]}>
-                              <label htmlFor="client-investorReferralPct">Investor Referral (%)</label>
-                              <input
-                                id="client-investorReferralPct"
-                                type="number"
-                                value={clientParams.investorReferralPct ?? ""}
-                                onChange={(e) => setClientParams((p) => ({ ...p, investorReferralPct: Number(e.target.value) || 0 }))}
-                                min={0}
-                                step={0.1}
-                              />
-                            </div>
-                            <button type="submit" className={styles["admin-button"]} disabled={clientParamsSaving}>
-                              {clientParamsSaving ? "Saving…" : "Save Client Parameters"}
-                            </button>
-                          </form>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <UserDetailModal
+                user={selectedUser}
+                profile={selectedUserProfile}
+                profileLoading={selectedUserProfileLoading}
+                metadata={selectedUserMetadata}
+                favorites={selectedUserFavorites}
+                deals={selectedUserDeals}
+                searches={selectedUserSearches}
+                users={users}
+                clientParams={clientParams}
+                setClientParams={setClientParams}
+                clientParamsLoading={clientParamsLoading}
+                clientParamsSaving={clientParamsSaving}
+                onClose={() => setSelectedUser(null)}
+                onSaveProfile={handleSaveProfile}
+                onRoleChange={handleSetRole}
+                onSaveClientParams={handleSaveClientParams}
+                onUnshareDeal={handleUnshareDeal}
+                onUnassignDeal={handleUnassignDeal}
+                onUnshareSearch={handleUnshareSearch}
+                adminApi={adminApi}
+                currentUserId={user?.uid}
+              />
             )}
           </div>
         </div>

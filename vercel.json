@@ -30,6 +30,10 @@
       "destination": "/api/admin-handler?action=user-config"
     },
     {
+      "source": "/api/admin/get-user-metadata",
+      "destination": "/api/admin-handler?action=get-user-metadata"
+    },
+    {
       "source": "/api/account/delete",
       "destination": "/api/admin-handler?action=delete-user&self=1"
     },

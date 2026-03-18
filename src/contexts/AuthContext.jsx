@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase.js";
+import { setLastLoginAt } from "../logic/userMetadataStorage.js";
 
 const AuthContext = createContext(null);
 
@@ -92,6 +93,14 @@ export function AuthProvider({ children }) {
       }
     });
     return () => { cancelled = true; };
+  }, [user?.uid]);
+
+  // Update last login timestamp when user is authenticated (for admin activity summary)
+  useEffect(() => {
+    if (!user?.uid) return;
+    setLastLoginAt(user.uid, () => user.getIdToken()).catch((e) =>
+      console.warn("Failed to update last login:", e)
+    );
   }, [user?.uid]);
 
   const signUp = async (email, password) => {

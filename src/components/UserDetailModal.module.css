@@ -1,0 +1,266 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 640px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0;
+  flex-wrap: wrap;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.roleSelect {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.roleSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  color: var(--text);
+}
+
+.activitySummary {
+  padding: 0.5rem 1.25rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.section {
+  margin: 1.25rem 1.25rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 1rem;
+}
+
+.sectionTitle {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.profileForm {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 20px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.profileForm label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+  text-transform: uppercase;
+}
+
+.profileForm input {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.profileForm input:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.profileActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.listItem a {
+  color: var(--amber);
+  text-decoration: none;
+}
+
+.listItem a:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: var(--mono);
+}
+
+.badgeOwner {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.badgeShared {
+  background: var(--surface2);
+  color: var(--muted2);
+}
+
+.quickAction {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.quickAction:hover {
+  color: var(--red, #dc2626);
+}
+
+.showMore {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--amber);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.showMore:hover {
+  text-decoration: underline;
+}
+
+.muted {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.adminForm {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formGroup label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+}
+
+.formGroup input {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.saveBtn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: var(--amber);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.saveBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
