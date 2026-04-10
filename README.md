@@ -82,6 +82,7 @@ npm run test:run
 
 ## Project Structure
 
+- `index.html` — Vite app shell for `/`. Marketing SEO lives here (description, robots, canonical, Open Graph, Twitter Card, **Google Search Console** `<meta name="google-site-verification" …>`). `__SEO_SITE_URL__` is replaced at build time; see `vite.config.js` `seo` plugin.
 - `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo`, `/terms`, `/privacy` routes; `HelmetProvider` for per-route document titles and meta.
 - `src/seo/constants.js` — `SITE_URL`, `SEO_TITLE`, `SEO_DESCRIPTION` for canonical URLs, JSON-LD, and `react-helmet-async`.
 - `vite.config.js` — `seo` plugin replaces `__SEO_SITE_URL__` in `index.html` at build time and writes `dist/robots.txt` and `dist/sitemap.xml` from `VITE_SITE_URL` (default `https://redms-deal-analyzer.vercel.app`).
@@ -156,12 +157,13 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 **Static assets:** Images live in `public/assets/` so Vercel rewrites (which exclude `assets/`) serve them correctly. Logo remains at `public/logo.png`.
 
-**SEO:** The marketing homepage (`/`) includes meta description, `robots`, canonical, Open Graph, and Twitter Card tags in `index.html`. The placeholder `__SEO_SITE_URL__` (no trailing slash) is replaced at build time by the Vite `seo` plugin with `VITE_SITE_URL` or the default production origin—do not use `%VITE_SITE_URL%` in `index.html` hrefs (Vite treats `%` specially and the build can fail). Public pages use `react-helmet-async` for title, description, and canonical. The home page includes JSON-LD (`Organization`, `WebSite`, `SoftwareApplication`). For a dedicated social preview image, add a 1200×630 asset and point `og:image` / `twitter:image` to it in `index.html`.
+**SEO:** The marketing homepage (`/`) includes meta description, `robots`, canonical, Open Graph, and Twitter Card tags in `index.html`, plus a **`google-site-verification`** meta tag for [Google Search Console](https://search.google.com/search-console) property verification (update the `content` value in `index.html` if you replace the property or verification token). The placeholder `__SEO_SITE_URL__` (no trailing slash) is replaced at build time by the Vite `seo` plugin with `VITE_SITE_URL` or the default production origin—do not use `%VITE_SITE_URL%` in `index.html` hrefs (Vite treats `%` specially and the build can fail). Public pages use `react-helmet-async` for title, description, and canonical. The home page includes JSON-LD (`Organization`, `WebSite`, `SoftwareApplication`). For a dedicated social preview image, add a 1200×630 asset and point `og:image` / `twitter:image` to it in `index.html`. An optional root-level `google*.html` verification file may also exist for the same property; prefer the meta tag in `index.html` so verification survives deploys without a separate upload step.
 
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 
 ## Recent Changes
 
+- **Google Search Console** — Homepage verification uses `<meta name="google-site-verification" content="…" />` in `index.html` (in `<head>` before `<body>`) so crawlers see the token on the first HTML response. README documents placement and `VITE_SITE_URL` / SEO behavior.
 - **Admin User Detail Modal** — Replaced inline user view with `UserDetailModal`: full-screen modal with profile edit, last login, deals (owned/shared), saved searches, favorites, and per-user client parameters. Admins can unshare/unassign deals and searches, change role, and save client params from the modal.
 - **New Property Tax** — Sidebar "Calculate" button estimates Detroit non-homestead tax: `(offerPrice × 50% × 85.2737 mills) + $240` trash fee. Formula documented in README.
 - **Terms of Service & Privacy Policy** — Added `/terms` and `/privacy` pages with full legal content. Links in Home footer, Terms/Privacy footers, and sidebar (Investor, Wholesaler, Demo). Section nav and account dropdown on legal pages match Home.
