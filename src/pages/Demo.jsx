@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import {
   calc,
   DEFAULT_INPUT,
@@ -20,7 +21,11 @@ import {
   DealInterestActions,
 } from "../components";
 import { generateDealPDF, generateRetailInvestorPDF } from "../utils/pdfExport.js";
+import { SITE_URL } from "../seo/constants.js";
 import styles from "../REDMS.module.css";
+
+const DEMO_PAGE_DESC =
+  "Try REDMS free: explore a sample Detroit investment deal with full flip, buy-and-hold, and 30-year projection analysis—no account required.";
 
 const DEMO_DEAL_ADDRESS = {
   street: "17917 Mackay St",
@@ -153,10 +158,15 @@ export default function Demo() {
   if (loading) {
     return (
       <div className={styles.app}>
+        <Helmet>
+          <title>Try REDMS Demo · Real Estate Deal Analyzer</title>
+          <meta name="description" content={DEMO_PAGE_DESC} />
+          <link rel="canonical" href={`${SITE_URL}/demo`} />
+        </Helmet>
         <header className={styles.hdr}>
           <div className={styles["hdr-left"]}>
             <Link to="/">
-              <img src="/logo.png" alt="" className={styles["hdr-logo"]} aria-hidden />
+              <img src="/logo.png" alt="REDMS logo" className={styles["hdr-logo"]} />
             </Link>
             <div className={styles["hdr-title"]}>REDMS</div>
             <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
@@ -179,10 +189,15 @@ export default function Demo() {
   if (error) {
     return (
       <div className={styles.app}>
+        <Helmet>
+          <title>Try REDMS Demo · Real Estate Deal Analyzer</title>
+          <meta name="description" content={DEMO_PAGE_DESC} />
+          <link rel="canonical" href={`${SITE_URL}/demo`} />
+        </Helmet>
         <header className={styles.hdr}>
           <div className={styles["hdr-left"]}>
             <Link to="/">
-              <img src="/logo.png" alt="" className={styles["hdr-logo"]} aria-hidden />
+              <img src="/logo.png" alt="REDMS logo" className={styles["hdr-logo"]} />
             </Link>
             <div className={styles["hdr-title"]}>REDMS</div>
             <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
@@ -206,10 +221,15 @@ export default function Demo() {
 
   return (
     <div className={styles.app}>
+      <Helmet>
+        <title>Try REDMS Demo · Real Estate Deal Analyzer</title>
+        <meta name="description" content={DEMO_PAGE_DESC} />
+        <link rel="canonical" href={`${SITE_URL}/demo`} />
+      </Helmet>
       <header className={styles.hdr}>
         <div className={styles["hdr-left"]}>
           <Link to="/">
-            <img src="/logo.png" alt="" className={styles["hdr-logo"]} aria-hidden />
+            <img src="/logo.png" alt="REDMS logo" className={styles["hdr-logo"]} />
           </Link>
           <div className={styles["hdr-title"]}>REDMS</div>
           <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>

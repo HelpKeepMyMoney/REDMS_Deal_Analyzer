@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
+import { SITE_URL } from "../seo/constants.js";
 import styles from "./Privacy.module.css";
 import homeStyles from "./Home.module.css";
 
@@ -42,10 +44,18 @@ export default function Privacy() {
 
   return (
     <div id="top" className={styles.page}>
+      <Helmet>
+        <title>Privacy Policy · REDMS</title>
+        <meta
+          name="description"
+          content="Privacy Policy for REDMS (Real Estate Deal Management System): how we collect, use, and protect your data."
+        />
+        <link rel="canonical" href={`${SITE_URL}/privacy`} />
+      </Helmet>
       <header className={homeStyles.hdr}>
         <div className={homeStyles.hdrLeft}>
           <Link to="/">
-            <img src="/logo.png" alt="" className={homeStyles.hdrLogo} aria-hidden />
+            <img src="/logo.png" alt="REDMS logo" className={homeStyles.hdrLogo} />
           </Link>
           <span className={homeStyles.hdrTitle}>REDMS</span>
         </div>

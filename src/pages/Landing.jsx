@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
+import { SITE_URL } from "../seo/constants.js";
 import styles from "./Login.module.css";
+
+const LANDING_SIGNIN_DESC =
+  "Sign in to REDMS to access the investor deal analyzer, wholesaler tools, and your saved real estate deals.";
+const LANDING_SIGNUP_DESC =
+  "Create a free REDMS account to analyze real estate deals, ROI projections, and professional proformas.";
 
 const FEATURES = [
   {
@@ -116,6 +123,11 @@ export default function Landing() {
   if (loading || (user && tierLoading)) {
     return (
       <div className={styles["login-page"]}>
+        <Helmet>
+          <title>REDMS · Sign in</title>
+          <meta name="description" content={LANDING_SIGNIN_DESC} />
+          <link rel="canonical" href={`${SITE_URL}/login`} />
+        </Helmet>
         <div className={styles["login-card"]}>
           <p className={styles["login-sub"]}>Loading…</p>
         </div>
@@ -126,6 +138,11 @@ export default function Landing() {
   if (user) {
     return (
       <div className={styles["login-page"]}>
+        <Helmet>
+          <title>Choose module · REDMS</title>
+          <meta name="description" content={LANDING_SIGNIN_DESC} />
+          <link rel="canonical" href={`${SITE_URL}/login`} />
+        </Helmet>
         <div className={styles["login-card"]}>
           <h1 className={styles["login-title"]}>REDMS</h1>
           <p className={styles["login-sub"]}>Choose module</p>
@@ -156,13 +173,20 @@ export default function Landing() {
     );
   }
 
+  const isSignup = mode === "signup";
+
   return (
     <div className={styles["landing-page"]}>
+      <Helmet>
+        <title>{isSignup ? "Create account · REDMS" : "Sign in · REDMS"}</title>
+        <meta name="description" content={isSignup ? LANDING_SIGNUP_DESC : LANDING_SIGNIN_DESC} />
+        <link rel="canonical" href={`${SITE_URL}/login`} />
+      </Helmet>
       <div className={styles["landing-container"]}>
         <div className={styles["landing-left"]}>
           <div className={styles["landing-brand"]}>
             <div className={styles["landing-brand-row"]}>
-              <img src="/logo.png" alt="" className={styles["landing-logo-img"]} aria-hidden />
+              <img src="/logo.png" alt="REDMS logo" className={styles["landing-logo-img"]} />
               <span className={styles["landing-logo"]}>REDMS</span>
             </div>
             <p className={styles["landing-tagline"]}>

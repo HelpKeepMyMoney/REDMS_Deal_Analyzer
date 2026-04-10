@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { TierProvider, useTier } from "./contexts/TierContext.jsx";
 import { ConfigProvider } from "./contexts/ConfigContext.jsx";
@@ -66,6 +67,7 @@ export default function App() {
     <AuthProvider>
       <TierProvider>
       <ConfigProvider>
+      <HelmetProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -108,6 +110,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </HelmetProvider>
       </ConfigProvider>
       </TierProvider>
     </AuthProvider>

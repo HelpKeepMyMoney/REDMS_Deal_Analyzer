@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
+import { SITE_URL, SEO_TITLE, SEO_DESCRIPTION } from "../seo/constants.js";
 import styles from "./Home.module.css";
 
 function ToolsCarousel({ tools }) {
@@ -229,6 +231,43 @@ export default function Home() {
 
   const showWholesalerLink = hasWholesalerModule || isAdmin;
 
+  const homeJsonLd = useMemo(
+    () =>
+      JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": `${SITE_URL}/#organization`,
+            name: "REDMS",
+            url: SITE_URL,
+            logo: `${SITE_URL}/logo.png`,
+          },
+          {
+            "@type": "WebSite",
+            "@id": `${SITE_URL}/#website`,
+            url: SITE_URL,
+            name: SEO_TITLE,
+            publisher: { "@id": `${SITE_URL}/#organization` },
+          },
+          {
+            "@type": "SoftwareApplication",
+            name: "REDMS",
+            applicationCategory: "BusinessApplication",
+            operatingSystem: "Web",
+            description: SEO_DESCRIPTION,
+            url: SITE_URL,
+            offers: {
+              "@type": "Offer",
+              price: "0",
+              priceCurrency: "USD",
+            },
+          },
+        ],
+      }),
+    []
+  );
+
   useEffect(() => {
     const hash = location.hash.slice(1);
     if (hash) {
@@ -253,10 +292,16 @@ export default function Home() {
 
   return (
     <div id="top" className={styles.page}>
+      <Helmet>
+        <title>{SEO_TITLE}</title>
+        <meta name="description" content={SEO_DESCRIPTION} />
+        <link rel="canonical" href={`${SITE_URL}/`} />
+      </Helmet>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd }} />
       <header className={styles.hdr}>
         <div className={styles.hdrLeft}>
           <Link to="/">
-            <img src="/logo.png" alt="" className={styles.hdrLogo} aria-hidden />
+            <img src="/logo.png" alt="REDMS logo" className={styles.hdrLogo} />
           </Link>
           <span className={styles.hdrTitle}>REDMS</span>
         </div>

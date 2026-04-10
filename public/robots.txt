@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://redms-deal-analyzer.vercel.app/sitemap.xml

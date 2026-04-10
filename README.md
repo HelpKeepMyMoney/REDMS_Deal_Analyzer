@@ -59,6 +59,7 @@ Values are stored in Firestore (`appConfig/params`) and apply to all deal calcul
 ## Tech Stack
 
 - **React 18** + **Vite 5**
+- **react-helmet-async** — Document title, meta description, and canonical URLs on public routes
 - **Vitest** + **jsdom** for tests
 
 ## Getting Started
@@ -81,7 +82,10 @@ npm run test:run
 
 ## Project Structure
 
-- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo`, `/terms`, `/privacy` routes.
+- `src/App.jsx` — Routes, protected routes (Admin, Wholesaler, Investor), public `/demo`, `/terms`, `/privacy` routes; `HelmetProvider` for per-route document titles and meta.
+- `src/seo/constants.js` — `SITE_URL`, `SEO_TITLE`, `SEO_DESCRIPTION` for canonical URLs, JSON-LD, and `react-helmet-async`.
+- `vite.config.js` — `seo` plugin replaces `__SEO_SITE_URL__` in `index.html` at build time and writes `dist/robots.txt` and `dist/sitemap.xml` from `VITE_SITE_URL` (default `https://redms-deal-analyzer.vercel.app`).
+- `public/robots.txt`, `public/sitemap.xml` — Dev / fallback URLs; production build overwrites `robots.txt` and `sitemap.xml` in `dist/` with the configured site URL.
 - `src/pages/Landing.jsx` — Login/signup and module selection for logged-in users.
 - `src/pages/Admin.jsx` — Admin dashboard (users, params, sharing, interest).
 - `src/pages/Wholesaler.jsx` — Wholesaler deal analyzer.
@@ -127,6 +131,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 **Vercel environment variables:**
 - All `VITE_*` vars for the frontend
+- **`VITE_SITE_URL`** — Public origin with no trailing slash (e.g. `https://your-domain.com`). Used for canonical links, Open Graph / Twitter image URLs in `index.html`, JSON-LD, and generated `robots.txt` / `sitemap.xml` in the production build. Defaults to `https://redms-deal-analyzer.vercel.app` if unset.
 - **Firebase Admin** (for `/api/admin/*`, `/api/interest/*`, `/api/user-metadata/*` routes):
   - `FIREBASE_PROJECT_ID` — same as `VITE_FIREBASE_PROJECT_ID`
   - `FIREBASE_CLIENT_EMAIL` — from your [Firebase service account JSON](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
@@ -151,6 +156,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 **Static assets:** Images live in `public/assets/` so Vercel rewrites (which exclude `assets/`) serve them correctly. Logo remains at `public/logo.png`.
 
+**SEO:** The marketing homepage (`/`) includes meta description, `robots`, canonical, Open Graph, and Twitter Card tags in `index.html`. The placeholder `__SEO_SITE_URL__` (no trailing slash) is replaced at build time by the Vite `seo` plugin with `VITE_SITE_URL` or the default production origin—do not use `%VITE_SITE_URL%` in `index.html` hrefs (Vite treats `%` specially and the build can fail). Public pages use `react-helmet-async` for title, description, and canonical. The home page includes JSON-LD (`Organization`, `WebSite`, `SoftwareApplication`). For a dedicated social preview image, add a 1200×630 asset and point `og:image` / `twitter:image` to it in `index.html`.
+
 **Local dev with admin:** Run `vercel dev` (not `npm run dev`) so the API routes are available. The new-deals notification (Investor) persists dismissal via localStorage when the API is unavailable, so it won't reappear after the user dismisses it even when using `npm run dev`.
 
 ## Recent Changes
@@ -169,6 +176,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 - **Landing page** — Feature copy updated: "Search analyzed prospective Detroit deals to find the best one that suits you."
 - **Find Properties — RentCast usage** — Admin view shows remaining free searches this month at top. Usage tracked in Firestore; manual sync from RentCast dashboard available in Admin Parameters. `/api/rentcast-usage` attempts to fetch usage from RentCast API when available.
 - **Find Properties — API call reduction** — RentCast API is called only when admin clicks Search. Removed pre-fetch of property details when results load and removed fetch on Analyze Deal; Analyze Deal uses search result data only (estimated tax when details unavailable).
+- **Home page SEO** — Meta description, robots, canonical, Open Graph, Twitter Card in `index.html`; `VITE_SITE_URL` and Vite `seo` plugin for build-time URLs, `dist/robots.txt` and `dist/sitemap.xml`; `public/` copies for dev; JSON-LD on Home; `react-helmet-async` on Home, Landing, Terms, Privacy, Demo; improved logo `alt` text on those pages.
 
 ## License
 

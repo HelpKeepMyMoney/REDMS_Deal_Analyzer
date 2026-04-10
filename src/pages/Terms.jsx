@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTier } from "../contexts/TierContext.jsx";
+import { SITE_URL } from "../seo/constants.js";
 import styles from "./Terms.module.css";
 import homeStyles from "./Home.module.css";
 
@@ -42,10 +44,18 @@ export default function Terms() {
 
   return (
     <div id="top" className={styles.page}>
+      <Helmet>
+        <title>Terms of Service · REDMS</title>
+        <meta
+          name="description"
+          content="Terms of Service for REDMS (Real Estate Deal Management System) by The BNIC Network LLC."
+        />
+        <link rel="canonical" href={`${SITE_URL}/terms`} />
+      </Helmet>
       <header className={homeStyles.hdr}>
         <div className={homeStyles.hdrLeft}>
           <Link to="/">
-            <img src="/logo.png" alt="" className={homeStyles.hdrLogo} aria-hidden />
+            <img src="/logo.png" alt="REDMS logo" className={homeStyles.hdrLogo} />
           </Link>
           <span className={homeStyles.hdrTitle}>REDMS</span>
         </div>
