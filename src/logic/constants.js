@@ -27,6 +27,9 @@ export const INVESTOR_REFERRAL_PCT = (1 / 9) * 100;
 /** Mortgage points (e.g. 4%) */
 export const MORTGAGE_POINTS_RATE = 0.04;
 
+/** Min 1st mortgage upfront points when 1st mortgage is used */
+export const MIN_FIRST_MTG_UPFRONT_POINTS = 2995;
+
 /** Min acquisition management fee */
 export const MIN_ACQ_MGMT_FEE = 1000;
 

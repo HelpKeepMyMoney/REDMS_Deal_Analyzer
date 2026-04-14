@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calc, calcTitleInsurance, DEFAULT_INPUT } from "./redmsCalc.js";
-import { MAX_TPC } from "./constants.js";
+import { MAX_TPC, MIN_FIRST_MTG_UPFRONT_POINTS } from "./constants.js";
 
 describe("redmsCalc", () => {
   it("returns all expected keys for default input", () => {
@@ -126,5 +126,18 @@ describe("redmsCalc", () => {
     const r1 = calc({ ...DEFAULT_INPUT, businessCosts: 1200 });
     expect(r1.bhBusinessCosts).toBe(1200);
     expect(r1.noi).toBe(r0.noi - 1200);
+  });
+
+  it("1st Mtg upfront points are at least MIN_FIRST_MTG_UPFRONT_POINTS when 1st mortgage is Yes", () => {
+    const inp = { ...DEFAULT_INPUT, mortgage1YN: "Yes", offerPrice: 15500, downPaymentPct: 20 };
+    const r = calc(inp);
+    expect(r.mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
+  });
+
+  it("1st Mtg upfront points stay percentage-based when above floor", () => {
+    const inp = { ...DEFAULT_INPUT, mortgage1YN: "Yes", offerPrice: 200000, downPaymentPct: 20 };
+    const r = calc(inp);
+    const loan = 160000;
+    expect(r.mortgage1Pts).toBeCloseTo(loan * 0.04, 0);
   });
 });

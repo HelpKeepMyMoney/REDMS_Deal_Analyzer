@@ -5,7 +5,7 @@
 ## Features
 
 - **Auth & module selection** — Sign in/sign up; after signup, users are redirected to the Profile page with a banner to complete their profile. After login, users see a module picker with only the options they can access (Admin, Investor, Wholesaler).
-- **Deal analysis** — Enter property details, offer price, rehab level/cost, and financing to get a DEAL / NO DEAL badge and pass-fail checks (e.g. Flip Cash-on-Cash ≥ 25%, Investment Required within limit).
+- **Deal analysis** — Enter property details, offer price, rehab level/cost, and financing to get a DEAL / NO DEAL badge and pass-fail checks (e.g. Flip Cash-on-Cash ≥ 25%, Investment Required within limit). When **1st Mortgage** is **Yes**, **1st Mtg Upfront Points** is the greater of (loan × mortgage points rate) and **$2,995** (`MIN_FIRST_MTG_UPFRONT_POINTS` in code).
 - **Metric cards** — NOI, Investor Flip Profit, Sell to Retail Investor (ARV), Investor Cap Rate, Rent-to-Price Ratio, Flip Cash-on-Cash, B&H Cash-on-Cash, Investment Required, Cap Rate. Cards turn red when thresholds are missed.
 - **Purchase & Flip** — Flip sheet breakdown (ARV, fees, preferred ROI, profit split, investor/BNIC share, min sales price). Initial Referral and Investor Referral are configurable as percentages of Preferred ROI; rows are hidden when set to 0.
 - **Buy & Hold** — B&H sheet (total investment, NOI, cap rate, cash-on-cash, investment required).
@@ -49,7 +49,7 @@ Constants: `DETROIT_TAX_SEV_RATIO`, `DETROIT_TAX_RATE`, `DETROIT_TAX_FLAT` in `s
 
 Admins can override equation parameters in **Admin → App Parameters**:
 
-- **Max Total Project Cost**, **Min 1st Mortgage Loan Amount**, **Min Acquisition Mgmt Fee**, **Min Realtor/Sale Fee**, **Mortgage Points Rate**
+- **Max Total Project Cost**, **Min 1st Mortgage Loan Amount**, **Min Acquisition Mgmt Fee**, **Min Realtor/Sale Fee**, **Mortgage Points Rate** (upfront points still use `max(loan × rate, $2,995)` when 1st Mortgage is Yes; floor is `MIN_FIRST_MTG_UPFRONT_POINTS` in `src/logic/constants.js`, not editable in App Parameters)
 - **Initial Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
 - **Investor Referral** — % of Preferred ROI (default 11.11 ≈ 1/9); hidden in Profit Waterfall when 0
 - **Property searches used this month (RentCast sync)** — Manual sync from [RentCast API Dashboard](https://app.rentcast.io/app/api) when the app shows incorrect remaining count. Leave blank to use app tracking.
@@ -100,7 +100,7 @@ npm run test:run
 - `src/logic/propertySearchUsageStorage.js` — Property search usage tracking for RentCast API quota (monthly count in Firestore `appConfig/propertySearchUsage`).
 - `src/logic/` — Deal math and helpers:
   - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
-  - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT.
+  - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT, MIN_FIRST_MTG_UPFRONT_POINTS (min $ for 1st mtg upfront points when 1st mortgage is Yes).
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
   - `storage.js` — loadStoredInput, saveStoredInput; loadImportProperty, saveImportProperty (for property import across tabs).
@@ -163,6 +163,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **1st Mtg Upfront Points floor** — When 1st Mortgage is Yes, upfront points are `max(loan × mortgage points rate, $2,995)` (`MIN_FIRST_MTG_UPFRONT_POINTS` in `constants.js`, applied in `redmsCalc.js`). Affects flip totals, PDFs, and calculated 2nd mortgage amount.
 - **Google Search Console** — Homepage verification uses `<meta name="google-site-verification" content="…" />` in `index.html` (in `<head>` before `<body>`) so crawlers see the token on the first HTML response. README documents placement and `VITE_SITE_URL` / SEO behavior.
 - **Admin User Detail Modal** — Replaced inline user view with `UserDetailModal`: full-screen modal with profile edit, last login, deals (owned/shared), saved searches, favorites, and per-user client parameters. Admins can unshare/unassign deals and searches, change role, and save client params from the modal.
 - **New Property Tax** — Sidebar "Calculate" button estimates Detroit non-homestead tax: `(offerPrice × 50% × 85.2737 mills) + $240` trash fee. Formula documented in README.

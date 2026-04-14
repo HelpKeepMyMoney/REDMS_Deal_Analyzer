@@ -9,6 +9,7 @@ import {
   INITIAL_REFERRAL_PCT as DEFAULT_INITIAL_REFERRAL_PCT,
   INVESTOR_REFERRAL_PCT as DEFAULT_INVESTOR_REFERRAL_PCT,
   MORTGAGE_POINTS_RATE as DEFAULT_MORTGAGE_POINTS_RATE,
+  MIN_FIRST_MTG_UPFRONT_POINTS as DEFAULT_MIN_FIRST_MTG_UPFRONT_POINTS,
   MIN_ACQ_MGMT_FEE as DEFAULT_MIN_ACQ_MGMT_FEE,
   MIN_REALTOR_FEE as DEFAULT_MIN_REALTOR_FEE,
   DEPRECIATION_YEARS as DEFAULT_DEPRECIATION_YEARS,
@@ -216,7 +217,10 @@ export function calc(inp, config = null) {
 
   const downPayment = offerPrice * ((typeof downPaymentPct === 'number' && !isNaN(downPaymentPct) ? downPaymentPct : 0) / 100);
   const mortgage1Amt = mortgage1YN === "Yes" ? offerPrice - downPayment : 0;
-  const mortgage1Pts = mortgage1Amt * p.MORTGAGE_POINTS_RATE;
+  let mortgage1Pts = mortgage1Amt * p.MORTGAGE_POINTS_RATE;
+  if (mortgage1YN === "Yes") {
+    mortgage1Pts = Math.max(mortgage1Pts, DEFAULT_MIN_FIRST_MTG_UPFRONT_POINTS);
+  }
   const upfront = inspectionFee + llcSetup + appraisalFee;
   const titleIns =
     typeof inpTitleInsurance === "number" && !isNaN(inpTitleInsurance) && inpTitleInsurance >= 0
