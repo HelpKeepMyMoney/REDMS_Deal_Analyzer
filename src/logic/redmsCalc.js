@@ -1,3 +1,4 @@
+import { normalizeMortgageYN } from "./validation.js";
 import {
   REHAB_COST as DEFAULT_REHAB_COST,
   REHAB_TIME as DEFAULT_REHAB_TIME,
@@ -175,8 +176,6 @@ export function calc(inp, config = null) {
     pmiPct,
     mortgage1Rate,
     mortgage1Term,
-    mortgage1YN,
-    mortgage2YN,
     mortgage2Rate,
     inspectionFee,
     llcSetup,
@@ -204,6 +203,9 @@ export function calc(inp, config = null) {
     mortgage2Amt: inpMortgage2Amt,
     businessCosts,
   } = inp;
+
+  const mortgage1YN = normalizeMortgageYN(inp.mortgage1YN);
+  const mortgage2YN = normalizeMortgageYN(inp.mortgage2YN);
 
   const rehabCost =
     typeof inpRehabCost === "number" && !isNaN(inpRehabCost)

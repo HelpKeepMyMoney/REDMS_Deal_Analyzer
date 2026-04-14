@@ -140,4 +140,11 @@ describe("redmsCalc", () => {
     const loan = 160000;
     expect(r.mortgage1Pts).toBeCloseTo(loan * 0.04, 0);
   });
+
+  it("applies 1st mtg upfront floor for legacy mortgage1YN yes/true from Firestore", () => {
+    const base = { ...DEFAULT_INPUT, offerPrice: 15500, downPaymentPct: 20 };
+    expect(calc({ ...base, mortgage1YN: "YES" }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
+    expect(calc({ ...base, mortgage1YN: true }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
+    expect(calc({ ...base, mortgage1YN: "  yes " }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
+  });
 });

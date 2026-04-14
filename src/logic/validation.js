@@ -1,6 +1,20 @@
 import { RANGES } from "./constants.js";
 
 /**
+ * Normalize 1st/2nd mortgage flags from UI, Firestore, or imports to "Yes" | "No".
+ * Firestore and older clients may store true, "YES", "yes", etc.
+ */
+export function normalizeMortgageYN(value) {
+  if (value === true) return "Yes";
+  if (value === "Yes") return "Yes";
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    if (s === "yes" || s === "y") return "Yes";
+  }
+  return "No";
+}
+
+/**
  * Clamp a numeric input to a valid range. Returns { value, error }.
  * error is a short message if value was clamped or invalid; otherwise null.
  */
@@ -48,5 +62,7 @@ export function sanitizeInput(inp) {
   if (typeof out.lotSize === "number" && out.lotSize < 0) out.lotSize = 0;
   if (typeof out.yearBuilt === "number" && out.yearBuilt < 0) out.yearBuilt = 0;
   if (typeof out.stories === "number" && out.stories < 0) out.stories = 0;
+  if ("mortgage1YN" in out) out.mortgage1YN = normalizeMortgageYN(out.mortgage1YN);
+  if ("mortgage2YN" in out) out.mortgage2YN = normalizeMortgageYN(out.mortgage2YN);
   return out;
 }
