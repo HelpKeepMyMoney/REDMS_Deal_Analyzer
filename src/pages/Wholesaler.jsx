@@ -52,6 +52,7 @@ export default function Wholesaler() {
   const [tab, setTab] = useState("wholesaler");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [savedDeals, setSavedDeals] = useState([]);
+  const [dealListSort, setDealListSort] = useState("name-asc");
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
   const [saveInProgress, setSaveInProgress] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -69,7 +70,6 @@ export default function Wholesaler() {
     setSavedDealsLoading(true);
     try {
       const list = await loadWholesalerDeals(user.uid);
-      list.sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
       setSavedDeals(list);
     } catch (e) {
       console.error("Failed to load deals", e);
@@ -108,11 +108,10 @@ export default function Wholesaler() {
       // Optimistic update: add new deal to list immediately (in case query is slow or index building)
       if (!currentDealId) {
         setSavedDeals((prev) => {
-          const newDeal = { id, dealName, updatedAt: null };
+          const nowIso = new Date().toISOString();
+          const newDeal = { id, dealName, createdAt: nowIso, updatedAt: nowIso };
           const existing = prev.filter((d) => d.id !== id);
-          const merged = [newDeal, ...existing];
-          merged.sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
-          return merged;
+          return [newDeal, ...existing];
         });
       }
       await refreshDeals();
@@ -286,6 +285,8 @@ export default function Wholesaler() {
           atOverageWarningThreshold={atOverageWarningThreshold}
           wholesaler={true}
           sidebarCollapsed={sidebarCollapsed}
+          dealListSort={dealListSort}
+          onDealListSortChange={setDealListSort}
           currentDealId={currentDealId}
           currentDealIsShared={false}
           handleDealSelect={handleDealSelect}

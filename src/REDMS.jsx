@@ -70,6 +70,7 @@ export default function REDMS() {
   const [tab, setTab] = useState("flip");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [savedDeals, setSavedDeals] = useState([]);
+  const [dealListSort, setDealListSort] = useState("name-asc");
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
   const [userFavorites, setUserFavorites] = useState([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
@@ -162,7 +163,6 @@ export default function REDMS() {
     try {
       let list = await loadDeals(user.uid, { skipSharedWithAll: isFreeTier });
       if (!isAdmin && isClient) list = list.filter((d) => d.isShared);
-      list.sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }));
       setSavedDeals(list);
       if (currentDealId) {
         const meta = list.find((d) => d.id === currentDealId);
@@ -187,7 +187,7 @@ export default function REDMS() {
 
   const handleLoadDeal = useCallback(async (id) => {
     try {
-      const loaded = await loadDeal(id);
+      const loaded = await loadDeal(id, { allowArchived: isAdmin });
       if (!loaded) return;
       setShowPropertySearch(false);
       const { _ownerId, importedFromPropertySearch, ...dealData } = loaded;
@@ -210,7 +210,7 @@ export default function REDMS() {
     } catch (e) {
       console.error("Failed to load deal", e);
     }
-  }, [user?.uid]);
+  }, [user?.uid, isAdmin]);
 
   useEffect(() => {
     const dealIdFromUrl = searchParams.get("dealId");
@@ -602,6 +602,8 @@ export default function REDMS() {
           usageLimit={usageLimit}
           atOverageWarningThreshold={atOverageWarningThreshold}
           sidebarCollapsed={sidebarCollapsed}
+          dealListSort={dealListSort}
+          onDealListSortChange={setDealListSort}
           currentDealId={currentDealId}
           currentDealIsShared={currentDealIsShared}
           handleDealSelect={handleDealSelect}

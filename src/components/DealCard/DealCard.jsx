@@ -81,6 +81,11 @@ export function DealCard({
                   : "No Deal"}
               </div>
             )}
+            {deal.archived === true && (
+              <div className={styles.cardStatus} style={{ background: "rgba(100, 116, 139, 0.85)" }} title="Hidden from non-admin users">
+                Archived
+              </div>
+            )}
           </div>
         </div>
       </Link>
@@ -99,9 +104,20 @@ export function DealCard({
               <span>• {Number(deal.sqft).toLocaleString()} sqft</span>
             )}
           </div>
-          {deal.updatedAt && (
+          {(deal.createdAt || deal.updatedAt) && (
             <div className={styles.cardListed}>
-              Updated {new Date(deal.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {deal.createdAt && (
+                <div>
+                  Created{" "}
+                  {new Date(deal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </div>
+              )}
+              {deal.updatedAt && (
+                <div>
+                  Updated{" "}
+                  {new Date(deal.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </div>
+              )}
             </div>
           )}
           {r && (

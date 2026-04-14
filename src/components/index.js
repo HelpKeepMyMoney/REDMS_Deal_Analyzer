@@ -16,4 +16,5 @@ export { DealInterestActions } from "./DealInterestActions.jsx";
 export { AdminDropdown } from "./AdminDropdown.jsx";
 export { UserDetailModal } from "./UserDetailModal.jsx";
 export { DealCard } from "./DealCard/index.js";
+export { DealShareSummary } from "./DealShareSummary.jsx";
 export { WholesalerModuleDropdown } from "./WholesalerModuleDropdown.jsx";

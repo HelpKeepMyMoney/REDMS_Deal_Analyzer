@@ -4,16 +4,23 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useConfig } from "../contexts/ConfigContext.jsx";
 import { createAdminApi } from "../logic/adminApi.js";
 import { loadAppConfig, saveAppConfig } from "../logic/configStorage.js";
-import { loadAllDealsForAdmin, updateDealSharedWith, updateDealStatus, updateDealAssignedUser } from "../logic/firestoreStorage.js";
+import {
+  loadAllDealsForAdmin,
+  updateDealSharedWith,
+  updateDealStatus,
+  updateDealAssignedUser,
+  updateDealArchived,
+} from "../logic/firestoreStorage.js";
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removePropertyFromSavedSearch } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
 import { loadAllPropertiesForAdmin, addInvestorProperty, removeInvestorProperty } from "../logic/investorPropertiesStorage.js";
 import { saveImportProperty } from "../logic/storage.js";
 import { loadUserProfile, saveUserProfile } from "../logic/userProfileStorage.js";
 import { loadUserFavorites } from "../logic/userFavoritesStorage.js";
-import { AdminDropdown, PropertyResultCard, DealCard, UserDetailModal } from "../components";
+import { AdminDropdown, PropertyResultCard, DealCard, UserDetailModal, DealShareSummary } from "../components";
 import { analyzePropertyForDeal } from "../logic/dealQuickAnalysis.js";
 import { calc, sanitizeInput } from "../logic";
+import { sortDealListItems } from "../logic/dealListSort.js";
 import styles from "./Admin.module.css";
 
 export default function Admin() {
@@ -35,13 +42,16 @@ export default function Admin() {
   const [dealsLoading, setDealsLoading] = useState(false);
   const [selectedDealId, setSelectedDealId] = useState("");
   const [shareDealSearch, setShareDealSearch] = useState("");
+  const [shareDealSortBy, setShareDealSortBy] = useState("name-asc");
   const [shareWithUserIds, setShareWithUserIds] = useState([]);
   const [shareWithAll, setShareWithAll] = useState(false);
   const [shareSaving, setShareSaving] = useState(false);
+  const [dealArchiveUpdatingId, setDealArchiveUpdatingId] = useState(null);
 
   const [allSearches, setAllSearches] = useState([]);
   const [searchesLoading, setSearchesLoading] = useState(false);
   const [selectedSearchId, setSelectedSearchId] = useState("");
+  const [searchShareSortBy, setSearchShareSortBy] = useState("name-asc");
   const [searchShareWithUserIds, setSearchShareWithUserIds] = useState([]);
   const [searchShareWithAll, setSearchShareWithAll] = useState(false);
   const [searchShareSaving, setSearchShareSaving] = useState(false);
@@ -49,11 +59,13 @@ export default function Admin() {
   const [interestRequests, setInterestRequests] = useState([]);
   const [interestLoading, setInterestLoading] = useState(false);
   const [interestFilter, setInterestFilter] = useState("all");
+  const [interestSortBy, setInterestSortBy] = useState("created-desc");
   const [interestStatusUpdating, setInterestStatusUpdating] = useState(null);
 
   const [searchEmail, setSearchEmail] = useState("");
   const [searchRole, setSearchRole] = useState("");
   const [searchDateCreatedAfter, setSearchDateCreatedAfter] = useState("");
+  const [userSortBy, setUserSortBy] = useState("email-asc");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDeletingUid, setUserDeletingUid] = useState(null);
   const [clientParams, setClientParams] = useState(null);
@@ -105,7 +117,7 @@ export default function Admin() {
   );
 
   const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+    const list = users.filter((u) => {
       if (searchEmail.trim()) {
         const email = (u.email || "").toLowerCase();
         const term = searchEmail.trim().toLowerCase();
@@ -121,7 +133,28 @@ export default function Admin() {
       }
       return true;
     });
-  }, [users, searchEmail, searchRole, searchDateCreatedAfter]);
+    const lastDash = userSortBy.lastIndexOf("-");
+    const field = userSortBy.slice(0, lastDash);
+    const dir = userSortBy.slice(lastDash + 1);
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (field === "email") {
+        cmp = (a.email || "")
+          .toLowerCase()
+          .localeCompare((b.email || "").toLowerCase(), undefined, { sensitivity: "base" });
+      } else if (field === "created") {
+        const ta = a.created ? new Date(a.created).getTime() : 0;
+        const tb = b.created ? new Date(b.created).getTime() : 0;
+        cmp = ta - tb;
+      }
+      if (cmp === 0) {
+        cmp = (a.email || "")
+          .toLowerCase()
+          .localeCompare((b.email || "").toLowerCase(), undefined, { sensitivity: "base" });
+      }
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [users, searchEmail, searchRole, searchDateCreatedAfter, userSortBy]);
 
   const selectedUserDeals = useMemo(() => {
     if (!selectedUser?.uid) return [];
@@ -142,18 +175,48 @@ export default function Admin() {
 
   const filteredDealsForSharing = useMemo(() => {
     const term = shareDealSearch.trim().toLowerCase();
-    if (!term) return allDeals;
-    const filtered = allDeals.filter((d) => {
-      const name = (d.dealName || "").toLowerCase();
-      const ownerEmail = (users.find((u) => u.uid === d.userId)?.email ?? "").toLowerCase();
-      return name.includes(term) || ownerEmail.includes(term);
-    });
-    const selected = selectedDealId ? allDeals.find((d) => d.id === selectedDealId) : null;
-    if (selected && !filtered.some((d) => d.id === selectedDealId)) {
-      return [selected, ...filtered];
+    let base = allDeals;
+    if (term) {
+      base = allDeals.filter((d) => {
+        const name = (d.dealName || "").toLowerCase();
+        const ownerEmail = (users.find((u) => u.uid === d.userId)?.email ?? "").toLowerCase();
+        return name.includes(term) || ownerEmail.includes(term);
+      });
     }
-    return filtered;
-  }, [allDeals, shareDealSearch, users, selectedDealId]);
+    const selected = selectedDealId ? allDeals.find((d) => d.id === selectedDealId) : null;
+    let result = base;
+    if (selected && !base.some((d) => d.id === selectedDealId)) {
+      result = [selected, ...base];
+    }
+    return sortDealListItems(result, shareDealSortBy);
+  }, [allDeals, shareDealSearch, users, selectedDealId, shareDealSortBy]);
+
+  const sortedSearchesForSharing = useMemo(
+    () =>
+      sortDealListItems(
+        allSearches.map((s) => ({
+          ...s,
+          dealName: s.name || "Saved search",
+          updatedAt: s.updatedAt ?? null,
+          createdAt: null,
+        })),
+        searchShareSortBy
+      ),
+    [allSearches, searchShareSortBy]
+  );
+
+  const filteredInterestRequests = useMemo(() => {
+    const filtered = interestRequests.filter((r) => interestFilter === "all" || r.type === interestFilter);
+    return sortDealListItems(
+      filtered.map((r) => ({
+        ...r,
+        dealName: r.userEmail || r.dealName || r.id,
+        createdAt: r.createdAt,
+        updatedAt: r.createdAt,
+      })),
+      interestSortBy
+    );
+  }, [interestRequests, interestFilter, interestSortBy]);
 
   const filteredDealsForAdmin = useMemo(() => {
     let list = [...allDeals];
@@ -238,6 +301,11 @@ export default function Admin() {
       if (field === "date") {
         const da = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dir === "asc" ? da - db : db - da;
+      }
+      if (field === "created") {
+        const da = (a.createdAt || a.updatedAt) ? new Date(a.createdAt || a.updatedAt).getTime() : 0;
+        const db = (b.createdAt || b.updatedAt) ? new Date(b.createdAt || b.updatedAt).getTime() : 0;
         return dir === "asc" ? da - db : db - da;
       }
       if (field === "investmentRequired") {
@@ -650,6 +718,25 @@ export default function Admin() {
       setMessage({ type: "error", text: "Failed to update sharing: " + e.message });
     } finally {
       setShareSaving(false);
+    }
+  };
+
+  const handleDealArchiveToggle = async (dealId, nextArchived) => {
+    setDealArchiveUpdatingId(dealId);
+    setMessage({ type: "", text: "" });
+    try {
+      await updateDealArchived(dealId, nextArchived);
+      setAllDeals((prev) =>
+        prev.map((d) => (d.id === dealId ? { ...d, archived: nextArchived } : d))
+      );
+      setMessage({
+        type: "success",
+        text: nextArchived ? "Deal archived — hidden from investors and clients." : "Deal unarchived — visible again.",
+      });
+    } catch (e) {
+      setMessage({ type: "error", text: e.message || "Failed to update archive." });
+    } finally {
+      setDealArchiveUpdatingId(null);
     }
   };
 
@@ -1082,7 +1169,7 @@ export default function Admin() {
               </button>
             </div>
 
-            <div className={styles["users-search-filters"]}>
+              <div className={styles["users-search-filters"]}>
               <div className={styles["form-group"]} style={{ margin: 0 }}>
                 <label htmlFor="search-email">Search by email</label>
                 <input
@@ -1120,6 +1207,20 @@ export default function Admin() {
                   onChange={(e) => setSearchDateCreatedAfter(e.target.value)}
                   className={styles["search-input"]}
                 />
+              </div>
+              <div className={styles["form-group"]} style={{ margin: 0 }}>
+                <label htmlFor="user-sort">Sort by</label>
+                <select
+                  id="user-sort"
+                  value={userSortBy}
+                  onChange={(e) => setUserSortBy(e.target.value)}
+                  className={styles["search-input"]}
+                >
+                  <option value="email-asc">Email: A–Z</option>
+                  <option value="email-desc">Email: Z–A</option>
+                  <option value="created-desc">Account created: Newest first</option>
+                  <option value="created-asc">Account created: Oldest first</option>
+                </select>
               </div>
             </div>
 
@@ -1335,11 +1436,13 @@ export default function Admin() {
         )}
 
         {activeTab === "sharing" && (
-          <div className={styles["admin-grid"]}>
-            <div className={styles["admin-card"]}>
+          <div className={styles.dealSharingLayout}>
+            <div className={`${styles["admin-card"]} ${styles.dealSharingLeft}`}>
               <h2 className={styles["admin-section-title"]}>Assign Read-Only Deal Access</h2>
               <p className={styles["admin-muted"]} style={{ marginBottom: 16 }}>
-                Select a deal, then choose which users (or all users) can view it in read-only mode.
+                Select a deal, then choose which users (or all users) can view it in read-only mode. Use the checkbox
+                to archive a deal — archived deals are hidden from all non-admin users (lists, links, and Firestore
+                reads).
               </p>
               <div className={styles["form-group"]} style={{ marginBottom: 16 }}>
                 <label htmlFor="share-deal-search">Deal</label>
@@ -1352,6 +1455,23 @@ export default function Admin() {
                   className={styles["search-input"]}
                   style={{ width: "100%", maxWidth: 400 }}
                 />
+                <div className={styles["form-group"]} style={{ marginTop: 12, marginBottom: 0 }}>
+                  <label htmlFor="share-deal-sort">Sort deals</label>
+                  <select
+                    id="share-deal-sort"
+                    value={shareDealSortBy}
+                    onChange={(e) => setShareDealSortBy(e.target.value)}
+                    className={styles["search-input"]}
+                    style={{ maxWidth: 400 }}
+                  >
+                    <option value="name-asc">Name: A–Z</option>
+                    <option value="name-desc">Name: Z–A</option>
+                    <option value="updated-desc">Updated: Newest first</option>
+                    <option value="updated-asc">Updated: Oldest first</option>
+                    <option value="created-desc">Created: Newest first</option>
+                    <option value="created-asc">Created: Oldest first</option>
+                  </select>
+                </div>
                 <div
                   style={{
                     marginTop: 8,
@@ -1368,27 +1488,65 @@ export default function Admin() {
                     </div>
                   ) : (
                     filteredDealsForSharing.map((d) => (
-                      <button
+                      <div
                         key={d.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDealId(d.id);
-                        }}
                         style={{
-                          display: "block",
-                          width: "100%",
-                          padding: "10px 12px",
-                          textAlign: "left",
-                          border: "none",
-                          background: selectedDealId === d.id ? "var(--amber-soft)" : "transparent",
-                          color: "var(--text)",
-                          cursor: "pointer",
-                          fontFamily: "var(--mono)",
-                          fontSize: 12,
+                          display: "flex",
+                          alignItems: "stretch",
+                          borderBottom: "1px solid var(--border)",
                         }}
                       >
-                        {d.dealName} {d.userId ? `(owner: ${users.find((u) => u.uid === d.userId)?.email ?? d.userId})` : ""}
-                      </button>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "0 8px",
+                            cursor: dealArchiveUpdatingId === d.id ? "wait" : "pointer",
+                            flexShrink: 0,
+                            borderRight: "1px solid var(--border)",
+                            background: "var(--surface)",
+                          }}
+                          title={
+                            d.archived
+                              ? "Unarchive — make visible to users again"
+                              : "Archive — hide from all non-admin users"
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={d.archived === true}
+                            disabled={dealArchiveUpdatingId === d.id}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleDealArchiveToggle(d.id, e.target.checked);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={d.archived ? `Unarchive ${d.dealName}` : `Archive ${d.dealName}`}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDealId(d.id);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "10px 12px",
+                            textAlign: "left",
+                            border: "none",
+                            background: selectedDealId === d.id ? "var(--amber-soft)" : "transparent",
+                            color: "var(--text)",
+                            cursor: "pointer",
+                            fontFamily: "var(--mono)",
+                            fontSize: 12,
+                          }}
+                        >
+                          {d.dealName} {d.userId ? `(owner: ${users.find((u) => u.uid === d.userId)?.email ?? d.userId})` : ""}
+                          {d.archived && (
+                            <span style={{ marginLeft: 6, color: "var(--muted)", fontSize: 10 }}>[archived]</span>
+                          )}
+                        </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -1436,6 +1594,12 @@ export default function Admin() {
                 </>
               ) : null}
             </div>
+            <div className={`${styles["admin-card"]} ${styles.dealSharingRight}`}>
+              <DealShareSummary
+                deal={selectedDealId ? allDeals.find((d) => d.id === selectedDealId) ?? null : null}
+                users={users}
+              />
+            </div>
           </div>
         )}
 
@@ -1448,6 +1612,20 @@ export default function Admin() {
               </p>
               <div className={styles["form-group"]} style={{ marginBottom: 16 }}>
                 <label htmlFor="share-search-select">Saved Search</label>
+                <div className={styles["form-group"]} style={{ marginBottom: 10 }}>
+                  <label htmlFor="share-search-sort" style={{ fontSize: "0.85rem" }}>Sort list</label>
+                  <select
+                    id="share-search-sort"
+                    value={searchShareSortBy}
+                    onChange={(e) => setSearchShareSortBy(e.target.value)}
+                    style={{ padding: 8, width: "100%", maxWidth: 400, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", color: "var(--text)" }}
+                  >
+                    <option value="name-asc">Name: A–Z</option>
+                    <option value="name-desc">Name: Z–A</option>
+                    <option value="updated-desc">Last updated: Newest first</option>
+                    <option value="updated-asc">Last updated: Oldest first</option>
+                  </select>
+                </div>
                 <select
                   id="share-search-select"
                   value={selectedSearchId}
@@ -1455,7 +1633,7 @@ export default function Admin() {
                   style={{ padding: 10, width: "100%", maxWidth: 400, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", color: "var(--text)" }}
                 >
                   <option value="">— Select a saved search —</option>
-                  {allSearches.map((s) => (
+                  {sortedSearchesForSharing.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.resultCount} properties) {s.userId ? `(owner: ${users.find((u) => u.uid === s.userId)?.email ?? s.userId})` : ""}
                     </option>
@@ -1512,7 +1690,7 @@ export default function Admin() {
           <div className={styles["admin-card"]} style={{ maxWidth: "100%" }}>
             <div className={styles["users-header"]}>
               <h2 className={styles["admin-section-title"]}>Interest Requests</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <label style={{ fontSize: "0.9rem", color: "var(--muted)" }}>
                   Filter:
                   <select
@@ -1526,6 +1704,19 @@ export default function Admin() {
                     <option value="favorite">Favorite</option>
                     <option value="request_zoom">Request Zoom</option>
                     <option value="start_buying">Start Buying</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: "0.9rem", color: "var(--muted)" }}>
+                  Sort:
+                  <select
+                    value={interestSortBy}
+                    onChange={(e) => setInterestSortBy(e.target.value)}
+                    style={{ marginLeft: 8, padding: "4px 8px", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text)" }}
+                  >
+                    <option value="created-desc">Date: Newest first</option>
+                    <option value="created-asc">Date: Oldest first</option>
+                    <option value="name-asc">User email: A–Z</option>
+                    <option value="name-desc">User email: Z–A</option>
                   </select>
                 </label>
               </div>
@@ -1550,10 +1741,7 @@ export default function Admin() {
                     </tr>
                   </thead>
                   <tbody>
-                    {interestRequests
-                      .filter((r) => interestFilter === "all" || r.type === interestFilter)
-                      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-                      .map((r) => (
+                    {filteredInterestRequests.map((r) => (
                         <tr key={r.id}>
                           <td>{r.userEmail}</td>
                           <td>
@@ -1620,7 +1808,7 @@ export default function Admin() {
                           </td>
                         </tr>
                       ))}
-                    {interestRequests.filter((r) => interestFilter === "all" || r.type === interestFilter).length === 0 && (
+                    {filteredInterestRequests.length === 0 && (
                       <tr>
                         <td colSpan="7" className={styles["text-center"]}>
                           No interest requests found.
@@ -2125,6 +2313,8 @@ export default function Admin() {
                   <option value="bhCashOnCash-desc">B&H Cash-on-Cash ROI: High to Low</option>
                   <option value="date-desc">Updated: Newest First</option>
                   <option value="date-asc">Updated: Oldest First</option>
+                  <option value="created-desc">Created: Newest First</option>
+                  <option value="created-asc">Created: Oldest First</option>
                 </select>
               </div>
             </div>

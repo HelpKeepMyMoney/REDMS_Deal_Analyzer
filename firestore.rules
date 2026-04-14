@@ -28,16 +28,33 @@ service cloud.firestore {
     // Clients: read-only access to shared deals only; cannot create, update, or delete.
     // Other tiers: can only update/delete deals they created (owner).
     match /deals/{dealId} {
+      // Archived deals are readable only by admins (hidden from owners, shared users, and shared-with-all).
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid
-        || (resource.data.sharedWithAll == true && !isFreeTier())
-        || ('sharedWith' in resource.data && request.auth.uid in resource.data.sharedWith)
-        || isAdmin()
+        isAdmin()
+        || (
+          !(resource.data.archived == true)
+          && (
+            resource.data.userId == request.auth.uid
+            || (resource.data.sharedWithAll == true && !isFreeTier())
+            || ('sharedWith' in resource.data && request.auth.uid in resource.data.sharedWith)
+          )
+        )
       );
-      allow create: if request.auth != null && !isClient() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && !isClient() && (
-        resource.data.userId == request.auth.uid
-        || isAdmin()
+      // Non-admins cannot create a deal already marked archived.
+      allow create: if request.auth != null && !isClient()
+        && request.resource.data.userId == request.auth.uid
+        && !(request.resource.data.archived == true);
+      // Owners may update their deals but cannot toggle archived (admin-only).
+      allow update: if request.auth != null && !isClient() && (
+        isAdmin()
+        || (
+          resource.data.userId == request.auth.uid
+          && (request.resource.data.archived == true) == (resource.data.archived == true)
+        )
+      );
+      allow delete: if request.auth != null && !isClient() && (
+        isAdmin()
+        || resource.data.userId == request.auth.uid
       );
     }
     // Saved searches: owner can read/write; shared users can read only; admin can read all and update sharedWith.

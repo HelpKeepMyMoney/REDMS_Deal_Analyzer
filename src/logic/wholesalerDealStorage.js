@@ -63,6 +63,7 @@ function dealToListItem(d, currentUserId) {
   return {
     id: d.id,
     dealName: data.dealName || addr || "Untitled",
+    createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? null,
     updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() ?? null,
   };
 }

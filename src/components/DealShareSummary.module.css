@@ -1,0 +1,162 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted2);
+  margin: 0;
+}
+
+.address {
+  font-family: var(--display);
+  font-size: 1.15rem;
+  color: var(--amber);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.metaStrong {
+  color: var(--text);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.badgeDeal {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid var(--green, #22c55e);
+  color: var(--green, #22c55e);
+}
+
+.badgeNoDeal {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--red, #ef4444);
+  color: var(--red, #ef4444);
+}
+
+.badgeArchived {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  border: 1px solid var(--muted);
+  color: var(--muted2);
+}
+
+.dates {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.shareHint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.warn {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  margin: 0;
+}
+
+.metrics {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.metricRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.metricRow dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.metricRow dd {
+  margin: 0;
+  color: var(--text);
+  text-align: right;
+}
+
+.actions {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.openLink {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  text-decoration: none;
+}
+
+.openLink:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  padding: 8px 0;
+}
+
+.emptyText {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}

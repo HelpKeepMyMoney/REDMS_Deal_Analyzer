@@ -193,6 +193,31 @@
   width: 100%;
 }
 
+/* Deal Sharing: picker + summary side-by-side */
+.dealSharingLayout {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.dealSharingLayout .admin-card {
+  max-width: none;
+}
+
+.dealSharingLeft {
+  flex: 0 1 440px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.dealSharingRight {
+  flex: 1 1 360px;
+  min-width: 280px;
+  max-width: 640px;
+}
+
 /* Users tab: Create form fixed width, System Users fills remaining space */
 .users-layout {
   display: flex;

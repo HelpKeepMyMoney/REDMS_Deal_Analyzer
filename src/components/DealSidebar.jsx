@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Field } from "./Field.jsx";
 import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
@@ -9,6 +9,7 @@ import { formatCurrency } from "../logic/formatters.js";
 import { calcTitleInsurance } from "../logic/redmsCalc.js";
 import { estimateMonthlyRent } from "../logic/rentEstimate.js";
 import { buildStreetViewUrlFromAddress } from "../logic/propertySearchApi.js";
+import { sortDealListItems, mergeClientDealSelectRows, formatDealListDate } from "../logic/dealListSort.js";
 import styles from "../REDMS.module.css";
 
 const $ = formatCurrency;
@@ -54,6 +55,8 @@ export function DealSidebar({
     config = null,
     onSaveUserConfig = null,
     refreshConfig = null,
+    dealListSort = "name-asc",
+    onDealListSortChange = null,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
     const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
@@ -62,6 +65,30 @@ export function DealSidebar({
     const [dealParamsSaving, setDealParamsSaving] = useState(false);
     const showDealParams = (dealParamsLevel === "full" || dealParamsLevel === "limited") && onSaveUserConfig && refreshConfig && config && !isClient;
     const dealParamKeys = dealParamsLevel === "limited" ? FREE_TIER_PARAM_KEYS : ["maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minAcqMgmtFee", "minRealtorFee", "mortgagePointsRate", "initialReferralPct", "investorReferralPct"];
+
+    const sortedSavedDeals = useMemo(
+        () => sortDealListItems(savedDeals, dealListSort),
+        [savedDeals, dealListSort]
+    );
+    const clientSelectRows = useMemo(
+        () =>
+            !isAdmin && isClient
+                ? mergeClientDealSelectRows(userFavorites, savedDeals, dealListSort)
+                : [],
+        [isAdmin, isClient, userFavorites, savedDeals, dealListSort]
+    );
+    const currentDealMeta = useMemo(() => {
+        if (!currentDealId) return null;
+        const fromSaved = sortedSavedDeals.find((d) => d.id === currentDealId);
+        if (fromSaved) return fromSaved;
+        if (isClient) {
+            return clientSelectRows.find((d) => d.id === currentDealId) ?? null;
+        }
+        return null;
+    }, [currentDealId, sortedSavedDeals, isClient, clientSelectRows]);
+    const showDealListSort =
+        onDealListSortChange &&
+        (sortedSavedDeals.length >= 1 || (isClient && clientSelectRows.length >= 1));
 
     const handleEstimateRent = async () => {
         setRentEstimateLoading(true);
@@ -205,7 +232,7 @@ export function DealSidebar({
                     {isAdmin || canSaveDeal ? (
                         <>
                             <option value="">New deal (blank template)</option>
-                            {savedDeals.map((deal) => (
+                            {sortedSavedDeals.map((deal) => (
                                 <option key={deal.id} value={deal.id}>
                                     {deal.dealName}
                                 </option>
@@ -214,16 +241,51 @@ export function DealSidebar({
                     ) : (
                         <>
                             <option value="">— Select a deal —</option>
-                            {[...userFavorites.map((f) => ({ id: f.dealId, dealName: f.dealName || f.dealId || "Untitled" })), ...savedDeals.filter((d) => !userFavorites.some((f) => f.dealId === d.id))]
-                                .sort((a, b) => (a.dealName || "").localeCompare(b.dealName || "", undefined, { sensitivity: "base" }))
-                                .map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                        {item.dealName}
-                                    </option>
-                                ))}
+                            {clientSelectRows.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {item.dealName}
+                                </option>
+                            ))}
                         </>
                     )}
                 </select>
+                {showDealListSort && (
+                <div className={styles["field-group"]} style={{ marginTop: "0.65rem" }}>
+                    <label htmlFor="redms-deal-list-sort" className={styles["deal-select-label"]}>
+                        Sort deals
+                    </label>
+                    <select
+                        id="redms-deal-list-sort"
+                        className={styles["deal-select"]}
+                        value={dealListSort}
+                        onChange={(e) => onDealListSortChange(e.target.value)}
+                    >
+                        <option value="name-asc">Name: A–Z</option>
+                        <option value="name-desc">Name: Z–A</option>
+                        <option value="updated-desc">Updated: Newest first</option>
+                        <option value="updated-asc">Updated: Oldest first</option>
+                        <option value="created-desc">Created: Newest first</option>
+                        <option value="created-asc">Created: Oldest first</option>
+                    </select>
+                </div>
+                )}
+                {currentDealMeta && (currentDealMeta.createdAt || currentDealMeta.updatedAt) && (
+                <div
+                    style={{
+                        marginTop: "0.5rem",
+                        fontSize: "0.72rem",
+                        color: "var(--muted)",
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {currentDealMeta.createdAt && (
+                        <div>Created {formatDealListDate(currentDealMeta.createdAt)}</div>
+                    )}
+                    {currentDealMeta.updatedAt && (
+                        <div>Updated {formatDealListDate(currentDealMeta.updatedAt)}</div>
+                    )}
+                </div>
+                )}
             </div>
 
             {onOpenSearch && (
@@ -886,7 +948,7 @@ export function DealSidebar({
                             No saved deals yet.
                         </li>
                     )}
-                    {savedDeals.map((deal) => (
+                    {sortedSavedDeals.map((deal) => (
                         <li key={deal.id} className={styles["saved-deals-item"]}>
                             <button
                                 type="button"
@@ -895,6 +957,12 @@ export function DealSidebar({
                             >
                                 {deal.dealName}
                             </button>
+                            {(deal.createdAt || deal.updatedAt) && (
+                            <div style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: 2, lineHeight: 1.35 }}>
+                                {deal.createdAt && <div>Created {formatDealListDate(deal.createdAt)}</div>}
+                                {deal.updatedAt && <div>Updated {formatDealListDate(deal.updatedAt)}</div>}
+                            </div>
+                            )}
                             {(isAdmin || (!deal.isShared && canSaveDeal)) && (
                             <button
                                 type="button"

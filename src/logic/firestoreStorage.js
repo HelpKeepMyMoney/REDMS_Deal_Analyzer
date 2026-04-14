@@ -20,7 +20,7 @@ const DEALS_COLLECTION = "deals";
  * @param {string} userId - Owner's Firebase Auth UID.
  */
 function dealToDoc(deal, userId, isCreate = false) {
-  const { dealName, ...rest } = deal;
+  const { dealName, archived, ...rest } = deal;
   const cleaned = Object.fromEntries(
     Object.entries(rest).filter(([_, v]) => v !== undefined)
   );
@@ -44,6 +44,7 @@ function dealToListItem(d, currentUserId) {
   return {
     id: d.id,
     dealName: data.dealName || addr || "Untitled",
+    createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? null,
     updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() ?? null,
     isShared,
     street: data.street ?? null,
@@ -71,6 +72,7 @@ export async function loadDeals(userId, opts = {}) {
       orderBy("updatedAt", "desc")
     ));
     for (const d of ownSnap.docs) {
+      if (d.data().archived === true) continue;
       results.set(d.id, dealToListItem(d, userId));
     }
 
@@ -81,6 +83,7 @@ export async function loadDeals(userId, opts = {}) {
         where("sharedWith", "array-contains", userId)
       ));
       for (const d of sharedSnap.docs) {
+        if (d.data().archived === true) continue;
         if (!results.has(d.id)) results.set(d.id, dealToListItem(d, userId));
       }
     } catch (sharedErr) {
@@ -95,6 +98,7 @@ export async function loadDeals(userId, opts = {}) {
           where("sharedWithAll", "==", true)
         ));
         for (const d of allSnap.docs) {
+          if (d.data().archived === true) continue;
           if (!results.has(d.id)) results.set(d.id, dealToListItem(d, userId));
         }
       } catch (allErr) {
@@ -114,18 +118,26 @@ export async function loadDeals(userId, opts = {}) {
       where("userId", "==", userId),
       orderBy("updatedAt", "desc")
     ));
-    return fallback.docs.map((d) => dealToListItem(d, userId));
+    return fallback.docs
+      .filter((d) => d.data().archived !== true)
+      .map((d) => dealToListItem(d, userId));
   }
 }
 
-/** Load one deal by id. Returns full input object or null. Includes userId for shared-detection. */
-export async function loadDeal(id) {
+/**
+ * Load one deal by id. Returns full input object or null. Includes userId for shared-detection.
+ * @param {string} id
+ * @param {{ allowArchived?: boolean }} [opts] - Admins may load archived deals (e.g. from URL).
+ */
+export async function loadDeal(id, opts = {}) {
   if (!db) return null;
+  const { allowArchived = false } = opts;
   const ref = doc(db, DEALS_COLLECTION, id);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const data = snap.data();
-  const { updatedAt, createdAt, dealName, userId, sharedWith, sharedWithAll, ...inp } = data;
+  if (data.archived === true && !allowArchived) return null;
+  const { updatedAt, createdAt, dealName, userId, sharedWith, sharedWithAll, archived, ...inp } = data;
   return { ...inp, dealName: dealName ?? undefined, _ownerId: userId };
 }
 
@@ -163,13 +175,15 @@ export async function loadAllDealsForAdmin() {
   return snap.docs.map((d) => {
     const data = d.data();
     const addr = [data.street, data.city, data.state].filter(Boolean).join(", ");
-    const { updatedAt, createdAt, ...rest } = data;
+    const { updatedAt, createdAt, archived, ...rest } = data;
     return {
       id: d.id,
       dealName: data.dealName || addr || "Untitled",
       userId: data.userId,
       sharedWith: Array.isArray(data.sharedWith) ? data.sharedWith : [],
       sharedWithAll: data.sharedWithAll === true,
+      archived: archived === true,
+      createdAt: createdAt?.toDate?.()?.toISOString?.() ?? null,
       updatedAt: updatedAt?.toDate?.()?.toISOString?.() ?? null,
       status: data.status || "Available",
       assignedUserId: data.assignedUserId || null,
@@ -212,4 +226,16 @@ export async function updateDealSharedWith(dealId, sharedWith, sharedWithAll) {
     sharedWithAll: sharedWithAll === true,
     updatedAt: serverTimestamp(),
   }, { merge: true });
+}
+
+/** Archive or unarchive a deal (admin only). Archived deals are hidden from non-admin users. */
+export async function updateDealArchived(dealId, archived) {
+  if (!db) throw new Error("Firebase is not configured");
+  if (!dealId) throw new Error("Deal id is required");
+  const ref = doc(db, DEALS_COLLECTION, dealId);
+  await setDoc(
+    ref,
+    { archived: archived === true, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
 }
