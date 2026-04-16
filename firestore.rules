@@ -7,8 +7,11 @@ service cloud.firestore {
     }
 
     // Helper: is the current user a client (read-only role)?
+    // Admins are never treated as clients here, even if a clients/{uid} doc exists (bad data would otherwise block saves).
     function isClient() {
-      return request.auth != null && exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+      return request.auth != null
+        && exists(/databases/$(database)/documents/clients/$(request.auth.uid))
+        && !exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Helper: is the current user on Free tier? (Share with all excludes Free users)

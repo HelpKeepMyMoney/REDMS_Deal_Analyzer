@@ -333,9 +333,12 @@ export default function REDMS() {
     } catch (e) {
       console.error("Failed to save deal", e);
       if (String(e?.code || "").includes("permission-denied")) {
-        alert(
-          "Save was blocked by your account permissions. Reload the page and try again. If it continues, ask an admin to confirm you are not listed as a Client-only user in Firestore, and that the latest app is deployed."
-        );
+        // Defer alert so finally runs first and clears "Saving…" (alert() blocks the main thread).
+        setTimeout(() => {
+          alert(
+            "Save was blocked by your account permissions. Reload the page and try again. If it continues, ask an admin to confirm you are not listed as a Client-only user in Firestore, and that the latest app is deployed."
+          );
+        }, 0);
       }
     } finally {
       setSaveInProgress(false);
