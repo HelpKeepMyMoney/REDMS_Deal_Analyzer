@@ -37,19 +37,28 @@ function extractRiskOverrides(deal) {
   return Object.keys(overrides).length > 0 ? overrides : undefined;
 }
 
-function dealToDoc(deal, userId, isCreate = false) {
+const WHOLESALER_DEAL_DOC_STRIP_KEYS = new Set([
+  "userId",
+  "createdAt",
+  "updatedAt",
+]);
+
+function dealToDoc(deal, userId) {
   const { dealName, riskOverrides, ...rest } = deal;
   const overrides = riskOverrides ?? extractRiskOverrides(deal);
   const cleaned = Object.fromEntries(
     Object.entries(rest).filter(
-      ([k, v]) => v !== undefined && !RISK_OVERRIDE_KEYS.includes(k)
+      ([k, v]) =>
+        v !== undefined &&
+        !RISK_OVERRIDE_KEYS.includes(k) &&
+        !WHOLESALER_DEAL_DOC_STRIP_KEYS.has(k)
     )
   );
   const base = {
-    userId,
-    dealName: dealName ?? null,
     ...cleaned,
+    dealName: dealName ?? null,
     updatedAt: serverTimestamp(),
+    userId,
   };
   if (overrides) {
     base.riskOverrides = overrides;
@@ -110,7 +119,7 @@ export async function loadWholesalerDeal(id) {
 export async function saveWholesalerDeal(deal, existingId = null, userId = null) {
   if (!db) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* to .env");
   if (!userId) throw new Error("User must be signed in to save deals");
-  const payload = dealToDoc(deal, userId, !existingId);
+  const payload = dealToDoc(deal, userId);
   if (existingId) {
     const ref = doc(db, WHOLESALER_DEALS_COLLECTION, existingId);
     await setDoc(ref, payload, { merge: true });

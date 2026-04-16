@@ -15,6 +15,20 @@ import { db } from "../firebase.js";
 
 const DEALS_COLLECTION = "deals";
 
+/** Fields that must never come from client deal state (would break rules or admin-only data). */
+const DEAL_DOC_STRIP_KEYS = new Set([
+  "userId",
+  "sharedWith",
+  "sharedWithAll",
+  "archived",
+  "status",
+  "assignedUserId",
+  "createdAt",
+  "updatedAt",
+  "_ownerId",
+  "importedFromPropertySearch",
+]);
+
 /**
  * @param {Record<string, unknown>} deal - Deal input object; may include dealName.
  * @param {string} userId - Owner's Firebase Auth UID.
@@ -22,18 +36,18 @@ const DEALS_COLLECTION = "deals";
 function dealToDoc(deal, userId, isCreate = false) {
   const { dealName, archived, ...rest } = deal;
   const cleaned = Object.fromEntries(
-    Object.entries(rest).filter(([_, v]) => v !== undefined)
+    Object.entries(rest).filter(([k, v]) => v !== undefined && !DEAL_DOC_STRIP_KEYS.has(k))
   );
+  // userId must be last: localStorage/merged state can contain a stale userId and would
+  // otherwise overwrite the authenticated uid and fail Firestore create/update rules.
   const base = {
-    userId,
-    dealName: dealName ?? null,
     ...cleaned,
+    dealName: dealName ?? null,
     updatedAt: serverTimestamp(),
+    ...(isCreate ? { sharedWith: [], sharedWithAll: false } : {}),
+    userId,
   };
-  if (isCreate) {
-    base.sharedWith = [];
-    base.sharedWithAll = false;
-  }
+  void archived;
   return base;
 }
 
