@@ -336,7 +336,7 @@ export default function REDMS() {
         // Defer alert so finally runs first and clears "Saving…" (alert() blocks the main thread).
         setTimeout(() => {
           alert(
-            "Save was blocked by your account permissions. Reload the page and try again. If it continues, ask an admin to confirm you are not listed as a Client-only user in Firestore, and that the latest app is deployed."
+            "Save was blocked by your account permissions. Remove ?dealId= from the address bar if present, reload, and try again. Otherwise confirm the hosting app uses the same Firebase project as the console, and that you are not in the Firestore clients collection."
           );
         }, 0);
       }
@@ -357,6 +357,16 @@ export default function REDMS() {
     setCurrentDealIsShared(false);
     setCurrentDealOwnerIsAdmin(false);
     setIsViewingSystemGeneratedDeal(false);
+    // Drop dealId from the URL so the dealId effect does not immediately reload a shared/other deal
+    // (that would restore currentDealId and make Save attempt an update you are not allowed to do).
+    setSearchParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        next.delete("dealId");
+        return next;
+      },
+      { replace: true }
+    );
   };
 
   const handleRemoveFavorite = async (fav, e) => {
@@ -397,6 +407,14 @@ export default function REDMS() {
       else {
         setCurrentDealId(null);
         setIsViewingSystemGeneratedDeal(false);
+        setSearchParams(
+          (p) => {
+            const next = new URLSearchParams(p);
+            next.delete("dealId");
+            return next;
+          },
+          { replace: true }
+        );
       }
     } else {
       handleLoadDeal(value);

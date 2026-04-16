@@ -160,14 +160,33 @@ export async function loadDeal(id, opts = {}) {
 export async function saveDeal(deal, existingId = null, userId = null) {
   if (!db) throw new Error("Firebase is not configured. Add VITE_FIREBASE_* to .env");
   if (!userId) throw new Error("User must be signed in to save deals");
-  const payload = dealToDoc(deal, userId, !existingId);
+  const ownerId = String(userId);
+
   if (existingId) {
     const ref = doc(db, DEALS_COLLECTION, existingId);
+    let snap = null;
+    try {
+      snap = await getDoc(ref);
+    } catch {
+      /* unreadable doc (e.g. no read permission) — fall through to create */
+    }
+    const data = snap?.exists() ? snap.data() : null;
+    const canMergeUpdate = data != null && String(data.userId ?? "") === ownerId;
+    if (!canMergeUpdate) {
+      // Stale id, wrong owner, missing doc, or unreadable: create instead of denied update.
+      const created = await addDoc(collection(db, DEALS_COLLECTION), {
+        ...dealToDoc(deal, ownerId, true),
+        createdAt: serverTimestamp(),
+      });
+      return created.id;
+    }
+    const payload = dealToDoc(deal, ownerId, false);
     await setDoc(ref, payload, { merge: true });
     return existingId;
   }
+
   const ref = await addDoc(collection(db, DEALS_COLLECTION), {
-    ...payload,
+    ...dealToDoc(deal, ownerId, true),
     createdAt: serverTimestamp(),
   });
   return ref.id;
