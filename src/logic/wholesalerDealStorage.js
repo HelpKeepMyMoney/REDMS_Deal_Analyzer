@@ -54,11 +54,12 @@ function dealToDoc(deal, userId) {
         !WHOLESALER_DEAL_DOC_STRIP_KEYS.has(k)
     )
   );
+  const ownerId = String(userId);
   const base = {
     ...cleaned,
     dealName: dealName ?? null,
     updatedAt: serverTimestamp(),
-    userId,
+    userId: ownerId,
   };
   if (overrides) {
     base.riskOverrides = overrides;

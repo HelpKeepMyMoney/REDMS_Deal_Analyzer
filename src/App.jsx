@@ -15,7 +15,8 @@ import Privacy from "./pages/Privacy.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) {
+  const { loading: tierLoading } = useTier();
+  if (loading || (user && tierLoading)) {
     return (
       <div className="app-loading">
         <span>Loading…</span>

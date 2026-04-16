@@ -40,12 +40,13 @@ function dealToDoc(deal, userId, isCreate = false) {
   );
   // userId must be last: localStorage/merged state can contain a stale userId and would
   // otherwise overwrite the authenticated uid and fail Firestore create/update rules.
+  const ownerId = String(userId);
   const base = {
     ...cleaned,
     dealName: dealName ?? null,
     updatedAt: serverTimestamp(),
     ...(isCreate ? { sharedWith: [], sharedWithAll: false } : {}),
-    userId,
+    userId: ownerId,
   };
   void archived;
   return base;

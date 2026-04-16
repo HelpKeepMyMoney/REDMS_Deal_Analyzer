@@ -311,19 +311,32 @@ export default function REDMS() {
       };
       const isCreate = !currentDealId;
       const id = await saveDeal(payload, currentDealId, user.uid);
-      if (isCreate && !isAdmin) {
-        if (!isViewingSystemGeneratedDeal) {
-          await incrementUsage(user.uid, tier);
-        }
-        await refreshUsage?.();
-      }
       setCurrentDealId(id);
       setCurrentDealOwnerIsAdmin(isAdmin);
       setCurrentDealIsShared(false);
       if (!isViewingSystemGeneratedDeal) setIsViewingSystemGeneratedDeal(false);
+      if (isCreate && !isAdmin) {
+        if (!isViewingSystemGeneratedDeal) {
+          try {
+            await incrementUsage(user.uid, tier);
+          } catch (usageErr) {
+            console.error("Deal saved but usage counter update failed:", usageErr);
+          }
+        }
+        try {
+          await refreshUsage?.();
+        } catch (usageRefreshErr) {
+          console.warn("refreshUsage after save failed:", usageRefreshErr);
+        }
+      }
       await refreshDeals();
     } catch (e) {
       console.error("Failed to save deal", e);
+      if (String(e?.code || "").includes("permission-denied")) {
+        alert(
+          "Save was blocked by your account permissions. Reload the page and try again. If it continues, ask an admin to confirm you are not listed as a Client-only user in Firestore, and that the latest app is deployed."
+        );
+      }
     } finally {
       setSaveInProgress(false);
     }
