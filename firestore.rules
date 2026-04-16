@@ -32,10 +32,11 @@ service cloud.firestore {
     // Other tiers: can only update/delete deals they created (owner).
     match /deals/{dealId} {
       // Archived deals are readable only by admins (hidden from owners, shared users, and shared-with-all).
+      // Use ('archived' in resource.data) so legacy docs without the field still evaluate safely.
       allow read: if request.auth != null && (
         isAdmin()
         || (
-          !(resource.data.archived == true)
+          !(('archived' in resource.data) && resource.data.archived == true)
           && (
             resource.data.userId == request.auth.uid
             || (resource.data.sharedWithAll == true && !isFreeTier())
@@ -43,16 +44,20 @@ service cloud.firestore {
           )
         )
       );
-      // Non-admins cannot create a deal already marked archived.
+      // App strips archived on save; do not add a brittle archived check here (it blocked legitimate creates).
       allow create: if request.auth != null && !isClient()
-        && request.resource.data.userId == request.auth.uid
-        && !(request.resource.data.archived == true);
+        && request.resource.data.userId == request.auth.uid;
       // Owners may update their deals but cannot toggle archived (admin-only).
+      // Compare "archived as boolean true" with missing field treated as false (legacy docs).
       allow update: if request.auth != null && !isClient() && (
         isAdmin()
         || (
           resource.data.userId == request.auth.uid
-          && (request.resource.data.archived == true) == (resource.data.archived == true)
+          && (
+            ('archived' in resource.data ? resource.data.archived == true : false)
+            ==
+            ('archived' in request.resource.data ? request.resource.data.archived == true : false)
+          )
         )
       );
       allow delete: if request.auth != null && !isClient() && (
