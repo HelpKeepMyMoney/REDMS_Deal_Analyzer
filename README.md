@@ -45,6 +45,8 @@ newPropertyTax = (offerPrice × 0.5 × 0.0852737) + 240
 
 Constants: `DETROIT_TAX_SEV_RATIO`, `DETROIT_TAX_RATE`, `DETROIT_TAX_FLAT` in `src/logic/constants.js`. Overridable via App Parameters.
 
+For the **sample deal** (`DEFAULT_INPUT` in `redmsCalc.js`), **New Property Tax ($)** is initialized with the same formula (rounded to whole dollars) after `offerPrice` is set, so the default stays aligned when the default contract price changes.
+
 ## App Parameters (Admin)
 
 Admins can override equation parameters in **Admin → App Parameters**:
@@ -164,6 +166,8 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Closing costs — Landlord's Insurance** — The annual landlord premium (sidebar **Landlord's Insurance ($)**, or 2.5% × (purchase + rehab) when unset) contributes **one-ninth** of that annual amount to **closing costs**, not the full year. Purchase & Flip (Investor and Wholesaler tabs) and the wholesaler proforma PDF list **Landlord's Insurance** as its own line item (`landlordsClosingIns` / `prepaidIns` in `calc()` results). Buy-and-hold math still uses the **full** annual premium for operating expenses and reserves.
+- **Default sample deal (`DEFAULT_INPUT`)** — **Contract Price (to seller)** **$19,400**; **Misc Fees** **$2,000**; **Business Costs** **$150**/year; **New Property Tax** computed from the Detroit formula above from the default offer price (rounded), replacing a fixed placeholder.
 - **Deal timestamps & sorting** — Firestore deals store **`createdAt`** (on create) and **`updatedAt`** (on saves). Investor and Wholesaler sidebars expose **Sort deals** (name, updated, created) via `dealListSort.js`; saved-deal rows can show created/updated lines. **Admin → Deal Management** cards show both dates; sort includes **Created** newest/oldest. **`loadAllDealsForAdmin`** returns `createdAt` explicitly (no longer dropped when mapping documents).
 - **Admin sorting & Deal Sharing UX** — **Users:** sort by email or account created date. **Assign deal access:** sort deal picker list; **checkbox per row** to **archive** / unarchive (`updateDealArchived`); right-hand **Deal summary** (metrics, badges, sharing blurb, open-in-investor link) via `DealShareSummary.jsx`. **Search sharing:** sort saved-search dropdown. **Interest requests:** sort by date or user email.
 - **Archived deals** — Boolean **`archived`** on `deals/{id}`. Hidden from `loadDeals`, blocked for normal `loadDeal`, excluded from non-admin Firestore reads. **`dealToDoc`** strips `archived` so owners cannot set it via save payload. **Admins** can load archived deals in the investor app (`allowArchived: isAdmin` in `REDMS.jsx`). **DealCard** shows an **Archived** badge when applicable.

@@ -185,6 +185,7 @@ export async function generateWholesalerProformaPDF(inp, r, formatAddress) {
   y = addRow(doc, "  · Acq Management Fee", $(r.acqMgmtFee), y);
   y = addRow(doc, "  · Buyer's Property Tax", $(r.buyerTax), y);
   y = addRow(doc, "  · Rehab Insurance", $(r.rehabIns), y);
+  y = addRow(doc, "  · Landlord's Insurance", $(r.landlordsClosingIns), y);
   y = addRow(doc, "Holding Costs", $(r.holdingCosts), y);
   y = addRow(doc, "2nd Mtg Points", $(r.mortgage2Pts), y);
   y = addRow(doc, "Total Cost", $(r.totalCosts), y, true);

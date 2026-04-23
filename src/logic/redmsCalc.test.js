@@ -120,12 +120,12 @@ describe("redmsCalc", () => {
     expect(r.gt.netCash).toBeCloseTo(sumNetCash, 0);
   });
 
-  it("businessCosts defaults to 0 and reduces NOI when set", () => {
+  it("businessCosts default and reduces NOI when increased", () => {
     const r0 = calc(DEFAULT_INPUT);
-    expect(r0.bhBusinessCosts).toBe(0);
+    expect(r0.bhBusinessCosts).toBe(150);
     const r1 = calc({ ...DEFAULT_INPUT, businessCosts: 1200 });
     expect(r1.bhBusinessCosts).toBe(1200);
-    expect(r1.noi).toBe(r0.noi - 1200);
+    expect(r1.noi).toBe(r0.noi - (1200 - 150));
   });
 
   it("1st Mtg upfront points are at least MIN_FIRST_MTG_UPFRONT_POINTS when 1st mortgage is Yes", () => {
@@ -146,5 +146,13 @@ describe("redmsCalc", () => {
     expect(calc({ ...base, mortgage1YN: "YES" }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
     expect(calc({ ...base, mortgage1YN: true }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
     expect(calc({ ...base, mortgage1YN: "  yes " }).mortgage1Pts).toBe(MIN_FIRST_MTG_UPFRONT_POINTS);
+  });
+
+  it("includes landlord's insurance in closing as 1/9 of annual premium", () => {
+    const inp = { ...DEFAULT_INPUT, landlordsInsurance: 1500 };
+    const r = calc(inp);
+    expect(r.annualInsurance).toBe(1500);
+    expect(r.landlordsClosingIns).toBeCloseTo(1500 / 9, 8);
+    expect(r.prepaidIns).toBe(r.landlordsClosingIns);
   });
 });

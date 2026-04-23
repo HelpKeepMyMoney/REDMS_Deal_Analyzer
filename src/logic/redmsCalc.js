@@ -239,10 +239,12 @@ export function calc(inp, config = null) {
       inpLandlordsInsurance >= 0
       ? inpLandlordsInsurance
       : (offerPrice + rehabCost) * 0.025;
-  const prepaidIns = annualInsurance;
+  /** Landlord's insurance included in closing = 1/9 of annual premium. */
+  const landlordsClosingIns = annualInsurance / 9;
+  const prepaidIns = landlordsClosingIns;
   const buyerTax = buyerProratedPropertyTax(currentYearTax);
   const closing =
-    titleIns + settlementCosts + miscFees + acqMgmtFee + prepaidIns + buyerTax + rehabIns;
+    titleIns + settlementCosts + miscFees + acqMgmtFee + landlordsClosingIns + buyerTax + rehabIns;
   const annualPMI = mortgage1Amt * (pmiPct / 100);
   const annualTaxFlip = currentYearTax;
 
@@ -433,6 +435,7 @@ export function calc(inp, config = null) {
     titleIns,
     acqMgmtFee,
     prepaidIns,
+    landlordsClosingIns,
     buyerTax,
     rehabIns,
     closing,
@@ -599,11 +602,11 @@ export const DEFAULT_INPUT = {
   rehabLevel: "Full",
   rehabCost: 30000,
   rehabMonths: 3,
-  offerPrice: 15500,
+  offerPrice: 19400,
   wholesaleFee: 0,
   retailCapRate: 0.1,
   currentYearTax: 1000,
-  newPropertyTax: 916,
+  newPropertyTax: undefined, // set below: Detroit non-homestead estimate from offerPrice
   rehabInsurance: 0,
   landlordsInsurance: undefined, // set below: 2.5% × (purchase price + rehab cost)
   pmiPct: 0,
@@ -619,7 +622,7 @@ export const DEFAULT_INPUT = {
   appraisalFee: 25,
   titleInsurance: undefined, // auto-estimated from Michigan tiered rate schedule when omitted
   settlementCosts: 1000,
-  miscFees: 2500,
+  miscFees: 2000,
   mgmtFeePct: 2,
   prepaidInsMonths: 1,
   holdingMonthsBuffer: 3,
@@ -636,7 +639,7 @@ export const DEFAULT_INPUT = {
   recommendedReserves: undefined, // if provided, overrides calculated value (3 × monthly expenses)
   retailTenantAcquisition: undefined, // Retail Investor: if provided, overrides default $0
   retailRecommendedReserves: undefined, // Retail Investor: if provided, overrides 6 × monthly operating costs
-  businessCosts: 0, // Annual business costs; subtracts from NOI
+  businessCosts: 150, // Annual business costs; subtracts from NOI
   bedrooms: 3,
   bathrooms: 1,
   sqft: 1000,
@@ -647,3 +650,7 @@ export const DEFAULT_INPUT = {
 };
 DEFAULT_INPUT.landlordsInsurance =
   (DEFAULT_INPUT.offerPrice + DEFAULT_INPUT.rehabCost) * 0.025;
+DEFAULT_INPUT.newPropertyTax = Math.round(
+  DEFAULT_INPUT.offerPrice * DEFAULT_DETROIT_TAX_SEV_RATIO * DEFAULT_DETROIT_TAX_RATE +
+    DEFAULT_DETROIT_TAX_FLAT
+);
