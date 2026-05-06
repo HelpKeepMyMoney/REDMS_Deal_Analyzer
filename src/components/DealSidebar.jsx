@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Field } from "./Field.jsx";
 import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
@@ -65,6 +65,14 @@ export function DealSidebar({
     refreshConfig = null,
     dealListSort = "name-asc",
     onDealListSortChange = null,
+    dealImages = [],
+    dealImagesLoading = false,
+    dealImagesError = "",
+    uploadingImage = false,
+    deletingImagePath = "",
+    onUploadDealImage,
+    onDeleteDealImage,
+    onPreviewDealImage,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
     const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
@@ -72,6 +80,7 @@ export function DealSidebar({
     const [dealParamsOverrides, setDealParamsOverrides] = useState({});
     const [dealParamsSaving, setDealParamsSaving] = useState(false);
     const showDealParams = (dealParamsLevel === "full" || dealParamsLevel === "limited") && onSaveUserConfig && refreshConfig && config && !isClient;
+    const imageInputRef = useRef(null);
     const dealParamKeys = dealParamsLevel === "limited" ? FREE_TIER_PARAM_KEYS : ["maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minAcqMgmtFee", "minRealtorFee", "mortgagePointsRate", "initialReferralPct", "investorReferralPct"];
 
     const sortedSavedDeals = useMemo(
@@ -429,24 +438,82 @@ export function DealSidebar({
                         }
                     }}
                 />
-                {!currentDealIsShared && (
-                <button
-                    type="button"
-                    onClick={() => {
-                        const url = buildStreetViewUrlFromAddress(inp);
-                        if (url) {
-                            upd("image", url);
-                            upd("imageFallback", inp?.imageFallback ?? "");
-                        }
-                    }}
-                    disabled={!inp?.street && !inp?.city && !inp?.state && !inp?.zipCode}
-                    className={styles["btn-estimate-rent"]}
-                    title="Use Google Street View image for this address"
-                    style={{ marginTop: 8, width: '100%' }}
-                >
-                    Get Street View
-                </button>
+                {(!currentDealIsShared && !isClient) && (
+                <div className={styles["deal-image-actions"]}>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const url = buildStreetViewUrlFromAddress(inp);
+                            if (url) {
+                                upd("image", url);
+                                upd("imageFallback", inp?.imageFallback ?? "");
+                            }
+                        }}
+                        disabled={!inp?.street && !inp?.city && !inp?.state && !inp?.zipCode}
+                        className={styles["btn-estimate-rent"]}
+                        title="Use Google Street View image for this address"
+                        style={{ marginTop: 8, width: '100%' }}
+                    >
+                        Get Street View
+                    </button>
+                    <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file && onUploadDealImage) onUploadDealImage(file);
+                            e.target.value = "";
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={!currentDealId || uploadingImage || !onUploadDealImage}
+                        className={styles["btn-estimate-rent"]}
+                        title={!currentDealId ? "Save the deal first before uploading images" : "Upload a deal image"}
+                        style={{ marginTop: 8, width: "100%" }}
+                    >
+                        {uploadingImage ? "Uploading…" : "Upload Image"}
+                    </button>
+                </div>
                 )}
+                <div className={styles["deal-image-list-wrap"]}>
+                    {dealImagesLoading && <div className={styles["deal-image-empty"]}>Loading images…</div>}
+                    {!dealImagesLoading && dealImagesError && (
+                        <div className={styles["deal-image-error"]}>{dealImagesError}</div>
+                    )}
+                    {!dealImagesLoading && !dealImagesError && dealImages.length === 0 && (
+                        <div className={styles["deal-image-empty"]}>No uploaded images.</div>
+                    )}
+                    {!dealImagesLoading && !dealImagesError && dealImages.length > 0 && (
+                        <ul className={styles["deal-image-list"]} aria-label="Deal images">
+                            {dealImages.map((image) => (
+                                <li key={image.fullPath} className={styles["deal-image-item"]}>
+                                    <button
+                                        type="button"
+                                        className={styles["deal-image-open"]}
+                                        onClick={() => onPreviewDealImage?.(image)}
+                                        title={image.name}
+                                    >
+                                        {image.name}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles["deal-image-delete"]}
+                                        onClick={() => onDeleteDealImage?.(image)}
+                                        disabled={currentDealIsShared || isClient || deletingImagePath === image.fullPath || !onDeleteDealImage}
+                                        aria-label={`Delete ${image.name}`}
+                                        title={currentDealIsShared || isClient ? "Read-only: cannot delete image" : "Delete image"}
+                                    >
+                                        {deletingImagePath === image.fullPath ? "…" : "×"}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
             </div>
 
             {(currentDealIsShared || isClient) && (

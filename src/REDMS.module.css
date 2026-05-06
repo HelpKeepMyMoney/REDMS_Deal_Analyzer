@@ -324,6 +324,139 @@
   object-fit: cover;
 }
 
+.deal-image-actions {
+  margin-top: 8px;
+}
+
+.deal-image-list-wrap {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.deal-image-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.deal-image-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deal-image-open {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted2);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deal-image-open:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.deal-image-delete {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.deal-image-delete:hover:not(:disabled) {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+.deal-image-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deal-image-empty,
+.deal-image-error {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 0;
+}
+
+.deal-image-empty {
+  color: var(--muted);
+}
+
+.deal-image-error {
+  color: var(--red);
+}
+
+.image-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.image-modal-content {
+  position: relative;
+  max-width: min(92vw, 1200px);
+  max-height: 92vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.image-modal-img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(92vh - 40px);
+  border-radius: var(--radius);
+  object-fit: contain;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .sec-label {
   font-family: var(--mono);
   font-size: 13px;

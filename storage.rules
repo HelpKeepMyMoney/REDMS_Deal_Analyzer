@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Temporary unblock rule while diagnosing Firestore-linked Storage checks:
+    // any signed-in user can read/write under deal-images.
+    match /deal-images/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,10 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 let db = null;
 let auth = null;
+let storage = null;
 
 if (projectId) {
   try {
@@ -19,9 +21,10 @@ if (projectId) {
     const app = initializeApp(config);
     db = getFirestore(app);
     auth = getAuth(app);
+    storage = getStorage(app);
   } catch (e) {
     console.warn("Firebase init failed", e);
   }
 }
 
-export { db, auth };
+export { db, auth, storage };

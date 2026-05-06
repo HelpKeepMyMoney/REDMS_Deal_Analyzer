@@ -18,6 +18,7 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase.js";
 import { loadDeals, loadDeal, saveDeal, deleteDeal } from "./logic/firestoreStorage.js";
+import { listDealImages, uploadDealImage, deleteDealImage } from "./logic/dealImageStorage.js";
 import { incrementUsage } from "./logic/dealUsageStorage.js";
 import { saveUserConfig } from "./logic/userConfigStorage.js";
 import { loadUserFavorites, removeFavorite } from "./logic/userFavoritesStorage.js";
@@ -80,6 +81,13 @@ export default function REDMS() {
   const [showPropertySearch, setShowPropertySearch] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
   const [retailPdfExporting, setRetailPdfExporting] = useState(false);
+  const [dealImages, setDealImages] = useState([]);
+  const [dealImagesLoading, setDealImagesLoading] = useState(false);
+  const [dealImagesError, setDealImagesError] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImagePath, setDeletingImagePath] = useState("");
+  const [activePreviewImage, setActivePreviewImage] = useState(null);
+  const [currentDealOwnerId, setCurrentDealOwnerId] = useState(null);
   const hasInitialBlankLoad = useRef(false);
 
   useEffect(() => {
@@ -195,6 +203,7 @@ export default function REDMS() {
       setInp(mergeStored(base, dealData));
       setCurrentDealId(id);
       const isShared = _ownerId != null && _ownerId !== user?.uid;
+      setCurrentDealOwnerId(_ownerId || user?.uid || null);
       setCurrentDealIsShared(isShared);
       let ownerIsAdmin = false;
       if (_ownerId && db) {
@@ -354,6 +363,7 @@ export default function REDMS() {
     if (!isAdmin && !canSaveDeal) return;
     setInp(sanitizeInput({ ...DEFAULT_INPUT }));
     setCurrentDealId(null);
+    setCurrentDealOwnerId(null);
     setCurrentDealIsShared(false);
     setCurrentDealOwnerIsAdmin(false);
     setIsViewingSystemGeneratedDeal(false);
@@ -422,6 +432,81 @@ export default function REDMS() {
   };
 
   const showUserCreatedDisclaimer = !isViewingSystemGeneratedDeal && !isAdmin && !isClient && currentDealId && !currentDealIsShared;
+
+  const refreshDealImages = useCallback(async () => {
+    if (!currentDealId) {
+      setDealImages([]);
+      setDealImagesError("");
+      return;
+    }
+    const ownerUid = currentDealOwnerId || user?.uid;
+    if (!ownerUid) return;
+    setDealImagesLoading(true);
+    setDealImagesError("");
+    try {
+      const images = await listDealImages(ownerUid, currentDealId, {
+        fallbackOwnerUid: user?.uid || null,
+      });
+      setDealImages(images);
+    } catch (e) {
+      console.error("Failed to load deal images", e);
+      setDealImages([]);
+      const code = e?.code ? ` (${e.code})` : "";
+      setDealImagesError(`Could not load images${code}.`);
+    } finally {
+      setDealImagesLoading(false);
+    }
+  }, [currentDealId, currentDealOwnerId, user?.uid]);
+
+  useEffect(() => {
+    refreshDealImages();
+  }, [refreshDealImages]);
+
+  useEffect(() => {
+    if (!activePreviewImage) return;
+    const stillExists = dealImages.some((img) => img.fullPath === activePreviewImage.fullPath);
+    if (!stillExists) setActivePreviewImage(null);
+  }, [dealImages, activePreviewImage]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setActivePreviewImage(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const handleUploadDealImage = async (file) => {
+    if (!file || !currentDealId) return;
+    const ownerUid = currentDealOwnerId || user?.uid;
+    if (!ownerUid) return;
+    setUploadingImage(true);
+    setDealImagesError("");
+    try {
+      await uploadDealImage(file, ownerUid, currentDealId);
+      await refreshDealImages();
+    } catch (e) {
+      console.error("Upload image failed", e);
+      setDealImagesError(e?.message || "Upload failed.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleDeleteDealImage = async (image) => {
+    if (!image?.fullPath) return;
+    setDeletingImagePath(image.fullPath);
+    setDealImagesError("");
+    try {
+      await deleteDealImage(image);
+      await refreshDealImages();
+    } catch (e) {
+      console.error("Delete image failed", e);
+      setDealImagesError(e?.message || "Delete failed.");
+    } finally {
+      setDeletingImagePath("");
+    }
+  };
 
   const handleExportPDF = async () => {
     setPdfExporting(true);
@@ -666,6 +751,14 @@ export default function REDMS() {
           config={config}
           refreshConfig={refreshConfig}
           onSaveUserConfig={user && (dealParamsLevel === "full" || dealParamsLevel === "limited") ? (overrides) => saveUserConfig(user.uid, overrides, dealParamsLevel) : null}
+          dealImages={dealImages}
+          dealImagesLoading={dealImagesLoading}
+          dealImagesError={dealImagesError}
+          uploadingImage={uploadingImage}
+          deletingImagePath={deletingImagePath}
+          onUploadDealImage={handleUploadDealImage}
+          onDeleteDealImage={handleDeleteDealImage}
+          onPreviewDealImage={setActivePreviewImage}
         />
 
         <main className={styles.output}>
@@ -749,6 +842,40 @@ export default function REDMS() {
           )}
         </main>
       </div>
+      {activePreviewImage && (
+        <div
+          className={styles["image-modal-backdrop"]}
+          role="button"
+          tabIndex={0}
+          onClick={() => setActivePreviewImage(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") setActivePreviewImage(null);
+          }}
+          aria-label="Close image preview"
+        >
+          <div
+            className={styles["image-modal-content"]}
+            role="dialog"
+            aria-modal="true"
+            aria-label={activePreviewImage.name || "Deal image preview"}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className={styles["image-modal-close"]}
+              onClick={() => setActivePreviewImage(null)}
+              aria-label="Close preview"
+            >
+              ×
+            </button>
+            <img
+              src={activePreviewImage.downloadURL}
+              alt={activePreviewImage.name || "Deal image"}
+              className={styles["image-modal-img"]}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
