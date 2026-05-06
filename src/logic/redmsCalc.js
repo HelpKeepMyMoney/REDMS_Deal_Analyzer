@@ -596,6 +596,7 @@ export const DEFAULT_INPUT = {
   apn: "",
   use: "",
   notes: "",
+  wedPage: "",
   image: "",
   imageFallback: "",
   totalRent: 1000,

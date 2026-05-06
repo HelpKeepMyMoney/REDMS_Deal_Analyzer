@@ -14,6 +14,14 @@ import styles from "../REDMS.module.css";
 
 const $ = formatCurrency;
 
+function normalizeWebAddress(url) {
+    if (typeof url !== "string") return null;
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+}
+
 export function DealSidebar({
     isAdmin = true,
     canSaveDeal = false,
@@ -554,6 +562,27 @@ export function DealSidebar({
                         type="textarea"
                         rows={4}
                     />
+                    <Field
+                        label="Wed Page"
+                        name="wedPage"
+                        value={inp.wedPage ?? ""}
+                        onChange={upd}
+                        type="text"
+                        placeholder="https://example.com"
+                    />
+                    {normalizeWebAddress(inp.wedPage) && (
+                        <div className={styles.field}>
+                            <label>Wed Page Link</label>
+                            <a
+                                href={normalizeWebAddress(inp.wedPage)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "var(--brand-accent)", textDecorationColor: "var(--brand-accent)" }}
+                            >
+                                {inp.wedPage}
+                            </a>
+                        </div>
+                    )}
                 </div>
             </div>
 
