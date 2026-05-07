@@ -751,17 +751,44 @@ export function DealSidebar({
                         onChange={upd}
                         type="text"
                         placeholder="https://example.com"
+                        inputClassName={styles.sidebarUrlInput}
                     />
                     {normalizeWebAddress(inp.wedPage) && (
                         <div className={styles.field}>
                             <label>Web Page Link</label>
                             <a
+                                className={styles.sidebarExternalLink}
                                 href={normalizeWebAddress(inp.wedPage)}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                title={inp.wedPage.trim()}
                                 style={{ color: "var(--brand-accent)", textDecorationColor: "var(--brand-accent)" }}
                             >
-                                {inp.wedPage}
+                                Listing
+                            </a>
+                        </div>
+                    )}
+                    <Field
+                        label="Pics & Videos"
+                        name="picsVideos"
+                        value={inp.picsVideos ?? ""}
+                        onChange={upd}
+                        type="text"
+                        placeholder="https://example.com"
+                        inputClassName={styles.sidebarUrlInput}
+                    />
+                    {normalizeWebAddress(inp.picsVideos) && (
+                        <div className={styles.field}>
+                            <label>Pics & Videos Link</label>
+                            <a
+                                className={styles.sidebarExternalLink}
+                                href={normalizeWebAddress(inp.picsVideos)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={inp.picsVideos.trim()}
+                                style={{ color: "var(--brand-accent)", textDecorationColor: "var(--brand-accent)" }}
+                            >
+                                Pics & Videos
                             </a>
                         </div>
                     )}

@@ -598,6 +598,7 @@ export const DEFAULT_INPUT = {
   notes: "",
   notesHistory: [],
   wedPage: "",
+  picsVideos: "",
   image: "",
   imageFallback: "",
   totalRent: 1000,

@@ -18,6 +18,7 @@ export function Field({
   disabled = false,
   onFocus,
   onBlur,
+  inputClassName,
 }) {
   const fallbackId = useId();
   const id = idProp ?? `redms-field-${name}-${fallbackId.replace(/:/g, "")}`;
@@ -53,6 +54,7 @@ export function Field({
       ) : (
         <input
           id={id}
+          className={inputClassName}
           type={type}
           step={step}
           value={value ?? ""}
