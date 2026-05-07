@@ -1023,6 +1023,26 @@
   gap: 6px;
 }
 
+.note-save-status,
+.note-save-status-success,
+.note-save-status-error {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.note-save-status {
+  color: var(--muted);
+}
+
+.note-save-status-success {
+  color: var(--green);
+}
+
+.note-save-status-error {
+  color: var(--red);
+}
+
 .note-modal-actions button {
   flex: 0 0 auto;
 }

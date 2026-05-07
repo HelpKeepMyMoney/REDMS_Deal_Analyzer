@@ -172,6 +172,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 ## Recent Changes
 
 - **Deal Notes History (modal CRUD + migration)** — Replaced the legacy single **Notes** textarea with a dedicated sidebar **Notes** section in Investor. Users can add notes in a modal, open notes from a list (date + preview), edit, and delete notes from the same modal. Notes are persisted on each deal under `notesHistory`. A one-time owner-scoped migration converts legacy `notes` text into the first `notesHistory` entry using today’s timestamp while preserving the legacy `notes` field.
+- **Deal notes auto-save + status UI** — Note create/edit/delete actions now persist immediately to Firestore for the active deal (no separate “Update deal” click required). The note modal shows save feedback (`Saving note...`, `Saved`, error message) and temporarily disables action buttons while saving to prevent duplicate writes.
 - **Notes modal overlap fix** — Updated note modal action layout and button styling to prevent action buttons from overlapping on narrow widths (`flex-wrap` action row and dedicated `.note-modal-delete` style).
 - **Deal sort enhancements (Updated)** — Updated sorting now considers note timestamps in addition to deal document `updatedAt`; deals with newer note activity rise when sorted by **Updated**.
 - **Investor default sort** — Investor page now defaults sidebar deal sorting to **Updated: Newest first** on load.

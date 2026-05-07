@@ -84,6 +84,8 @@ export function DealSidebar({
     onAddDealNote,
     onUpdateDealNote,
     onDeleteDealNote,
+    noteSaveStatus = "idle",
+    noteSaveError = "",
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
     const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
@@ -92,6 +94,7 @@ export function DealSidebar({
     const [dealParamsSaving, setDealParamsSaving] = useState(false);
     const showDealParams = (dealParamsLevel === "full" || dealParamsLevel === "limited") && onSaveUserConfig && refreshConfig && config && !isClient;
     const imageInputRef = useRef(null);
+    const noteSaving = noteSaveStatus === "saving";
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [activeNoteId, setActiveNoteId] = useState(null);
     const [noteDraft, setNoteDraft] = useState("");
@@ -1238,6 +1241,15 @@ export function DealSidebar({
                             readOnly={!isEditingNote && Boolean(activeNote)}
                             rows={8}
                         />
+                        {noteSaveStatus === "saving" && (
+                            <div className={styles["note-save-status"]}>Saving note...</div>
+                        )}
+                        {noteSaveStatus === "saved" && (
+                            <div className={styles["note-save-status-success"]}>Saved</div>
+                        )}
+                        {noteSaveStatus === "error" && (
+                            <div className={styles["note-save-status-error"]}>{noteSaveError || "Could not save note changes."}</div>
+                        )}
                         <div className={styles["note-modal-actions"]}>
                             {activeNote && !isEditingNote && (
                                 <button
@@ -1247,7 +1259,7 @@ export function DealSidebar({
                                         setNoteDraft(activeNote.text ?? "");
                                         setIsEditingNote(true);
                                     }}
-                                    disabled={notesReadOnly}
+                                    disabled={notesReadOnly || noteSaving}
                                 >
                                     Edit
                                 </button>
@@ -1257,7 +1269,7 @@ export function DealSidebar({
                                     type="button"
                                     className={styles["btn-save-deal"]}
                                     onClick={handleSaveNote}
-                                    disabled={notesReadOnly || !noteDraft.trim()}
+                                    disabled={notesReadOnly || noteSaving || !noteDraft.trim()}
                                 >
                                     Save
                                 </button>
@@ -1267,7 +1279,7 @@ export function DealSidebar({
                                     type="button"
                                     className={styles["note-modal-delete"]}
                                     onClick={handleDeleteNote}
-                                    disabled={notesReadOnly}
+                                    disabled={notesReadOnly || noteSaving}
                                 >
                                     Delete
                                 </button>
@@ -1276,6 +1288,7 @@ export function DealSidebar({
                                 type="button"
                                 className={styles["btn-refresh-deals"]}
                                 onClick={closeNoteModal}
+                                disabled={noteSaving}
                             >
                                 Close
                             </button>

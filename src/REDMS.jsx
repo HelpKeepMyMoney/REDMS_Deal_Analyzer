@@ -119,12 +119,21 @@ export default function REDMS() {
   const [deletingImagePath, setDeletingImagePath] = useState("");
   const [activePreviewImage, setActivePreviewImage] = useState(null);
   const [currentDealOwnerId, setCurrentDealOwnerId] = useState(null);
+  const [noteSaveStatus, setNoteSaveStatus] = useState("idle");
+  const [noteSaveError, setNoteSaveError] = useState("");
   const hasInitialBlankLoad = useRef(false);
   const notesMigrationRanForUser = useRef(null);
+  const noteSavedTimerRef = useRef(null);
 
   useEffect(() => {
     if (isAdmin || currentDealId) saveStoredInput(inp);
   }, [inp, isAdmin, currentDealId]);
+
+  useEffect(() => {
+    return () => {
+      if (noteSavedTimerRef.current) clearTimeout(noteSavedTimerRef.current);
+    };
+  }, []);
 
   // Non-clients: auto-load blank template when landing on deal page with no deal selected
   useEffect(() => {
@@ -658,38 +667,59 @@ export default function REDMS() {
     setInp((prev) => ({ ...prev, [k]: v }));
   };
 
+  const persistDealNotes = useCallback(async (nextNotesHistory) => {
+    if (!currentDealId || !user?.uid) return;
+    setNoteSaveStatus("saving");
+    setNoteSaveError("");
+    try {
+      const payload = {
+        ...inp,
+        notesHistory: normalizeNotesHistory(nextNotesHistory),
+        dealName: formatAddress(inp) || "Untitled",
+      };
+      await saveDeal(payload, currentDealId, user.uid);
+      await refreshDeals();
+      setNoteSaveStatus("saved");
+      if (noteSavedTimerRef.current) clearTimeout(noteSavedTimerRef.current);
+      noteSavedTimerRef.current = setTimeout(() => {
+        setNoteSaveStatus("idle");
+      }, 1500);
+    } catch (e) {
+      console.error("Failed to persist deal notes", e);
+      setNoteSaveStatus("error");
+      setNoteSaveError(e?.message || "Could not save note changes.");
+    }
+  }, [currentDealId, user?.uid, inp, refreshDeals]);
+
   const addDealNote = useCallback((text) => {
     const clean = typeof text === "string" ? text.trim() : "";
     if (!clean) return;
     const now = new Date().toISOString();
-    setInp((prev) => ({
-      ...prev,
-      notesHistory: [
-        ...normalizeNotesHistory(prev.notesHistory),
-        { id: makeNoteId(), text: clean, createdAt: now, updatedAt: now },
-      ],
-    }));
-  }, []);
+    const nextNotesHistory = [
+      ...normalizeNotesHistory(inp.notesHistory),
+      { id: makeNoteId(), text: clean, createdAt: now, updatedAt: now },
+    ];
+    setInp((prev) => ({ ...prev, notesHistory: nextNotesHistory }));
+    persistDealNotes(nextNotesHistory);
+  }, [inp.notesHistory, persistDealNotes]);
 
   const updateDealNote = useCallback((id, text) => {
     const clean = typeof text === "string" ? text.trim() : "";
     if (!id || !clean) return;
     const now = new Date().toISOString();
-    setInp((prev) => ({
-      ...prev,
-      notesHistory: normalizeNotesHistory(prev.notesHistory).map((note) =>
-        note.id === id ? { ...note, text: clean, updatedAt: now } : note
-      ),
-    }));
-  }, []);
+    const nextNotesHistory = normalizeNotesHistory(inp.notesHistory).map((note) =>
+      note.id === id ? { ...note, text: clean, updatedAt: now } : note
+    );
+    setInp((prev) => ({ ...prev, notesHistory: nextNotesHistory }));
+    persistDealNotes(nextNotesHistory);
+  }, [inp.notesHistory, persistDealNotes]);
 
   const deleteDealNote = useCallback((id) => {
     if (!id) return;
-    setInp((prev) => ({
-      ...prev,
-      notesHistory: normalizeNotesHistory(prev.notesHistory).filter((note) => note.id !== id),
-    }));
-  }, []);
+    const nextNotesHistory = normalizeNotesHistory(inp.notesHistory).filter((note) => note.id !== id);
+    setInp((prev) => ({ ...prev, notesHistory: nextNotesHistory }));
+    persistDealNotes(nextNotesHistory);
+  }, [inp.notesHistory, persistDealNotes]);
 
   const setRehabLevel = (lvl) => {
     setInp((prev) => ({
@@ -840,6 +870,8 @@ export default function REDMS() {
           onAddDealNote={addDealNote}
           onUpdateDealNote={updateDealNote}
           onDeleteDealNote={deleteDealNote}
+          noteSaveStatus={noteSaveStatus}
+          noteSaveError={noteSaveError}
         />
 
         <main className={styles.output}>
