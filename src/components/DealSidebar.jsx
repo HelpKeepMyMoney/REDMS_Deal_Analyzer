@@ -630,7 +630,7 @@ export function DealSidebar({
                         rows={4}
                     />
                     <Field
-                        label="Wed Page"
+                        label="Web Page"
                         name="wedPage"
                         value={inp.wedPage ?? ""}
                         onChange={upd}
@@ -639,7 +639,7 @@ export function DealSidebar({
                     />
                     {normalizeWebAddress(inp.wedPage) && (
                         <div className={styles.field}>
-                            <label>Wed Page Link</label>
+                            <label>Web Page Link</label>
                             <a
                                 href={normalizeWebAddress(inp.wedPage)}
                                 target="_blank"
