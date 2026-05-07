@@ -26,7 +26,7 @@
 **Admin → Deal Management** provides a card-based view of all deals with:
 
 - **Deal cards** — Mimic property search cards; show offer price, beds/baths/sqft, address, status badge, Deal/No Deal badge, metrics (Rehab Level, Est. Rent, Annual NOI, B&H Cash-on-Cash ROI, Investment Required, Loan Amount), Notes, and Updated date. Each card links to the deal screen (`/investor?dealId=...`).
-- **Status & assignment** — Change deal status (Available, Reserved, Under Contract, Sold). When Reserved, Under Contract, or Sold, assign a user from the dropdown.
+- **Status & assignment** — Change deal status (Available, Reserved, Under Contract, Sold, Archived). Choosing **Archived** hides the deal from Investor/Wholesaler visibility and non-admin reads. When Reserved, Under Contract, or Sold, assign a user from the dropdown.
 - **Filters** — Address/name, status, city, state, zip, min/max price, min beds/baths/sqft, assigned to, viewable by user.
 - **Sort** — Name (A–Z, Z–A), Price (low/high), Investment Required (low/high), B&H Cash-on-Cash ROI (low/high), Updated (newest/oldest), Created (newest/oldest; uses `updatedAt` as fallback when `createdAt` is missing on legacy documents).
 - **Viewable by user** — Filter to show only deals a specific user can view (owns, shared with, or shared with all).
@@ -108,7 +108,7 @@ npm run test:run
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
   - `storage.js` — loadStoredInput, saveStoredInput; loadImportProperty, saveImportProperty (for property import across tabs).
-  - `firestoreStorage.js` — deals (load, save, share, status/assignment, **archive** `updateDealArchived`); list loads skip **archived** deals for non-admin paths; `loadDeal(id, { allowArchived })` for admins opening archived deals by URL; one-time legacy notes migration helper `migrateLegacyNotesToHistory(userId)`.
+  - `firestoreStorage.js` — deals (load, save, share, status/assignment). `updateDealStatus()` supports `Archived` and syncs the `archived` flag; list loads skip **archived** deals for non-admin paths; `loadDeal(id, { allowArchived })` for admins opening archived deals by URL; one-time legacy notes migration helper `migrateLegacyNotesToHistory(userId)`.
   - `dealImageStorage.js` — deal image listing/upload/deletion in Firebase Storage (`deal-images/{ownerUid}/{dealId}/...`), with type/size/count validation and list fallback handling.
   - `dealListSort.js` — shared **sort** helpers for investor/wholesaler sidebar deal lists (and admin sharing/search list shaping where used).
   - `wholesalerDealStorage.js` — wholesaler deals (load, save) with risk overrides.

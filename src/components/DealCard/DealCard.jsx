@@ -192,6 +192,7 @@ export function DealCard({
                 <option value="Reserved">Reserved</option>
                 <option value="Under Contract">Under Contract</option>
                 <option value="Sold">Sold</option>
+                <option value="Archived">Archived</option>
               </select>
             </div>
 

@@ -9,7 +9,6 @@ import {
   updateDealSharedWith,
   updateDealStatus,
   updateDealAssignedUser,
-  updateDealArchived,
 } from "../logic/firestoreStorage.js";
 import { loadAllSavedSearchesForAdmin, updateSavedSearchSharedWith, removePropertyFromSavedSearch } from "../logic/savedSearchStorage.js";
 import { loadInterestRequestsForAdmin, updateInterestRequestStatus } from "../logic/interestStorage.js";
@@ -725,9 +724,18 @@ export default function Admin() {
     setDealArchiveUpdatingId(dealId);
     setMessage({ type: "", text: "" });
     try {
-      await updateDealArchived(dealId, nextArchived);
+      await updateDealStatus(dealId, nextArchived ? "Archived" : "Available");
       setAllDeals((prev) =>
-        prev.map((d) => (d.id === dealId ? { ...d, archived: nextArchived } : d))
+        prev.map((d) =>
+          d.id === dealId
+            ? {
+                ...d,
+                status: nextArchived ? "Archived" : "Available",
+                archived: nextArchived,
+                assignedUserId: nextArchived ? d.assignedUserId : null,
+              }
+            : d
+        )
       );
       setMessage({
         type: "success",
@@ -850,7 +858,12 @@ export default function Admin() {
       setAllDeals((prev) =>
         prev.map((d) =>
           d.id === dealId
-            ? { ...d, status, assignedUserId: status === "Available" ? null : d.assignedUserId }
+            ? {
+                ...d,
+                status,
+                archived: status === "Archived",
+                assignedUserId: status === "Available" ? null : d.assignedUserId,
+              }
             : d
         )
       );

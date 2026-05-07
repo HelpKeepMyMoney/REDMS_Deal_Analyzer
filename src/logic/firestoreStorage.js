@@ -220,7 +220,7 @@ export async function deleteDeal(id) {
   await deleteDoc(ref);
 }
 
-export const DEAL_STATUSES = ["Available", "Reserved", "Under Contract", "Sold"];
+export const DEAL_STATUSES = ["Available", "Reserved", "Under Contract", "Sold", "Archived"];
 
 /** Load all deals (admin only). Returns list with id, dealName, userId, sharedWith, sharedWithAll, updatedAt, status, assignedUserId, and full deal input fields for calc/display. */
 export async function loadAllDealsForAdmin() {
@@ -246,13 +246,17 @@ export async function loadAllDealsForAdmin() {
   });
 }
 
-/** Update deal status (admin only). status: Available | Reserved | Under Contract | Sold. */
+/** Update deal status (admin only). status: Available | Reserved | Under Contract | Sold | Archived. */
 export async function updateDealStatus(dealId, status) {
   if (!db) throw new Error("Firebase is not configured");
   if (!dealId) throw new Error("Deal id is required");
   if (!DEAL_STATUSES.includes(status)) throw new Error("Invalid status");
   const ref = doc(db, DEALS_COLLECTION, dealId);
-  const update = { status, updatedAt: serverTimestamp() };
+  const update = {
+    status,
+    archived: status === "Archived",
+    updatedAt: serverTimestamp(),
+  };
   if (status === "Available") {
     update.assignedUserId = null;
   }
