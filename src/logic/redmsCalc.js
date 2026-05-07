@@ -596,6 +596,7 @@ export const DEFAULT_INPUT = {
   apn: "",
   use: "",
   notes: "",
+  notesHistory: [],
   wedPage: "",
   image: "",
   imageFallback: "",

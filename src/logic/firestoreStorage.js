@@ -6,6 +6,7 @@ import {
   setDoc,
   addDoc,
   deleteDoc,
+  updateDoc,
   serverTimestamp,
   orderBy,
   query,
@@ -52,15 +53,34 @@ function dealToDoc(deal, userId, isCreate = false) {
   return base;
 }
 
+function getLatestNoteIso(notesHistory) {
+  if (!Array.isArray(notesHistory) || notesHistory.length === 0) return null;
+  let latestMs = 0;
+  for (const note of notesHistory) {
+    if (!note || typeof note !== "object") continue;
+    const iso = note.updatedAt || note.createdAt;
+    const ms = iso ? new Date(iso).getTime() : 0;
+    if (Number.isFinite(ms) && ms > latestMs) latestMs = ms;
+  }
+  return latestMs > 0 ? new Date(latestMs).toISOString() : null;
+}
+
 function dealToListItem(d, currentUserId) {
   const data = d.data();
   const addr = [data.street, data.city, data.state].filter(Boolean).join(", ");
   const isShared = data.userId !== currentUserId;
+  const docUpdatedAt = data.updatedAt?.toDate?.()?.toISOString?.() ?? null;
+  const latestNoteAt = getLatestNoteIso(data.notesHistory);
+  const effectiveUpdatedAt =
+    (latestNoteAt && (!docUpdatedAt || latestNoteAt > docUpdatedAt))
+      ? latestNoteAt
+      : docUpdatedAt;
   return {
     id: d.id,
     dealName: data.dealName || addr || "Untitled",
     createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? null,
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() ?? null,
+    updatedAt: effectiveUpdatedAt,
+    noteUpdatedAt: latestNoteAt,
     isShared,
     street: data.street ?? null,
     city: data.city ?? null,
@@ -272,4 +292,48 @@ export async function updateDealArchived(dealId, archived) {
     { archived: archived === true, updatedAt: serverTimestamp() },
     { merge: true }
   );
+}
+
+function makeMigratedNote(text, isoNow, index = 0) {
+  return {
+    id: `migrated-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    text,
+    createdAt: isoNow,
+    updatedAt: isoNow,
+  };
+}
+
+/**
+ * One-time migration:
+ * For each owned deal where legacy notes exists and notesHistory is empty/missing,
+ * create first notesHistory item stamped to now.
+ * Legacy notes field is preserved.
+ */
+export async function migrateLegacyNotesToHistory(userId) {
+  if (!db) return { scanned: 0, migrated: 0 };
+  if (!userId) return { scanned: 0, migrated: 0 };
+
+  const ownSnap = await getDocs(
+    query(collection(db, DEALS_COLLECTION), where("userId", "==", String(userId)))
+  );
+
+  let migrated = 0;
+  const scanned = ownSnap.docs.length;
+
+  for (let i = 0; i < ownSnap.docs.length; i += 1) {
+    const dealDoc = ownSnap.docs[i];
+    const data = dealDoc.data() || {};
+    const legacyNotes = typeof data.notes === "string" ? data.notes.trim() : "";
+    const history = Array.isArray(data.notesHistory) ? data.notesHistory : [];
+    if (!legacyNotes || history.length > 0) continue;
+
+    const isoNow = new Date().toISOString();
+    await updateDoc(dealDoc.ref, {
+      notesHistory: [makeMigratedNote(legacyNotes, isoNow, i)],
+      updatedAt: serverTimestamp(),
+    });
+    migrated += 1;
+  }
+
+  return { scanned, migrated };
 }

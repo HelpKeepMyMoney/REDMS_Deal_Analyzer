@@ -9,6 +9,7 @@ export function sortDealListItems(list, sortKey) {
   const dir = sortKey.slice(lastDash + 1);
   const out = [...list];
   const time = (iso) => (iso ? new Date(iso).getTime() : 0);
+  const effectiveUpdated = (row) => row?.sortUpdatedAt || row?.updatedAt || row?.noteUpdatedAt || null;
   out.sort((a, b) => {
     let cmp = 0;
     if (field === "name") {
@@ -16,9 +17,9 @@ export function sortDealListItems(list, sortKey) {
         .toLowerCase()
         .localeCompare((b.dealName || "").toLowerCase(), undefined, { sensitivity: "base" });
     } else if (field === "updated") {
-      cmp = time(a.updatedAt) - time(b.updatedAt);
+      cmp = time(effectiveUpdated(a)) - time(effectiveUpdated(b));
     } else if (field === "created") {
-      cmp = time(a.createdAt || a.updatedAt) - time(b.createdAt || b.updatedAt);
+      cmp = time(a.createdAt || effectiveUpdated(a)) - time(b.createdAt || effectiveUpdated(b));
     }
     if (cmp === 0) {
       cmp = (a.dealName || "")

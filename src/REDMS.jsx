@@ -17,7 +17,13 @@ import {
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase.js";
-import { loadDeals, loadDeal, saveDeal, deleteDeal } from "./logic/firestoreStorage.js";
+import {
+  loadDeals,
+  loadDeal,
+  saveDeal,
+  deleteDeal,
+  migrateLegacyNotesToHistory,
+} from "./logic/firestoreStorage.js";
 import { listDealImages, uploadDealImage, deleteDealImage } from "./logic/dealImageStorage.js";
 import { incrementUsage } from "./logic/dealUsageStorage.js";
 import { saveUserConfig } from "./logic/userConfigStorage.js";
@@ -46,6 +52,31 @@ import styles from "./REDMS.module.css";
 
 const $ = formatCurrency;
 
+function makeNoteId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeNotesHistory(notesHistory) {
+  if (!Array.isArray(notesHistory)) return [];
+  return notesHistory
+    .map((note) => {
+      if (!note || typeof note !== "object") return null;
+      const text = typeof note.text === "string" ? note.text.trim() : "";
+      if (!text) return null;
+      const updatedAt = typeof note.updatedAt === "string" && note.updatedAt
+        ? note.updatedAt
+        : (typeof note.createdAt === "string" && note.createdAt ? note.createdAt : new Date().toISOString());
+      const createdAt = typeof note.createdAt === "string" && note.createdAt ? note.createdAt : updatedAt;
+      return {
+        id: typeof note.id === "string" && note.id ? note.id : makeNoteId(),
+        text,
+        createdAt,
+        updatedAt,
+      };
+    })
+    .filter(Boolean);
+}
+
 /** Build full address from street, city, state, zipCode (or legacy address). */
 export function formatAddress(inp) {
   if (inp.street != null || inp.city != null || inp.state != null || inp.zipCode != null) {
@@ -71,7 +102,7 @@ export default function REDMS() {
   const [tab, setTab] = useState("flip");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [savedDeals, setSavedDeals] = useState([]);
-  const [dealListSort, setDealListSort] = useState("name-asc");
+  const [dealListSort, setDealListSort] = useState("updated-desc");
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
   const [userFavorites, setUserFavorites] = useState([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
@@ -89,6 +120,7 @@ export default function REDMS() {
   const [activePreviewImage, setActivePreviewImage] = useState(null);
   const [currentDealOwnerId, setCurrentDealOwnerId] = useState(null);
   const hasInitialBlankLoad = useRef(false);
+  const notesMigrationRanForUser = useRef(null);
 
   useEffect(() => {
     if (isAdmin || currentDealId) saveStoredInput(inp);
@@ -193,14 +225,26 @@ export default function REDMS() {
     refreshDeals();
   }, [user?.uid, isAdmin, isClient, isFreeTier]);
 
+  useEffect(() => {
+    if (!user?.uid) return;
+    if (notesMigrationRanForUser.current === user.uid) return;
+    notesMigrationRanForUser.current = user.uid;
+    migrateLegacyNotesToHistory(user.uid)
+      .then(() => refreshDeals())
+      .catch((e) => {
+        console.error("Legacy notes migration failed", e);
+      });
+  }, [user?.uid]);
+
   const handleLoadDeal = useCallback(async (id) => {
     try {
       const loaded = await loadDeal(id, { allowArchived: isAdmin });
       if (!loaded) return;
       setShowPropertySearch(false);
       const { _ownerId, importedFromPropertySearch, ...dealData } = loaded;
+      const normalizedNotesHistory = normalizeNotesHistory(dealData.notesHistory);
       const base = { ...DEFAULT_INPUT, ...dealData };
-      setInp(mergeStored(base, dealData));
+      setInp(mergeStored({ ...base, notesHistory: normalizedNotesHistory }, dealData));
       setCurrentDealId(id);
       const isShared = _ownerId != null && _ownerId !== user?.uid;
       setCurrentDealOwnerId(_ownerId || user?.uid || null);
@@ -614,6 +658,39 @@ export default function REDMS() {
     setInp((prev) => ({ ...prev, [k]: v }));
   };
 
+  const addDealNote = useCallback((text) => {
+    const clean = typeof text === "string" ? text.trim() : "";
+    if (!clean) return;
+    const now = new Date().toISOString();
+    setInp((prev) => ({
+      ...prev,
+      notesHistory: [
+        ...normalizeNotesHistory(prev.notesHistory),
+        { id: makeNoteId(), text: clean, createdAt: now, updatedAt: now },
+      ],
+    }));
+  }, []);
+
+  const updateDealNote = useCallback((id, text) => {
+    const clean = typeof text === "string" ? text.trim() : "";
+    if (!id || !clean) return;
+    const now = new Date().toISOString();
+    setInp((prev) => ({
+      ...prev,
+      notesHistory: normalizeNotesHistory(prev.notesHistory).map((note) =>
+        note.id === id ? { ...note, text: clean, updatedAt: now } : note
+      ),
+    }));
+  }, []);
+
+  const deleteDealNote = useCallback((id) => {
+    if (!id) return;
+    setInp((prev) => ({
+      ...prev,
+      notesHistory: normalizeNotesHistory(prev.notesHistory).filter((note) => note.id !== id),
+    }));
+  }, []);
+
   const setRehabLevel = (lvl) => {
     setInp((prev) => ({
       ...prev,
@@ -759,6 +836,10 @@ export default function REDMS() {
           onUploadDealImage={handleUploadDealImage}
           onDeleteDealImage={handleDeleteDealImage}
           onPreviewDealImage={setActivePreviewImage}
+          notesHistory={normalizeNotesHistory(inp.notesHistory)}
+          onAddDealNote={addDealNote}
+          onUpdateDealNote={updateDealNote}
+          onDeleteDealNote={deleteDealNote}
         />
 
         <main className={styles.output}>

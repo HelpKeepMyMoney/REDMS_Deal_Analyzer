@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Field } from "./Field.jsx";
 import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
@@ -20,6 +20,13 @@ function normalizeWebAddress(url) {
     if (!trimmed) return null;
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     return `https://${trimmed}`;
+}
+
+function formatNotePreview(text, maxLen = 90) {
+    if (typeof text !== "string") return "";
+    const clean = text.trim().replace(/\s+/g, " ");
+    if (clean.length <= maxLen) return clean;
+    return `${clean.slice(0, maxLen).trimEnd()}...`;
 }
 
 export function DealSidebar({
@@ -73,6 +80,10 @@ export function DealSidebar({
     onUploadDealImage,
     onDeleteDealImage,
     onPreviewDealImage,
+    notesHistory = [],
+    onAddDealNote,
+    onUpdateDealNote,
+    onDeleteDealNote,
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
     const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
@@ -81,7 +92,12 @@ export function DealSidebar({
     const [dealParamsSaving, setDealParamsSaving] = useState(false);
     const showDealParams = (dealParamsLevel === "full" || dealParamsLevel === "limited") && onSaveUserConfig && refreshConfig && config && !isClient;
     const imageInputRef = useRef(null);
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+    const [activeNoteId, setActiveNoteId] = useState(null);
+    const [noteDraft, setNoteDraft] = useState("");
+    const [isEditingNote, setIsEditingNote] = useState(false);
     const dealParamKeys = dealParamsLevel === "limited" ? FREE_TIER_PARAM_KEYS : ["maxTpc", "minLoanAmount", "minFlipCoCPct", "minBhCoCPct", "minAcqMgmtFee", "minRealtorFee", "mortgagePointsRate", "initialReferralPct", "investorReferralPct"];
+    const notesReadOnly = currentDealIsShared || isClient;
 
     const sortedSavedDeals = useMemo(
         () => sortDealListItems(savedDeals, dealListSort),
@@ -106,6 +122,71 @@ export function DealSidebar({
     const showDealListSort =
         onDealListSortChange &&
         (sortedSavedDeals.length >= 1 || (isClient && clientSelectRows.length >= 1));
+    const sortedNotes = useMemo(
+        () =>
+            [...(Array.isArray(notesHistory) ? notesHistory : [])].sort((a, b) => {
+                const aDate = a?.updatedAt || a?.createdAt || "";
+                const bDate = b?.updatedAt || b?.createdAt || "";
+                return bDate.localeCompare(aDate);
+            }),
+        [notesHistory]
+    );
+    const activeNote = useMemo(
+        () => sortedNotes.find((note) => note.id === activeNoteId) ?? null,
+        [sortedNotes, activeNoteId]
+    );
+
+    useEffect(() => {
+        if (!isNoteModalOpen) return;
+        const onKeyDown = (e) => {
+            if (e.key === "Escape") {
+                setIsNoteModalOpen(false);
+                setIsEditingNote(false);
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isNoteModalOpen]);
+
+    const openCreateNoteModal = () => {
+        setActiveNoteId(null);
+        setNoteDraft("");
+        setIsEditingNote(true);
+        setIsNoteModalOpen(true);
+    };
+
+    const openExistingNoteModal = (note) => {
+        if (!note) return;
+        setActiveNoteId(note.id);
+        setNoteDraft(note.text ?? "");
+        setIsEditingNote(false);
+        setIsNoteModalOpen(true);
+    };
+
+    const closeNoteModal = () => {
+        setIsNoteModalOpen(false);
+        setIsEditingNote(false);
+    };
+
+    const handleSaveNote = () => {
+        const clean = noteDraft.trim();
+        if (!clean) return;
+        if (activeNote?.id) {
+            onUpdateDealNote?.(activeNote.id, clean);
+            setActiveNoteId(activeNote.id);
+            setIsEditingNote(false);
+            return;
+        }
+        onAddDealNote?.(clean);
+        closeNoteModal();
+    };
+
+    const handleDeleteNote = () => {
+        if (!activeNote?.id) return;
+        if (!window.confirm("Delete this note?")) return;
+        onDeleteDealNote?.(activeNote.id);
+        closeNoteModal();
+    };
 
     const handleEstimateRent = async () => {
         setRentEstimateLoading(true);
@@ -329,6 +410,45 @@ export function DealSidebar({
                 </button>
             </div>
             )}
+            </div>
+
+            <div className={styles["notes-sec"]}>
+                <div className={styles["notes-sec-header"]}>
+                    <div className={styles["sec-label"]}>Notes</div>
+                    <button
+                        type="button"
+                        className={styles["btn-estimate-rent"]}
+                        onClick={openCreateNoteModal}
+                        disabled={notesReadOnly || !currentDealId}
+                        title={!currentDealId ? "Select or save a deal first" : notesReadOnly ? "Read-only: cannot edit notes" : "Add a note"}
+                    >
+                        Add Note
+                    </button>
+                </div>
+                {!currentDealId && (
+                    <div className={styles["saved-deals-empty"]}>Select a deal to manage notes.</div>
+                )}
+                {currentDealId && sortedNotes.length === 0 && (
+                    <div className={styles["saved-deals-empty"]}>No notes yet.</div>
+                )}
+                {currentDealId && sortedNotes.length > 0 && (
+                    <ul className={styles["notes-list"]} aria-label="Deal notes">
+                        {sortedNotes.map((note) => (
+                            <li key={note.id} className={styles["notes-item"]}>
+                                <button
+                                    type="button"
+                                    className={styles["notes-open"]}
+                                    onClick={() => openExistingNoteModal(note)}
+                                >
+                                    <span className={styles["notes-date"]}>
+                                        {formatDealListDate(note.updatedAt || note.createdAt || "")}
+                                    </span>
+                                    <span className={styles["notes-preview"]}>{formatNotePreview(note.text)}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
 
             {showDealParams && (
@@ -620,14 +740,6 @@ export function DealSidebar({
                         value={inp.use ?? ""}
                         onChange={upd}
                         type="text"
-                    />
-                    <Field
-                        label="Notes"
-                        name="notes"
-                        value={inp.notes ?? ""}
-                        onChange={upd}
-                        type="textarea"
-                        rows={4}
                     />
                     <Field
                         label="Web Page"
@@ -1085,6 +1197,92 @@ export function DealSidebar({
                     Privacy Policy
                 </Link>
             </div>
+            {isNoteModalOpen && (
+                <div
+                    className={styles["note-modal-backdrop"]}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Close note modal"
+                    onClick={closeNoteModal}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") closeNoteModal();
+                    }}
+                >
+                    <div
+                        className={styles["note-modal-content"]}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={activeNote ? "Deal note" : "Add deal note"}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            className={styles["image-modal-close"]}
+                            onClick={closeNoteModal}
+                            aria-label="Close note modal"
+                        >
+                            ×
+                        </button>
+                        <h3 className={styles["note-modal-title"]}>
+                            {activeNote ? "Deal Note" : "Add Note"}
+                        </h3>
+                        {activeNote && (
+                            <div className={styles["note-modal-date"]}>
+                                Updated {formatDealListDate(activeNote.updatedAt || activeNote.createdAt || "")}
+                            </div>
+                        )}
+                        <textarea
+                            className={styles["note-modal-textarea"]}
+                            value={isEditingNote || !activeNote ? noteDraft : activeNote.text}
+                            onChange={(e) => setNoteDraft(e.target.value)}
+                            readOnly={!isEditingNote && Boolean(activeNote)}
+                            rows={8}
+                        />
+                        <div className={styles["note-modal-actions"]}>
+                            {activeNote && !isEditingNote && (
+                                <button
+                                    type="button"
+                                    className={styles["btn-estimate-rent"]}
+                                    onClick={() => {
+                                        setNoteDraft(activeNote.text ?? "");
+                                        setIsEditingNote(true);
+                                    }}
+                                    disabled={notesReadOnly}
+                                >
+                                    Edit
+                                </button>
+                            )}
+                            {(isEditingNote || !activeNote) && (
+                                <button
+                                    type="button"
+                                    className={styles["btn-save-deal"]}
+                                    onClick={handleSaveNote}
+                                    disabled={notesReadOnly || !noteDraft.trim()}
+                                >
+                                    Save
+                                </button>
+                            )}
+                            {activeNote && (
+                                <button
+                                    type="button"
+                                    className={styles["note-modal-delete"]}
+                                    onClick={handleDeleteNote}
+                                    disabled={notesReadOnly}
+                                >
+                                    Delete
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className={styles["btn-refresh-deals"]}
+                                onClick={closeNoteModal}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </aside>
     );
 }
