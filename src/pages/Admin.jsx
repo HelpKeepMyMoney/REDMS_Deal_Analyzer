@@ -2180,6 +2180,7 @@ export default function Admin() {
                   <option value="Reserved">Reserved</option>
                   <option value="Under Contract">Under Contract</option>
                   <option value="Sold">Sold</option>
+                  <option value="Archived">Archived</option>
                 </select>
               </div>
               <div className={styles["form-group"]} style={{ margin: 0 }}>
