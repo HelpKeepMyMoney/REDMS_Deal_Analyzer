@@ -1208,6 +1208,7 @@ export function DealSidebar({
                     aria-label="Close note modal"
                     onClick={closeNoteModal}
                     onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") closeNoteModal();
                     }}
                 >
