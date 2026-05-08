@@ -151,6 +151,59 @@ function addMetricBox(doc, label, value, x, y, w, h, subtext = null) {
   return y + h + 4;
 }
 
+function getReportNotes(inp) {
+  const history = Array.isArray(inp?.notesHistory) ? inp.notesHistory : [];
+  const normalizedHistory = history
+    .map((note) => {
+      if (!note || typeof note !== "object") return null;
+      const text = typeof note.text === "string" ? note.text.trim() : "";
+      if (!text) return null;
+      const iso = note.updatedAt || note.createdAt || "";
+      const ms = iso ? new Date(iso).getTime() : 0;
+      return {
+        text,
+        updatedAt: Number.isFinite(ms) ? ms : 0,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+
+  const notes = normalizedHistory.map((note) => ({
+    text: note.text,
+    dateLabel: note.updatedAt > 0 ? new Date(note.updatedAt).toLocaleDateString("en-US") : "",
+  }));
+  if (notes.length > 0) return notes;
+
+  // Legacy fallback only when notesHistory is empty to avoid
+  // duplicate/stale report notes after note edits/deletes.
+  const legacyNote = typeof inp?.notes === "string" ? inp.notes.trim() : "";
+  return legacyNote
+    ? [{ text: legacyNote, dateLabel: "" }]
+    : [];
+}
+
+function addNotesBlock(doc, notes, startY, maxWidth) {
+  if (!Array.isArray(notes) || notes.length === 0) return startY;
+  let y = startY;
+  doc.setFontSize(BODY_SIZE - 1);
+  doc.setFont(FONT_SANS, "bold");
+  doc.setTextColor(80, 80, 80);
+  doc.text("Notes", MARGIN, y);
+  y += 5;
+  doc.setFont(FONT_SANS, "normal");
+  doc.setTextColor(100, 100, 100);
+  notes.forEach((note, idx) => {
+    const noteText = typeof note?.text === "string" ? note.text : "";
+    if (!noteText) return;
+    const datePrefix = note?.dateLabel ? `${note.dateLabel} - ` : "";
+    const prefix = `${idx + 1}. `;
+    const lines = doc.splitTextToSize(`${prefix}${datePrefix}${noteText}`, maxWidth);
+    doc.text(lines, MARGIN, y);
+    y += Math.max(lines.length, 1) * 4.5 + 1.5;
+  });
+  return y + 4;
+}
+
 /**
  * Generate and download the deal summary PDF.
  * @param {Object} inp - Deal input (from DealSidebar/state)
@@ -310,13 +363,7 @@ export async function generateDealPDF(inp, r, formatAddress, showSystemDisclaime
   ];
 
   y = addPropertyGrid(doc, propInfo, y);
-  if (inp.notes) {
-    doc.setFontSize(6);
-    doc.setTextColor(100, 100, 100);
-    const lines = doc.text("Notes: " + inp.notes, MARGIN, y + 4, { maxWidth: usableW });
-    const lineCount = Array.isArray(lines) ? lines.length : 1;
-    y += lineCount * 6 + 12;
-  }
+  y = addNotesBlock(doc, getReportNotes(inp), y + 2, usableW);
   y += 18;
 
   // Key metrics for cover (three cards) — reduced gap to save space
@@ -597,7 +644,7 @@ function formatWholeDollars(v) {
 
 /**
  * Generate and download the Retail Investor PDF (3 pages).
- * Cover: Property info (no notes), title with Sales Price, retail metrics.
+ * Cover: Property info, notes, title with Sales Price, retail metrics.
  * Page 2: Buy & Hold P&L with retail Cap Rate, Total Retail Investment, Retail Year-1 Cash-on-Cash; no ARV/Equity lines.
  * Page 3: 30-year projection with retail ROI; Initial Investment = Sell to Retail Investor amount.
  */
@@ -719,7 +766,7 @@ export async function generateRetailInvestorPDF(inp, r, formatAddress, showSyste
     ["APN", inp.apn || "—"],
   ];
   y = addPropertyGrid(doc, propInfo, y);
-  // No notes for retail printout
+  y = addNotesBlock(doc, getReportNotes(inp), y + 2, usableW);
   y += 18;
 
   // Key metrics — Investment Required (retail), Buy & Hold Cash-on-Cash ROI (retail), Projected Annual NOI
