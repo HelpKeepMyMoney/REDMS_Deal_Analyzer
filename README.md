@@ -49,6 +49,22 @@ Constants: `DETROIT_TAX_SEV_RATIO`, `DETROIT_TAX_RATE`, `DETROIT_TAX_FLAT` in `s
 
 For the **sample deal** (`DEFAULT_INPUT` in `redmsCalc.js`), **New Property Tax ($)** is initialized with the same formula (rounded to whole dollars) after `offerPrice` is set, so the default stays aligned when the default contract price changes.
 
+### Landlord's Insurance (sidebar annual premium)
+
+When **Landlord's Insurance ($)** is not set, `calc()` uses **2.5% × (contract price + rehab cost)** for the annual premium. The sidebar **Update** button applies the same rule (rounded to whole dollars).
+
+### Auto-update: New Property Tax & Landlord's Insurance
+
+`estimatedTaxInsuranceFromOffer(offerPrice, rehabCost, config)` in `src/logic/redmsCalc.js` returns `{ newPropertyTax, landlordsInsurance }` using the Detroit tax parameters from **App Parameters** (when `config` is passed) and the 2.5% insurance rule above.
+
+On **Investor** (`src/REDMS.jsx`) and **Wholesaler** (`src/pages/Wholesaler.jsx`), those two dollar fields are **recomputed automatically** whenever the user changes any of:
+
+- **Contract Price (to seller)** (`offerPrice`)
+- **Rehab Cost ($)** (`rehabCost`)
+- **Rehab Level** (preset buttons — updates `rehabCost` / `rehabMonths` from `REHAB_COST` / `REHAB_TIME`)
+
+Each change overwrites the stored **New Property Tax ($)** and **Landlord's Insurance ($)** values with the estimates (same as manually clicking **Calculate** / **Update** in the sidebar, which now call the same helper with deal `config` so Detroit mill/flat overrides stay consistent).
+
 ## App Parameters (Admin)
 
 Admins can override equation parameters in **Admin → App Parameters**:
@@ -103,7 +119,7 @@ npm run test:run
 - `src/logic/userProfileStorage.js` — User profile (firstName, lastName, phoneNumber) in Firestore `users/{userId}`.
 - `src/logic/propertySearchUsageStorage.js` — Property search usage tracking for RentCast API quota (monthly count in Firestore `appConfig/propertySearchUsage`).
 - `src/logic/` — Deal math and helpers:
-  - `redmsCalc.js` — Core `calc()`, DEFAULT_INPUT.
+  - `redmsCalc.js` — Core `calc()`, `calcTitleInsurance`, `estimatedTaxInsuranceFromOffer`, DEFAULT_INPUT.
   - `constants.js` — MAX_TPC, REHAB_COST, REHAB_TIME, REHAB_LEVELS, RANGES, INITIAL_REFERRAL_PCT, INVESTOR_REFERRAL_PCT, MIN_FIRST_MTG_UPFRONT_POINTS (min $ for 1st mtg upfront points when 1st mortgage is Yes).
   - `formatters.js` — formatCurrency, formatPct.
   - `validation.js` — sanitizeInput, clampNumber.
@@ -171,6 +187,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Sidebar — auto tax & insurance from acquisition inputs** — **New Property Tax ($)** and **Landlord's Insurance ($)** stay in sync when **Contract Price (to seller)**, **Rehab Cost ($)**, or **Rehab Level** changes (Investor and Wholesaler). Shared helper `estimatedTaxInsuranceFromOffer` in `redmsCalc.js` uses configurable Detroit tax parameters; sidebar **Calculate** / **Update** buttons use the same helper.
 - **PDF report notes overhaul (all notes + dates + stable source)** — Investor and Retail Investor PDF exports now render deal notes from `notesHistory` (oldest-first) and print each note with a date prefix (`MM/DD/YYYY - ...`). Reports now include the full notes list instead of a single legacy note field, retail printouts now include notes, and legacy `notes` is used only as a fallback when `notesHistory` is empty to prevent duplicate or deleted stale notes from appearing in exports.
 - **Deal Notes History (modal CRUD + migration)** — Replaced the legacy single **Notes** textarea with a dedicated sidebar **Notes** section in Investor. Users can add notes in a modal, open notes from a list (date + preview), edit, and delete notes from the same modal. Notes are persisted on each deal under `notesHistory`. A one-time owner-scoped migration converts legacy `notes` text into the first `notesHistory` entry using today’s timestamp while preserving the legacy `notes` field.
 - **Deal notes auto-save + status UI** — Note create/edit/delete actions now persist immediately to Firestore for the active deal (no separate “Update deal” click required). The note modal shows save feedback (`Saving note...`, `Saved`, error message) and temporarily disables action buttons while saving to prevent duplicate writes.

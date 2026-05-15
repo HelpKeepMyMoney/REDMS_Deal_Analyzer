@@ -10,6 +10,7 @@ import {
   clampNumber,
   RANGES,
   mergeStored,
+  estimatedTaxInsuranceFromOffer,
 } from "../logic";
 import { useNavigate, Link } from "react-router-dom";
 import { loadWholesalerDeals, loadWholesalerDeal, saveWholesalerDeal, deleteWholesalerDeal } from "../logic/wholesalerDealStorage.js";
@@ -184,16 +185,40 @@ export default function Wholesaler() {
       const { value } = clampNumber(v, k);
       v = value;
     }
+    if (k === "offerPrice" || k === "rehabCost") {
+      setInp((prev) => {
+        const nextOfferPrice = k === "offerPrice" ? v : prev.offerPrice;
+        const nextRehabCost = k === "rehabCost" ? v : prev.rehabCost;
+        const { newPropertyTax, landlordsInsurance } = estimatedTaxInsuranceFromOffer(
+          nextOfferPrice,
+          nextRehabCost,
+          mergedConfig
+        );
+        return { ...prev, [k]: v, newPropertyTax, landlordsInsurance };
+      });
+      return;
+    }
     setInp((prev) => ({ ...prev, [k]: v }));
   };
 
   const setRehabLevel = (lvl) => {
-    setInp((prev) => ({
-      ...prev,
-      rehabLevel: lvl,
-      rehabCost: REHAB_COST[lvl],
-      rehabMonths: REHAB_TIME[lvl],
-    }));
+    setInp((prev) => {
+      const rehabCost = REHAB_COST[lvl];
+      const rehabMonths = REHAB_TIME[lvl];
+      const { newPropertyTax, landlordsInsurance } = estimatedTaxInsuranceFromOffer(
+        prev.offerPrice,
+        rehabCost,
+        mergedConfig
+      );
+      return {
+        ...prev,
+        rehabLevel: lvl,
+        rehabCost,
+        rehabMonths,
+        newPropertyTax,
+        landlordsInsurance,
+      };
+    });
   };
 
   const inpForCalc = useMemo(() => sanitizeInput(inp), [inp]);

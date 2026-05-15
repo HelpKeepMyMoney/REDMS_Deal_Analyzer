@@ -155,6 +155,22 @@ export function calcTitleInsurance(purchasePrice, titleRates = null) {
 }
 
 /**
+ * Estimated annual Detroit new property tax and landlord insurance premium from purchase + rehab,
+ * matching DealSidebar "Calculate"/"Update" and calc fallbacks when those inputs are omitted.
+ */
+export function estimatedTaxInsuranceFromOffer(offerPrice, rehabCost, config = null) {
+  const p = getCalcParams(config);
+  const price =
+    typeof offerPrice === "number" && !isNaN(offerPrice) ? offerPrice : Number(offerPrice) || 0;
+  const rehab =
+    typeof rehabCost === "number" && !isNaN(rehabCost) ? rehabCost : Number(rehabCost) || 0;
+  const sev = price * p.DETROIT_TAX_SEV_RATIO;
+  const newPropertyTax = Math.round(sev * p.DETROIT_TAX_RATE + p.DETROIT_TAX_FLAT);
+  const landlordsInsurance = Math.round((price + rehab) * 0.025);
+  return { newPropertyTax, landlordsInsurance };
+}
+
+/**
  * Pure deal calculator. Given input object, returns all flip/B&H metrics and deal checks.
  * @param {object} inp - Deal input
  * @param {object} [config] - Optional app config (from ConfigContext); uses constants if omitted.

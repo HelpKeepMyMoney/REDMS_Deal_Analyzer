@@ -4,9 +4,9 @@ import { Field } from "./Field.jsx";
 import { FREE_TIER_PARAM_KEYS } from "../logic/tierConstants.js";
 
 const IMAGE_PLACEHOLDER_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect fill='%23374151' width='400' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='16' x='50%25' y='50%25' text-anchor='middle' dy='.35em'%3ENo Image%3C/text%3E%3C/svg%3E";
-import { REHAB_LEVELS, DETROIT_TAX_SEV_RATIO, DETROIT_TAX_RATE, DETROIT_TAX_FLAT } from "../logic/constants.js";
+import { REHAB_LEVELS } from "../logic/constants.js";
 import { formatCurrency } from "../logic/formatters.js";
-import { calcTitleInsurance } from "../logic/redmsCalc.js";
+import { calcTitleInsurance, estimatedTaxInsuranceFromOffer } from "../logic/redmsCalc.js";
 import { estimateMonthlyRent } from "../logic/rentEstimate.js";
 import { buildStreetViewUrlFromAddress } from "../logic/propertySearchApi.js";
 import { sortDealListItems, mergeClientDealSelectRows, formatDealListDate } from "../logic/dealListSort.js";
@@ -979,10 +979,12 @@ export function DealSidebar({
                         <button
                             type="button"
                             onClick={() => {
-                                const purchasePrice = Number(inp.offerPrice) || 0;
-                                const sev = purchasePrice * DETROIT_TAX_SEV_RATIO;
-                                const calculated = sev * DETROIT_TAX_RATE + DETROIT_TAX_FLAT;
-                                upd("newPropertyTax", Math.round(calculated));
+                                const { newPropertyTax } = estimatedTaxInsuranceFromOffer(
+                                    inp.offerPrice,
+                                    inp.rehabCost,
+                                    config
+                                );
+                                upd("newPropertyTax", newPropertyTax);
                             }}
                             className={styles["btn-estimate-rent"]}
                             title="Estimate: (50% of purchase price × tax rate) + trash fee"
@@ -1006,10 +1008,12 @@ export function DealSidebar({
                         <button
                             type="button"
                             onClick={() => {
-                                const offerPrice = Number(inp.offerPrice) || 0;
-                                const rehabCost = Number(inp.rehabCost) ?? 0;
-                                const calculated = (offerPrice + rehabCost) * 0.025;
-                                upd("landlordsInsurance", Math.round(calculated));
+                                const { landlordsInsurance } = estimatedTaxInsuranceFromOffer(
+                                    inp.offerPrice,
+                                    inp.rehabCost,
+                                    config
+                                );
+                                upd("landlordsInsurance", landlordsInsurance);
                             }}
                             className={styles["btn-estimate-rent"]}
                             title="Recalculate: 2.5% of (purchase price + rehab cost)"
