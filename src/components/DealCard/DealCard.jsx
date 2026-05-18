@@ -8,6 +8,37 @@ import styles from "../PropertySearch/PropertySearch.module.css";
 const DEFAULT_IMAGE_PLACEHOLDER =
   "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800";
 
+function getDealNotes(deal, maxLenPerNote = 120) {
+  const history = Array.isArray(deal?.notesHistory) ? deal.notesHistory : [];
+  const normalized = history
+    .map((note) => {
+      if (!note || typeof note !== "object") return null;
+      const text = typeof note.text === "string" ? note.text.trim() : "";
+      if (!text) return null;
+      const iso = note.updatedAt || note.createdAt || "";
+      const ms = iso ? new Date(iso).getTime() : 0;
+      return { text, ms: Number.isFinite(ms) ? ms : 0 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.ms - a.ms);
+
+  if (normalized.length > 0) {
+    return normalized.map((note) => ({
+      text: note.text.length > maxLenPerNote ? `${note.text.slice(0, maxLenPerNote)}…` : note.text,
+      dateLabel: note.ms > 0
+        ? new Date(note.ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : "",
+    }));
+  }
+
+  const legacy = typeof deal?.notes === "string" ? deal.notes.trim() : "";
+  if (!legacy) return [];
+  return [{
+    text: legacy.length > maxLenPerNote ? `${legacy.slice(0, maxLenPerNote)}…` : legacy,
+    dateLabel: "",
+  }];
+}
+
 export function DealCard({
   deal,
   users = [],
@@ -29,6 +60,8 @@ export function DealCard({
       return null;
     }
   }, [deal, config]);
+
+  const dealNotes = useMemo(() => getDealNotes(deal), [deal]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-US", {
@@ -167,10 +200,19 @@ export function DealCard({
             <br />
             {deal.city}, {deal.state} {deal.zipCode}
           </div>
-          {deal.notes && (
+          {dealNotes.length > 0 && (
             <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "0.5rem", lineHeight: 1.4 }}>
-              <span style={{ fontWeight: 500, color: "var(--muted2)" }}>Notes:</span>{" "}
-              {deal.notes.length > 120 ? `${deal.notes.slice(0, 120)}…` : deal.notes}
+              <span style={{ fontWeight: 500, color: "var(--muted2)" }}>Notes:</span>
+              <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem" }}>
+                {dealNotes.map((note, i) => (
+                  <li key={i} style={{ marginBottom: i < dealNotes.length - 1 ? "0.35rem" : 0 }}>
+                    {note.dateLabel && (
+                      <span style={{ color: "var(--muted2)", fontSize: "0.8rem" }}>{note.dateLabel}: </span>
+                    )}
+                    {note.text}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </Link>
