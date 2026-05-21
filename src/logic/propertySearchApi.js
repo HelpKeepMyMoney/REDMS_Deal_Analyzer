@@ -249,11 +249,10 @@ function buildStreetViewUrl(lat, lng) {
 }
 
 /**
- * Builds a Google Street View Static API URL from a property address.
- * Uses street, city, state, zipCode. Returns null if key or address is missing.
+ * Formats street, city, state, zipCode into a Street View location string.
+ * Returns null if no address parts are present.
  */
-export function buildStreetViewUrlFromAddress(inp) {
-  if (!GOOGLE_MAPS_KEY) return null;
+export function formatAddressForStreetView(inp) {
   const parts = [
     inp?.street,
     inp?.city,
@@ -262,6 +261,16 @@ export function buildStreetViewUrlFromAddress(inp) {
   ].filter(Boolean).map((s) => String(s).trim());
   if (parts.length === 0) return null;
   const address = parts.join(", ");
+  return address || null;
+}
+
+/**
+ * Builds a Google Street View Static API URL from a property address.
+ * Uses street, city, state, zipCode. Returns null if key or address is missing.
+ */
+export function buildStreetViewUrlFromAddress(inp) {
+  if (!GOOGLE_MAPS_KEY) return null;
+  const address = formatAddressForStreetView(inp);
   if (!address) return null;
   const params = new URLSearchParams({
     size: "800x600",

@@ -8,7 +8,8 @@ import { REHAB_LEVELS } from "../logic/constants.js";
 import { formatCurrency } from "../logic/formatters.js";
 import { calcTitleInsurance, estimatedTaxInsuranceFromOffer } from "../logic/redmsCalc.js";
 import { estimateMonthlyRent } from "../logic/rentEstimate.js";
-import { buildStreetViewUrlFromAddress } from "../logic/propertySearchApi.js";
+import { fetchStreetViewUrl } from "../logic/streetViewApi.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { sortDealListItems, mergeClientDealSelectRows, formatDealListDate } from "../logic/dealListSort.js";
 import styles from "../REDMS.module.css";
 
@@ -88,6 +89,9 @@ export function DealSidebar({
     noteSaveError = "",
 }) {
     const [rentEstimateLoading, setRentEstimateLoading] = useState(false);
+    const [streetViewLoading, setStreetViewLoading] = useState(false);
+    const [streetViewError, setStreetViewError] = useState("");
+    const { user } = useAuth();
     const [retailCapRateEditing, setRetailCapRateEditing] = useState(null);
     const [dealParamsExpanded, setDealParamsExpanded] = useState(false);
     const [dealParamsOverrides, setDealParamsOverrides] = useState({});
@@ -551,6 +555,10 @@ export function DealSidebar({
                     className={styles["propertyImage"]}
                     loading="eager"
                     onError={(e) => {
+                        const src = e.target.src || "";
+                        if (src.includes("maps.googleapis.com/maps/api/streetview")) {
+                            setStreetViewError("Street View image failed to load. Check your Google Maps API key and billing.");
+                        }
                         const fallback = inp?.imageFallback || IMAGE_PLACEHOLDER_SVG;
                         if (e.target.src !== fallback) {
                             e.target.src = fallback;
@@ -565,20 +573,37 @@ export function DealSidebar({
                 <div className={styles["deal-image-actions"]}>
                     <button
                         type="button"
-                        onClick={() => {
-                            const url = buildStreetViewUrlFromAddress(inp);
-                            if (url) {
+                        onClick={async () => {
+                            setStreetViewError("");
+                            setStreetViewLoading(true);
+                            try {
+                                const url = await fetchStreetViewUrl(
+                                    inp,
+                                    user ? () => user.getIdToken() : null
+                                );
                                 upd("image", url);
                                 upd("imageFallback", inp?.imageFallback ?? "");
+                            } catch (err) {
+                                setStreetViewError(err?.message || "Failed to load Street View.");
+                            } finally {
+                                setStreetViewLoading(false);
                             }
                         }}
-                        disabled={!inp?.street && !inp?.city && !inp?.state && !inp?.zipCode}
+                        disabled={
+                            streetViewLoading ||
+                            (!inp?.street && !inp?.city && !inp?.state && !inp?.zipCode)
+                        }
                         className={styles["btn-estimate-rent"]}
                         title="Use Google Street View image for this address"
                         style={{ marginTop: 8, width: '100%' }}
                     >
-                        Get Street View
+                        {streetViewLoading ? "Loading Street View…" : "Get Street View"}
                     </button>
+                    {streetViewError && (
+                        <div className={styles["deal-image-error"]} role="alert">
+                            {streetViewError}
+                        </div>
+                    )}
                     <input
                         ref={imageInputRef}
                         type="file"
