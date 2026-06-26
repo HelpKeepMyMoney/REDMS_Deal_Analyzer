@@ -266,6 +266,22 @@
   .users-create-card {
     flex: 0 0 auto;
   }
+
+  .admin-page {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .users-table-card,
+  .admin-card {
+    padding: 16px;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
 }
 
 .admin-card {

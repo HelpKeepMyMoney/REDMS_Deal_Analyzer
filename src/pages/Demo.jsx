@@ -19,7 +19,10 @@ import {
   CpinTab,
   PropertySearch,
   DealInterestActions,
+  MobileHeaderActions,
+  SidebarBackdrop,
 } from "../components";
+import { useMobileLayout } from "../hooks/useMobileLayout.js";
 import { generateDealPDF, generateRetailInvestorPDF } from "../utils/pdfExport.js";
 import { SITE_URL } from "../seo/constants.js";
 import styles from "../REDMS.module.css";
@@ -66,7 +69,7 @@ export default function Demo() {
   const { config } = useConfig();
   const [inp, setInp] = useState(() => ({ ...DEFAULT_INPUT }));
   const [tab, setTab] = useState("flip");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isMobile, sidebarCollapsed, toggleSidebar, closeSidebar } = useMobileLayout();
   const [showPropertySearch, setShowPropertySearch] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
   const [retailPdfExporting, setRetailPdfExporting] = useState(false);
@@ -235,29 +238,6 @@ export default function Demo() {
           <div className={styles["hdr-sub"]}>Real Estate Deal Management System</div>
         </div>
         <div className={styles["hdr-right"]}>
-          <button type="button" className={styles["hdr-pdf-btn"]} onClick={() => navigate("/")}>Home</button>
-          {!showPropertySearch && (
-            <>
-              <button
-                type="button"
-                className={styles["hdr-pdf-btn"]}
-                onClick={handleExportPDF}
-                disabled={pdfExporting || retailPdfExporting}
-                title="Download deal summary as PDF"
-              >
-                {pdfExporting ? "Generating…" : "Investor Printout"}
-              </button>
-              <button
-                type="button"
-                className={styles["hdr-pdf-btn"]}
-                onClick={handleExportRetailPDF}
-                disabled={pdfExporting || retailPdfExporting}
-                title="Download retail investor PDF"
-              >
-                {retailPdfExporting ? "Generating…" : "Retail Investor Printout"}
-              </button>
-            </>
-          )}
           <div
             className={`${styles.badge} ${styles["badge-" + dc]}`}
             aria-live="polite"
@@ -265,16 +245,43 @@ export default function Demo() {
           >
             {badgeText}
           </div>
-          <Link to="/login?mode=signup" className={styles["hdr-demo-cta"]}>
-            Create a Free Account
-          </Link>
+          <MobileHeaderActions label="Menu">
+            <button type="button" className={styles["hdr-pdf-btn"]} onClick={() => navigate("/")}>Home</button>
+            {!showPropertySearch && (
+              <>
+                <button
+                  type="button"
+                  className={styles["hdr-pdf-btn"]}
+                  onClick={handleExportPDF}
+                  disabled={pdfExporting || retailPdfExporting}
+                  title="Download deal summary as PDF"
+                >
+                  {pdfExporting ? "Generating…" : "Investor Printout"}
+                </button>
+                <button
+                  type="button"
+                  className={styles["hdr-pdf-btn"]}
+                  onClick={handleExportRetailPDF}
+                  disabled={pdfExporting || retailPdfExporting}
+                  title="Download retail investor PDF"
+                >
+                  {retailPdfExporting ? "Generating…" : "Retail Investor Printout"}
+                </button>
+              </>
+            )}
+            <Link to="/login?mode=signup" className={styles["hdr-demo-cta"]}>
+              Create a Free Account
+            </Link>
+          </MobileHeaderActions>
         </div>
       </header>
+
+      <SidebarBackdrop visible={isMobile && !sidebarCollapsed} onClose={closeSidebar} />
 
       <button
         type="button"
         className={styles["sidebar-toggle"]}
-        onClick={() => setSidebarCollapsed((c) => !c)}
+        onClick={toggleSidebar}
         aria-expanded={!sidebarCollapsed}
         aria-controls="redms-sidebar"
       >
@@ -341,14 +348,15 @@ export default function Demo() {
               </div>
               <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
               <div>
-                <div className={styles.tabs} role="tablist" aria-label="Deal views">
-                  {[
-                    ["flip", "Purchase & Flip"],
-                    ["bh", "Buy & Hold"],
-                    ["proj", "30-Yr Projection"],
-                    ["retail", "Retail Investor"],
-                    ["cpin", "CPIN / LP Offering"],
-                  ].map(([k, l]) => (
+                <div className={styles["tabs-scroll"]}>
+                  <div className={styles.tabs} role="tablist" aria-label="Deal views">
+                    {[
+                      ["flip", "Purchase & Flip"],
+                      ["bh", "Buy & Hold"],
+                      ["proj", "30-Yr Projection"],
+                      ["retail", "Retail Investor"],
+                      ["cpin", "CPIN / LP Offering"],
+                    ].map(([k, l]) => (
                     <button
                       key={k}
                       type="button"
@@ -362,6 +370,7 @@ export default function Demo() {
                       {l}
                     </button>
                   ))}
+                  </div>
                 </div>
                 {tab === "flip" && <FlipTab r={r} inp={inp} isFreeTier={false} />}
                 {tab === "bh" && <BuyAndHoldTab r={r} inp={inp} upd={() => {}} maxTpc={maxTpc} isFreeTier={false} readOnly={true} />}

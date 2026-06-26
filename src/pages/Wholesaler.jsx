@@ -29,7 +29,10 @@ import {
   ProjectionsTab,
   AdminDropdown,
   WholesalerModuleDropdown,
+  MobileHeaderActions,
+  SidebarBackdrop,
 } from "../components";
+import { useMobileLayout } from "../hooks/useMobileLayout.js";
 import { generateWholesalerProformaPDF, generateWholesalerReportPDF } from "../utils/wholesalerPdfExport.js";
 import styles from "../REDMS.module.css";
 
@@ -51,7 +54,7 @@ export default function Wholesaler() {
   const [inp, setInp] = useState(() => ({ ...DEFAULT_INPUT }));
   const [riskOverrides, setRiskOverrides] = useState({});
   const [tab, setTab] = useState("wholesaler");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isMobile, sidebarCollapsed, toggleSidebar, closeSidebar } = useMobileLayout();
   const [savedDeals, setSavedDeals] = useState([]);
   const [dealListSort, setDealListSort] = useState("name-asc");
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
@@ -238,24 +241,6 @@ export default function Wholesaler() {
           <div className={styles["hdr-title"]}>REDMS Wholesaler</div>
         </div>
         <div className={styles["hdr-right"]}>
-          <button
-            type="button"
-            className={styles["hdr-pdf-btn"]}
-            onClick={handleExportProforma}
-            disabled={proformaExporting || reportExporting || !currentDealId}
-            title={!currentDealId ? "Save a deal first" : "Download proforma for buyer"}
-          >
-            {proformaExporting ? "Generating…" : "Export Proforma"}
-          </button>
-          <button
-            type="button"
-            className={styles["hdr-pdf-btn"]}
-            onClick={handleExportReport}
-            disabled={proformaExporting || reportExporting || !currentDealId}
-            title={!currentDealId ? "Save a deal first" : "Download internal report"}
-          >
-            {reportExporting ? "Generating…" : "Wholesaler Report"}
-          </button>
           <div
             className={`${styles.badge} ${styles["badge-" + dc]}`}
             aria-live="polite"
@@ -264,35 +249,57 @@ export default function Wholesaler() {
           >
             {badgeText}
           </div>
-          <nav className={styles["hdr-nav"]} aria-label="Account">
-            {!isAdmin && (
-              <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
-            )}
-            {isAdmin ? (
-              <AdminDropdown email={user?.email} />
-            ) : isWholesaler ? (
-              <>
-                <WholesalerModuleDropdown />
-                <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
-              </>
-            ) : (
-              <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
-            )}
+          <MobileHeaderActions label="Actions">
             <button
               type="button"
-              className={styles["hdr-signout"]}
-              onClick={handleSignOut}
+              className={styles["hdr-pdf-btn"]}
+              onClick={handleExportProforma}
+              disabled={proformaExporting || reportExporting || !currentDealId}
+              title={!currentDealId ? "Save a deal first" : "Download proforma for buyer"}
             >
-              Sign out
+              {proformaExporting ? "Generating…" : "Export Proforma"}
             </button>
-          </nav>
+            <button
+              type="button"
+              className={styles["hdr-pdf-btn"]}
+              onClick={handleExportReport}
+              disabled={proformaExporting || reportExporting || !currentDealId}
+              title={!currentDealId ? "Save a deal first" : "Download internal report"}
+            >
+              {reportExporting ? "Generating…" : "Wholesaler Report"}
+            </button>
+            <nav className={styles["hdr-nav"]} aria-label="Account">
+              {!isAdmin && (
+                <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
+              )}
+              {isAdmin ? (
+                <AdminDropdown email={user?.email} />
+              ) : isWholesaler ? (
+                <>
+                  <WholesalerModuleDropdown />
+                  <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+                </>
+              ) : (
+                <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+              )}
+              <button
+                type="button"
+                className={styles["hdr-signout"]}
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </nav>
+          </MobileHeaderActions>
         </div>
       </header>
+
+      <SidebarBackdrop visible={isMobile && !sidebarCollapsed} onClose={closeSidebar} />
 
       <button
         type="button"
         className={styles["sidebar-toggle"]}
-        onClick={() => setSidebarCollapsed((c) => !c)}
+        onClick={toggleSidebar}
         aria-expanded={!sidebarCollapsed}
         aria-controls="redms-sidebar"
       >
@@ -348,27 +355,29 @@ export default function Wholesaler() {
             <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
 
             <div>
-              <div className={styles.tabs} role="tablist" aria-label="Deal views">
-                {[
-                  ["wholesaler", "Wholesaler"],
-                  ["flip", "Purchase & Flip"],
-                  ["bh", "Buy & Hold"],
-                  ["proj", "30-Yr Projection"],
-                  ["retail", "Retail Investor"],
-                ].map(([k, l]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === k}
-                    aria-controls={`panel-${k}`}
-                    id={`tab-${k}`}
-                    className={`${styles.tab} ${tab === k ? styles.on : ""}`}
-                    onClick={() => setTab(k)}
-                  >
-                    {l}
-                  </button>
-                ))}
+              <div className={styles["tabs-scroll"]}>
+                <div className={styles.tabs} role="tablist" aria-label="Deal views">
+                  {[
+                    ["wholesaler", "Wholesaler"],
+                    ["flip", "Purchase & Flip"],
+                    ["bh", "Buy & Hold"],
+                    ["proj", "30-Yr Projection"],
+                    ["retail", "Retail Investor"],
+                  ].map(([k, l]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === k}
+                      aria-controls={`panel-${k}`}
+                      id={`tab-${k}`}
+                      className={`${styles.tab} ${tab === k ? styles.on : ""}`}
+                      onClick={() => setTab(k)}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {tab === "wholesaler" && <WholesalerTab r={r} inp={inp} />}

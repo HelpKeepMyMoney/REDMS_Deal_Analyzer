@@ -3,6 +3,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  --bp-sm: 500px;
+  --bp-md: 768px;
+  --bp-lg: 900px;
+  --bp-xl: 1024px;
   --bg: #0d0e10;
   --surface: #141518;
   --surface2: #1b1d21;

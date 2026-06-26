@@ -47,7 +47,10 @@ import {
   DealInterestActions,
   AdminDropdown,
   WholesalerModuleDropdown,
+  MobileHeaderActions,
+  SidebarBackdrop,
 } from "./components";
+import { useMobileLayout } from "./hooks/useMobileLayout.js";
 import { generateDealPDF, generateRetailInvestorPDF } from "./utils/pdfExport.js";
 import styles from "./REDMS.module.css";
 
@@ -101,7 +104,7 @@ export default function REDMS() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [inp, setInp] = useState(() => getInitialInput());
   const [tab, setTab] = useState("flip");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isMobile, sidebarCollapsed, toggleSidebar, closeSidebar } = useMobileLayout();
   const [savedDeals, setSavedDeals] = useState([]);
   const [dealListSort, setDealListSort] = useState("updated-desc");
   const [savedDealsLoading, setSavedDealsLoading] = useState(false);
@@ -778,6 +781,15 @@ export default function REDMS() {
           </div>
         </div>
         <div className={styles["hdr-right"]}>
+          <div
+            className={`${styles.badge} ${styles["badge-" + dc]}`}
+            aria-live="polite"
+            aria-atomic="true"
+            role="status"
+          >
+            {badgeText}
+          </div>
+        <MobileHeaderActions label="Actions">
           {!showPropertySearch && (
             <>
               <button
@@ -800,14 +812,6 @@ export default function REDMS() {
               </button>
             </>
           )}
-          <div
-            className={`${styles.badge} ${styles["badge-" + dc]}`}
-            aria-live="polite"
-            aria-atomic="true"
-            role="status"
-          >
-            {badgeText}
-          </div>
           <nav className={styles["hdr-nav"]} aria-label="Account">
             {!isAdmin && (
               <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
@@ -830,13 +834,16 @@ export default function REDMS() {
               Sign out
             </button>
           </nav>
+        </MobileHeaderActions>
         </div>
       </header>
+
+      <SidebarBackdrop visible={isMobile && !sidebarCollapsed} onClose={closeSidebar} />
 
       <button
         type="button"
         className={styles["sidebar-toggle"]}
-        onClick={() => setSidebarCollapsed((c) => !c)}
+        onClick={toggleSidebar}
         aria-expanded={!sidebarCollapsed}
         aria-controls="redms-sidebar"
       >
@@ -945,27 +952,29 @@ export default function REDMS() {
               <DealMetrics inp={inp} r={r} maxTpc={maxTpc} />
 
               <div>
-                <div className={styles.tabs} role="tablist" aria-label="Deal views">
-                  {[
-                    ["flip", "Purchase & Flip"],
-                    ["bh", "Buy & Hold"],
-                    ["proj", "30-Yr Projection"],
-                    ["retail", "Retail Investor"],
-                    ["cpin", "CPIN / LP Offering"],
-                  ].map(([k, l]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === k}
-                      aria-controls={`panel-${k}`}
-                      id={`tab-${k}`}
-                      className={`${styles.tab} ${tab === k ? styles.on : ""}`}
-                      onClick={() => setTab(k)}
-                    >
-                      {l}
-                    </button>
-                  ))}
+                <div className={styles["tabs-scroll"]}>
+                  <div className={styles.tabs} role="tablist" aria-label="Deal views">
+                    {[
+                      ["flip", "Purchase & Flip"],
+                      ["bh", "Buy & Hold"],
+                      ["proj", "30-Yr Projection"],
+                      ["retail", "Retail Investor"],
+                      ["cpin", "CPIN / LP Offering"],
+                    ].map(([k, l]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === k}
+                        aria-controls={`panel-${k}`}
+                        id={`tab-${k}`}
+                        className={`${styles.tab} ${tab === k ? styles.on : ""}`}
+                        onClick={() => setTab(k)}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {tab === "flip" && <FlipTab r={r} inp={inp} isFreeTier={isFreeTier} />}

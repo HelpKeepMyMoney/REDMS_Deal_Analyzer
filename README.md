@@ -20,6 +20,7 @@
 - **Wholesaler module** — Wholesaler-specific deal analyzer with risk overrides, proforma/report PDF export. Header dropdown to switch between Wholesaler and Investor modules. Sidebar shows deals remaining this month and Upgrade button (same as Investor module). Proforma disclaimer shown on the web UI when a deal is selected; both Export Proforma and Wholesaler Report PDFs include the same disclaimer. Deal badge (✓ DEAL / ✗ NO DEAL) requires investor checks to pass and wholesale fee ≥ Min Wholesale Fee.
 - **Profile page** — Contact information (first name, last name, phone number) stored in Firestore; subscription management with usage display (progress bar for free tier); upgrade options shown based on current tier (Investor/Pro can upgrade to higher tiers); tier tooltips with deals-per-month and overage cost; cancel subscription (keeps access until end of billing period, then downgrades to free); delete account (immediate access revocation); email and password update forms. Banner prompts users to complete profile when any contact field is empty. Anchor link `#subscription-heading` scrolls to Subscription section (used by sidebar Upgrade button).
 - **Demo access** — Unauthenticated users can try the platform at `/demo`. Features: read-only access to the demo deal (17917 Mackay St, Detroit, MI 48212); Find Properties with investor properties (addresses blurred except for Mackay); View Deal and report downloads only for Mackay; Express Interest replaced with "Create account to analyze your own deals" CTA; full analyzer tabs (Purchase & Flip, Buy & Hold, 30-Yr Projection, Retail Investor, CPIN) with no tier blur; client-style disclaimer. "Try Demo" and "Free Demo" buttons on Home page (header, footer, hero, pricing, final CTA). Demo uses fallback data when API is unavailable (e.g. `npm run dev` without `vercel dev`).
+- **Mobile layout** — Responsive design for phones and tablets (≤900px breakpoint). Deal analyzer pages (`/investor`, `/demo`, `/wholesaler`) use a slide-over sidebar drawer with backdrop, compact header with an **Actions** menu (PDF export, profile, sign out), horizontally scrollable tabs, and stacked metric cards. Property Search and Admin pages adapt to single-column layouts. Uses `100dvh`, safe-area insets, and 44px touch targets. Shared via `useMobileLayout` hook, `MobileHeaderActions`, and `SidebarBackdrop` components.
 
 ## Deal Management (Admin)
 
@@ -79,6 +80,7 @@ Values are stored in Firestore (`appConfig/params`) and apply to all deal calcul
 ## Tech Stack
 
 - **React 18** + **Vite 5**
+- **CSS Modules** — Component-scoped styles with shared breakpoint tokens (`--bp-sm/md/lg/xl` in `index.css`)
 - **react-helmet-async** — Document title, meta description, and canonical URLs on public routes
 - **Vitest** + **jsdom** for tests
 
@@ -131,7 +133,8 @@ npm run test:run
   - `userFavoritesStorage.js` — user favorites.
   - `userMetadataStorage.js` — last login (via API).
   - `interestApi.js` — interest requests (favorite, Zoom, buy).
-- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, **DealShareSummary** (admin Deal Sharing right panel), AdminDropdown, WholesalerModuleDropdown, UserDetailModal.
+- `src/components/` — Field, DetailRow, MetricCard, DealSidebar, DealInterestActions, PropertySearch, DealCard, **DealShareSummary** (admin Deal Sharing right panel), AdminDropdown, WholesalerModuleDropdown, UserDetailModal, **MobileHeaderActions** (responsive header menu), **SidebarBackdrop** (mobile drawer overlay).
+- `src/hooks/useMobileLayout.js` — Mobile breakpoint detection (`max-width: 900px`), sidebar drawer state (defaults collapsed on mobile).
 - `api/` — Vercel serverless functions (10 total to stay under Hobby 12 limit). Consolidated: `api/admin-handler.js` (list-users, create-user, delete-user, set-role, set-user-config, account delete); `api/subscription-handler.js` (status, cancel, complete). Other: demo, user-metadata, auth/signup-notification, cron/subscription-cancel-period-end, interest/create, subscription/create, charge-overage, webhook, rentcast-usage. Rewrites in `vercel.json` route legacy URLs to consolidated handlers.
 - `lib/` — Shared API utilities (firebase-admin, requireAuth, requireAdmin, resend, paypal, paypal-cancel). `paypal-cancel.js` provides subscription create, cancel, getPlanId, and getCycleFromPlanId via REST API (no SDK) for admin-handler, subscription/create, webhook, and cron; avoids `@paypal/paypal-server-sdk` ESM issues in Vercel serverless.
 
@@ -187,6 +190,7 @@ Admin features (user management, interest API, user metadata, subscriptions) use
 
 ## Recent Changes
 
+- **Mobile layout** — Added responsive mobile experience for the deal analyzer (`/investor`, `/demo`, `/wholesaler`): slide-over sidebar drawer with backdrop, compact header with **Actions** dropdown (PDF export, profile, sign out), horizontally scrollable tabs, stacked metrics and panels. Property Search and Admin pages get single-column mobile layouts. New `useMobileLayout` hook, `MobileHeaderActions`, and `SidebarBackdrop` components; breakpoint tokens in `index.css`; `viewport-fit=cover` in `index.html`.
 - **Sidebar — auto tax & insurance from acquisition inputs** — **New Property Tax ($)** and **Landlord's Insurance ($)** stay in sync when **Contract Price (to seller)**, **Rehab Cost ($)**, or **Rehab Level** changes (Investor and Wholesaler). Shared helper `estimatedTaxInsuranceFromOffer` in `redmsCalc.js` uses configurable Detroit tax parameters; sidebar **Calculate** / **Update** buttons use the same helper.
 - **Admin Deal Management — notes on cards** — `DealCard` now lists every note from `notesHistory` (newest first, with date labels) instead of only the legacy single `notes` field, so admin deal cards stay in sync with Investor sidebar note history.
 - **PDF report notes overhaul (all notes + dates + stable source)** — Investor and Retail Investor PDF exports now render deal notes from `notesHistory` (oldest-first) and print each note with a date prefix (`MM/DD/YYYY - ...`). Reports now include the full notes list instead of a single legacy note field, retail printouts now include notes, and legacy `notes` is used only as a fallback when `notesHistory` is empty to prevent duplicate or deleted stale notes from appearing in exports.

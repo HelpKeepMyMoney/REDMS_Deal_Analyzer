@@ -577,3 +577,79 @@
   margin-bottom: 1rem;
   opacity: 0.5;
 }
+
+@media (max-width: 900px) {
+  .container {
+    padding: 0.75rem;
+  }
+
+  .searchForm {
+    padding: 1rem;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchButton {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .resultsHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .resultsToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sortFilterRow {
+    flex-wrap: wrap;
+  }
+
+  .filterInput {
+    width: 100%;
+    flex: 1;
+  }
+
+  .saveResultsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .saveNameInput {
+    max-width: none;
+    width: 100%;
+  }
+
+  .resultsGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .cardMetrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .savedSearchesList {
+    flex-direction: column;
+  }
+
+  .savedSearchItem {
+    width: 100%;
+  }
+
+  .savedSearchLoad {
+    flex: 1;
+  }
+}

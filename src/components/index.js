@@ -18,3 +18,5 @@ export { UserDetailModal } from "./UserDetailModal.jsx";
 export { DealCard } from "./DealCard/index.js";
 export { DealShareSummary } from "./DealShareSummary.jsx";
 export { WholesalerModuleDropdown } from "./WholesalerModuleDropdown.jsx";
+export { MobileHeaderActions } from "./MobileHeaderActions.jsx";
+export { SidebarBackdrop } from "./SidebarBackdrop.jsx";
