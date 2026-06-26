@@ -34,6 +34,7 @@ export function AdminDropdown({ email, className }) {
         title={email}
       >
         <span className={styles.email}>{email ?? ""}</span>
+        <span className={styles.mobileLabel}>Modules</span>
         <span className={styles.chevron} aria-hidden>{open ? "▲" : "▼"}</span>
       </button>
       {open && (

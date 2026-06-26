@@ -249,6 +249,15 @@ export default function Wholesaler() {
           >
             {badgeText}
           </div>
+          {(isAdmin || isWholesaler) && (
+            <div className={styles["hdr-module-switch"]}>
+              {isAdmin ? (
+                <AdminDropdown email={user?.email} />
+              ) : (
+                <WholesalerModuleDropdown />
+              )}
+            </div>
+          )}
           <MobileHeaderActions label="Actions">
             <button
               type="button"
@@ -272,14 +281,10 @@ export default function Wholesaler() {
               {!isAdmin && (
                 <Link to="/profile" className={styles["hdr-nav-link"]}>Profile</Link>
               )}
-              {isAdmin ? (
-                <AdminDropdown email={user?.email} />
-              ) : isWholesaler ? (
-                <>
-                  <WholesalerModuleDropdown />
-                  <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
-                </>
-              ) : (
+              {!isAdmin && !isWholesaler && (
+                <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
+              )}
+              {isWholesaler && !isAdmin && (
                 <span className={styles["hdr-email"]} title={user?.email}>{user?.email ?? ""}</span>
               )}
               <button

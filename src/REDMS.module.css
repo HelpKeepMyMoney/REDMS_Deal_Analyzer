@@ -10,6 +10,12 @@
   overflow: hidden;
 }
 
+.hdr-module-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .hdr-actions-wrap {
   display: contents;
 }
@@ -1415,9 +1421,6 @@
 }
 
 .logic {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1637,6 +1640,35 @@
     padding: 10px 12px;
   }
 
+  .logic {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .logic::-webkit-scrollbar {
+    display: none;
+  }
+
+  .logic-item {
+    flex: 0 0 min(200px, 72vw);
+  }
+
+  .logic-val {
+    font-size: 18px;
+  }
+
+  .logic-label {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  .logic-desc {
+    font-size: 10px;
+  }
+
   .ph {
     font-size: 11px;
     padding: 8px 12px;
@@ -1671,10 +1703,6 @@
   .row2,
   .row3 {
     grid-template-columns: 1fr;
-  }
-
-  .logic {
-    flex-direction: column;
   }
 
   .sidebar {

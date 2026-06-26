@@ -35,6 +35,42 @@
   white-space: nowrap;
 }
 
+.mobileLabel {
+  display: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+@media (max-width: 900px) {
+  .trigger {
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    color: var(--amber);
+  }
+
+  .email {
+    display: none;
+  }
+
+  .mobileLabel {
+    display: inline;
+  }
+
+  .menu {
+    z-index: 200;
+    min-width: 160px;
+  }
+
+  .item {
+    padding: 12px 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
 .chevron {
   font-size: 8px;
   opacity: 0.8;
