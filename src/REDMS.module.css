@@ -1448,6 +1448,10 @@
   font-weight: 600;
 }
 
+.logic-label-short {
+  display: none;
+}
+
 .logic-val {
   font-weight: 700;
   font-size: 24px;
@@ -1641,32 +1645,42 @@
   }
 
   .logic {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    gap: 10px;
-    padding: 10px 12px;
-  }
-
-  .logic::-webkit-scrollbar {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 10px;
   }
 
   .logic-item {
-    flex: 0 0 min(200px, 72vw);
+    flex: unset;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .logic-label-full {
+    display: none;
+  }
+
+  .logic-label-short {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    margin-bottom: 2px;
   }
 
   .logic-val {
-    font-size: 18px;
-  }
-
-  .logic-label {
-    font-size: 9px;
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    line-height: 1.1;
   }
 
   .logic-desc {
-    font-size: 10px;
+    font-size: 8px;
+    line-height: 1.2;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .ph {
@@ -1708,5 +1722,13 @@
   .sidebar {
     width: 100vw;
     max-width: none;
+  }
+
+  .logic-val {
+    font-size: 11px;
+  }
+
+  .logic-label-short {
+    font-size: 7px;
   }
 }

@@ -10,7 +10,10 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
         <>
             <div className={styles.logic}>
                 <div className={styles["logic-item"]}>
-                    <div className={styles["logic-label"]}>Check 1 · Flip Cash-on-Cash ≥ 25%</div>
+                    <div className={styles["logic-label"]}>
+                        <span className={styles["logic-label-full"]}>Check 1 · Flip Cash-on-Cash ≥ 25%</span>
+                        <span className={styles["logic-label-short"]}>Flip CoC</span>
+                    </div>
                     <div className={`${styles["logic-val"]} ${r.dealCheck1 ? styles.logicValFail : styles.logicValPass}`}>
                         {r.dealCheck1 ? "✗ FAIL" : "✓ PASS"}
                     </div>
@@ -19,14 +22,20 @@ export function DealMetrics({ inp, r, maxTpc = 60000 }) {
                     </div>
                 </div>
                 <div className={styles["logic-item"]}>
-                    <div className={styles["logic-label"]}>Check 2 · B&H CoC ≥ 10%</div>
+                    <div className={styles["logic-label"]}>
+                        <span className={styles["logic-label-full"]}>Check 2 · B&H CoC ≥ 10%</span>
+                        <span className={styles["logic-label-short"]}>B&H CoC</span>
+                    </div>
                     <div className={`${styles["logic-val"]} ${r.dealCheck2 ? styles.logicValFail : styles.logicValPass}`}>
                         {r.dealCheck2 ? "✗ FAIL" : "✓ PASS"}
                     </div>
                     <div className={styles["logic-desc"]}>{pct(r.bhCashOnCash)} cash-on-cash</div>
                 </div>
                 <div className={styles["logic-item"]}>
-                    <div className={styles["logic-label"]}>Check 3 · B&H Cash ≤ ${(maxTpc / 1000).toFixed(0)}K</div>
+                    <div className={styles["logic-label"]}>
+                        <span className={styles["logic-label-full"]}>Check 3 · B&H Cash ≤ ${(maxTpc / 1000).toFixed(0)}K</span>
+                        <span className={styles["logic-label-short"]}>B&H Cash</span>
+                    </div>
                     <div className={`${styles["logic-val"]} ${r.dealCheck3 ? styles.logicValFail : styles.logicValPass}`}>
                         {r.dealCheck3 ? "✗ FAIL" : "✓ PASS"}
                     </div>
